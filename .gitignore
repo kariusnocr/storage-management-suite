@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Unit test / coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / Editor metadata
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Environment & credentials (never commit)
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+*secret*.json
+
+# Local runtime data & large caches (stored in ~/storage_data outside repo)
+storage_data/
+content_cache/
+snapshots/
+runs/
+*.tmp
+*.bak

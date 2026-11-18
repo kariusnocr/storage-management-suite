@@ -1,0 +1,44 @@
+name: Storage Suite CI
+
+on:
+  push:
+    branches: [ main, "sync/**" ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-suite:
+    name: Kiểm thử tự động (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Thiết lập Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Kiểm tra cú pháp tĩnh toàn bộ mô-đun [01]–[15]
+        run: |
+          python3 -c '
+          import pathlib, py_compile, sys
+          files = sorted(pathlib.Path(".").rglob("*.py"))
+          for f in files:
+              py_compile.compile(str(f), doraise=True)
+          print(f"Đã kiểm tra cú pháp thành công {len(files)} tệp Python.")
+          '
+
+      - name: Kiểm toán bảo mật mã nguồn ([15] github_sync.py)
+        run: |
+          python3 "[15] ĐỒNG BỘ GITHUB/github_sync.py" kiem-tra-bao-mat
+
+      - name: Chạy bộ kiểm thử tự động ngoại tuyến ([01] test_storage_suite.py)
+        run: |
+          python3 -m unittest discover -s "[01] THƯ VIỆN LÕI/tests" -v
