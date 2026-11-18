@@ -463,7 +463,7 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
                 self.assertGreaterEqual(rows, 2)
                 import openpyxl
                 wb = openpyxl.load_workbook(xlsx)
-                self.assertEqual(wb.sheetnames, ["Danh Mục Hệ Thống", "Thống Kê Nhanh"])
+                self.assertEqual(wb.sheetnames, ["Danh Mục Hệ Thống", "Thống Kê & Siêu Dữ Liệu", "Thư Mục Con Trực Tiếp"])
 
                 sig1 = sheet_engine.compute_subtree_signature(index, p)
                 index[f"{p}/[00] TỔNG QUAN"]["items"][0]["modifiedTime"] = "2026-11-17T09:00:00Z"
@@ -482,6 +482,76 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
                     os.environ.pop("STORAGE_DATA_DIR", None)
                 else:
                     os.environ["STORAGE_DATA_DIR"] = old_env
+
+    def test_v3_helpers_trailing_hyphen_id_and_centralized_catalog_audit(self):
+        self.assertEqual(
+            sc.catalog_folder_for_path("[A] STORAGE"),
+            "[A] STORAGE/[00] TỔNG QUAN",
+        )
+        self.assertEqual(
+            sc.catalog_folder_for_path("[A] STORAGE/[05] SƯU TẦM/[01] SÁCH"),
+            "[A] STORAGE/[00] TỔNG QUAN/[01] DANH SÁCH/[05] SƯU TẦM/[01] SÁCH",
+        )
+        self.assertEqual(sc.fmt_date_vn("2026-11-17T20:05:00Z"), "18-11-2026")
+        self.assertEqual(sc.fmt_datetime_vn("2026-11-17T20:05:00Z"), "18-11-2026 03:05 (UTC+7)")
+        self.assertEqual(sc.format_label(sc.FOLDER_MIME, "[01] A"), "Thư mục")
+        self.assertEqual(sc.format_label(sc.SHORTCUT_MIME, "Shortcut X"), "Shortcut")
+        self.assertEqual(sc.format_label(sc.SHEET_MIME, "Danh Mục Hệ Thống - Storage"), "Google Sheets")
+        self.assertEqual(sc.format_label("application/pdf", "Báo Cáo - A.pdf"), "PDF")
+        self.assertEqual(
+            sc.extract_extra_info_v6("[00] TỔNG QUAN", sc.FOLDER_MIME),
+            "Thư mục tổng quan & danh mục hệ thống",
+        )
+        self.assertEqual(
+            sc.extract_extra_info_v6("Sách Hay - Tác Giả - 2026.pdf", "application/pdf"),
+            "Tác Giả - 2026",
+        )
+        self.assertEqual(
+            sc.extract_extra_info_v6(
+                "Sách Y", sc.SHORTCUT_MIME,
+                shortcut_info={"targetName": "[01] SÁCH", "targetMime": sc.FOLDER_MIME, "targetStatus": "ok"},
+            ),
+            "→ [Thư mục] [01] SÁCH",
+        )
+        self.assertEqual(
+            sc.summarize_owners({"owners": [{"displayName": "Đạt Minh"}]}),
+            "Đạt Minh",
+        )
+        self.assertEqual(
+            sc.summarize_sharing({
+                "permissions": [
+                    {"id": "anyoneWithLink", "type": "anyone", "role": "writer"},
+                    {"id": "1", "type": "user", "role": "owner"},
+                    {"id": "2", "type": "user", "role": "writer"},
+                ]
+            }),
+            "Công khai qua link (sửa) + 1 nội bộ (1 sửa)",
+        )
+
+        # Kiểm tra regex bắt đủ ID 33 ký tự có dấu `-` ở cuối từ kết quả gdrive
+        trailing_id = "1234567890abcdefghijklmnopqrstuv-"
+        d = sc.Drive(bin_path="/bin/true")
+        d.run = lambda *a, **kw: f"Created folder {trailing_id}\n"
+        d.ls = lambda *a, **kw: []
+        self.assertEqual(d.mkdir("THU MUC", "parent123"), trailing_id)
+        d.run = lambda *a, **kw: f"Copied file {trailing_id} into parent\n"
+        self.assertEqual(d.copy("src123", "File - A.pdf", "parent123"), trailing_id)
+
+        # Kiểm tra naming_auditor và storage_inspector nhận diện bảng tập trung tại [01] DANH SÁCH
+        p = "[A] STORAGE/[05] SƯU TẦM"
+        cat_p = sc.catalog_folder_for_path(p)
+        idx = {
+            "[A] STORAGE": {"id": "root", "depth": 0, "items": [_it("id_tq", "[00] TỔNG QUAN", sc.FOLDER_MIME), _it("id_st", "[05] SƯU TẦM", sc.FOLDER_MIME)]},
+            "[A] STORAGE/[00] TỔNG QUAN": {"id": "id_tq", "depth": 1, "items": [_it("sh_root", "Danh Mục Hệ Thống - Storage", sc.SHEET_MIME), _it("id_ds", "[01] DANH SÁCH", sc.FOLDER_MIME)]},
+            sc.DANH_SACH_PATH: {"id": "id_ds", "depth": 2, "items": [_it("ds_st", "[05] SƯU TẦM", sc.FOLDER_MIME)]},
+            cat_p: {"id": "ds_st", "depth": 3, "items": [_it("sh_st", "Danh Mục Hệ Thống - Sưu Tầm", sc.SHEET_MIME)]},
+            p: {"id": "id_st", "depth": 1, "items": [_it("st_tq", "[00] TỔNG QUAN", sc.FOLDER_MIME)]},
+            f"{p}/[00] TỔNG QUAN": {"id": "st_tq", "depth": 2, "items": [_it("md_st", "Tổng Quan Hệ Thống - Sưu Tầm.md", "text/markdown")]},
+        }
+        aud_issues = naming_auditor.audit(idx, check_structure=True)
+        self.assertFalse(any(i[1] == "THIEU_DANH_MUC" for i in aud_issues), f"Unexpected THIEU_DANH_MUC: {aud_issues}")
+        gaps = storage_inspector.audit_tong_quan_coverage(idx)
+        self.assertFalse(any(g["path"] == p for g in gaps), f"Unexpected coverage gap: {gaps}")
 
     def test_stats_reporter_health_score_and_unbounded_csv(self):
         with tempfile.TemporaryDirectory() as td:

@@ -101,7 +101,7 @@ def audit(index, branch=None, check_structure=True):
                     issues.append(("CẢNH BÁO", "TRUNG_STT", path, it["name"], it["id"], "Thư mục",
                                    f"STT [{stt:02d}] bị dùng {len(group)} lần", ""))
         nums = sorted(n for n in stts if 0 < n < 90)
-        if nums:
+        if nums and not sc.is_in_danh_sach_tree(path):
             missing = sorted(set(range(1, nums[-1] + 1)) - set(nums))
             if missing:
                 issues.append(("GỢI Ý", "NHAY_STT", path, "", data.get("id", ""), "Thư mục",
@@ -116,9 +116,11 @@ def audit(index, branch=None, check_structure=True):
             if sc.is_in_tong_quan(parent_path):
                 continue
             expected_sheet = sc.normalize_sheet_title(parent_path)
+            cat_path = sc.catalog_folder_for_path(parent_path)
+            cat_items = index.get(cat_path, {}).get("items", []) if cat_path != path else []
             has_sheet = any(
                 it.get("mimeType") == sc.SHEET_MIME and it["name"].startswith("Danh Mục Hệ Thống - ")
-                for it in items
+                for it in [*items, *cat_items]
             )
             if not has_sheet:
                 issues.append(("CẢNH BÁO", "THIEU_DANH_MUC", path, "", data.get("id", ""), "Thư mục",
