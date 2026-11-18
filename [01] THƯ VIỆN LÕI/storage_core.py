@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-THƯ VIỆN LÕI — BỘ CHƯƠNG TRÌNH QUẢN LÝ [A] STORAGE (CHUẨN V6, v3.0)
+THƯ VIỆN LÕI — BỘ CHƯƠNG TRÌNH QUẢN LÝ [A] STORAGE (CHUẨN V6, v3.3)
 ====================================================================
-Module dùng chung cho mọi chương trình trong `[00] TỔNG QUAN/[03] QUẢN LÝ` (`[01]`–`[12]`).
+Module dùng chung cho mọi chương trình trong `[00] TỔNG QUAN/[03] QUẢN LÝ` (`[01]`–`[18]`).
 
 Cung cấp:
 - Nạp cấu hình tập trung từ `storage_config.json` (ID kho, `[07] KIỂM TRA`, `[04] NHẬP DỮ LIỆU`, viết tắt, ngoại lệ kỹ thuật).
@@ -35,7 +35,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 
 # ---------------------------------------------------------------------------
 # 1. NẠP CẤU HÌNH KHO
@@ -269,6 +269,19 @@ def github_repo() -> str:
 def github_sync_log_path() -> Path:
     """Nhật kí đồng bộ Git / GitHub."""
     return data_dir() / "github_sync_log.json"
+
+
+def media_cache_dir(kind: str = "") -> Path:
+    """Bộ đệm kết quả phân tích hình ảnh / âm thanh / video (`<STORAGE_DATA_DIR>/media_cache/`)."""
+    base = data_dir() / "media_cache"
+    target = base / kind if kind in {"image", "audio", "video"} else base
+    target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def media_rename_log_path() -> Path:
+    """Nhật kí đổi tên tệp đa phương tiện từ siêu dữ liệu EXIF / ID3 / OCR (hỗ trợ hoàn tác)."""
+    return data_dir() / "media_rename_log.json"
 
 
 # ---------------------------------------------------------------------------

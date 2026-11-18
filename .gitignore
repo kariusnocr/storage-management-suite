@@ -26,6 +26,7 @@ Thumbs.db
 # Local runtime data & large caches (stored in ~/storage_data outside repo)
 storage_data/
 content_cache/
+media_cache/
 snapshots/
 runs/
 *.tmp

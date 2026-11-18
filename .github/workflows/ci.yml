@@ -25,11 +25,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cài đặt thư viện phụ thuộc (openpyxl)
+      - name: Cài đặt công cụ đa phương tiện (ffmpeg, tesseract-ocr, fonts-dejavu-core)
         run: |
-          python3 -m pip install --upgrade pip openpyxl
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg tesseract-ocr fonts-dejavu-core
 
-      - name: Kiểm tra cú pháp tĩnh toàn bộ mô-đun [01]–[15]
+      - name: Cài đặt thư viện phụ thuộc (openpyxl, pillow, numpy)
+        run: |
+          python3 -m pip install --upgrade pip openpyxl pillow numpy
+
+      - name: Kiểm tra cú pháp tĩnh toàn bộ mô-đun [01]–[18]
         run: |
           python3 -c '
           import pathlib, py_compile, sys

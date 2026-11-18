@@ -515,7 +515,7 @@ def create_github_release(
     rel_title = title or f"Bộ Quản Lý [A] STORAGE {tag} ({sc.today_vn()})"
     rel_notes = notes or (
         f"Phát hành bộ chương trình quản trị kho dữ liệu `[A] STORAGE` phiên bản `{tag}` "
-        f"(gồm 15 chương trình `[01]`–`[15]` theo Chuẩn V6)."
+        f"(gồm 18 chương trình `[01]`–`[18]` theo Chuẩn V6)."
     )
     if not execute:
         return {
