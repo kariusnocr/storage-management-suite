@@ -183,13 +183,51 @@ GOOGLE_NATIVE_MIMES = {
     SHORTCUT_MIME,
 }
 TONG_QUAN_FOLDER = CONFIG["tong_quan_folder"]
+DANH_SACH_FOLDER = CONFIG.get("danh_sach_folder", "[01] DANH SÁCH")
+DANH_SACH_PATH = f"{ROOT_NAME}/{TONG_QUAN_FOLDER}/{DANH_SACH_FOLDER}"
 QUARANTINE_FOLDER = CONFIG.get("quarantine_folder", "[07] KIỂM TRA")
+KIEM_TRA_FOLDER = QUARANTINE_FOLDER
 QUARANTINE_MARKERS = ("[07] KIỂM TRA", "[99] KIỂM TRA")
 
 
 def is_quarantine_path(path: str) -> bool:
     """Trả về True nếu đường dẫn thuộc khu vực kiểm tra/cách ly (`[07] KIỂM TRA` hoặc `[99] KIỂM TRA` cũ)."""
     return any(m in path for m in QUARANTINE_MARKERS)
+
+
+is_in_kiem_tra = is_quarantine_path
+
+
+def is_in_danh_sach_tree(path: str) -> bool:
+    """Trả về True nếu đường dẫn thuộc cây danh mục tập trung `[00] TỔNG QUAN/[01] DANH SÁCH`."""
+    return path == DANH_SACH_PATH or path.startswith(DANH_SACH_PATH + "/")
+
+
+def tong_quan_id() -> str:
+    """ID thư mục gốc `[00] TỔNG QUAN` (`1ZLU1RnH4PpJ--CXXPjrum7uxncbOttZU`)."""
+    return os.environ.get(
+        "STORAGE_TONG_QUAN_ID",
+        KNOWN_IDS.get("[00] TỔNG QUAN", "1ZLU1RnH4PpJ--CXXPjrum7uxncbOttZU"),
+    )
+
+
+def danh_sach_id() -> str:
+    """ID thư mục danh mục tập trung `[00] TỔNG QUAN/[01] DANH SÁCH` (`1GqdqbI1yVPD3e-HAenW6WioSQZpPaRYz`)."""
+    return os.environ.get(
+        "STORAGE_DANH_SACH_ID",
+        KNOWN_IDS.get("[00] TỔNG QUAN/[01] DANH SÁCH", "1GqdqbI1yVPD3e-HAenW6WioSQZpPaRYz"),
+    )
+
+
+def catalog_folder_for_path(target_path: str) -> str:
+    """Trả về đường dẫn thư mục chứa bảng `Danh Mục Hệ Thống` theo kiến trúc tập trung v3.1."""
+    clean = nfc(target_path or "").strip().rstrip("/")
+    if not clean or clean == ROOT_NAME:
+        return f"{ROOT_NAME}/{TONG_QUAN_FOLDER}"
+    prefix = f"{ROOT_NAME}/"
+    if clean.startswith(prefix):
+        return f"{DANH_SACH_PATH}/{clean[len(prefix):]}"
+    return f"{clean}/{TONG_QUAN_FOLDER}"
 
 
 def quarantine_root_id() -> str:
@@ -234,6 +272,11 @@ def reports_dir() -> Path:
 def sheets_log_path() -> Path:
     """Bản đồ <đường dẫn thư mục> → bảng `Danh Mục Hệ Thống`."""
     return data_dir() / "uploaded_sheets_log.json"
+
+
+def folder_metadata_path() -> Path:
+    """Bộ đệm siêu dữ liệu thư mục Drive API (createdTime, owners, permissions, description)."""
+    return data_dir() / "folder_metadata.json"
 
 
 def shortcut_cache_path() -> Path:
@@ -288,8 +331,11 @@ def media_rename_log_path() -> Path:
 # 2. TIỆN ÍCH CHUNG
 # ---------------------------------------------------------------------------
 
+_TZ_VN = _dt.timezone(_dt.timedelta(hours=7))
+
+
 def today_vn() -> str:
-    return _dt.datetime.now().strftime("%d-%m-%Y")
+    return _dt.datetime.now(_TZ_VN).strftime("%d-%m-%Y")
 
 
 def now_stamp() -> str:
@@ -298,6 +344,100 @@ def now_stamp() -> str:
 
 def now_utc_iso() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_iso_utc(iso_str: Optional[str]) -> Optional[_dt.datetime]:
+    s = (iso_str or "").strip()
+    if not s:
+        return None
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt_obj = _dt.datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if dt_obj.tzinfo is None:
+        dt_obj = dt_obj.replace(tzinfo=_dt.timezone.utc)
+    return dt_obj.astimezone(_TZ_VN)
+
+
+def fmt_date_vn(iso_str: Optional[str]) -> str:
+    """Định dạng chuỗi ISO-8601 sang `DD-MM-YYYY` (múi giờ UTC+7)."""
+    dt_obj = _parse_iso_utc(iso_str)
+    return dt_obj.strftime("%d-%m-%Y") if dt_obj else ""
+
+
+def fmt_datetime_vn(iso_str: Optional[str]) -> str:
+    """Định dạng chuỗi ISO-8601 sang `DD-MM-YYYY HH:MM (UTC+7)`."""
+    dt_obj = _parse_iso_utc(iso_str)
+    return dt_obj.strftime("%d-%m-%Y %H:%M (UTC+7)") if dt_obj else ""
+
+
+def summarize_owners(meta: Optional[dict]) -> str:
+    """Tóm tắt tên chủ sở hữu từ trường `owners` của Google Drive API."""
+    if not meta:
+        return ""
+    names: List[str] = []
+    seen = set()
+    for owner in meta.get("owners") or []:
+        if not isinstance(owner, dict):
+            continue
+        label = (owner.get("displayName") or "").strip()
+        if not label and owner.get("emailAddress"):
+            label = owner["emailAddress"].split("@", 1)[0].strip()
+        if label and label not in seen:
+            seen.add(label)
+            names.append(label)
+    return ", ".join(names)
+
+
+def summarize_sharing(meta: Optional[dict]) -> str:
+    """Tóm tắt an toàn quyền chia sẻ từ `permissions` (ẩn toàn bộ email và chi tiết cá nhân)."""
+    if not meta:
+        return ""
+    if "permissions" not in meta:
+        return "Đã chia sẻ" if meta.get("shared") is True else ""
+    perms = meta.get("permissions") or []
+    public_part = ""
+    viewers = 0
+    commenters = 0
+    editors = 0
+    for p in perms:
+        if not isinstance(p, dict):
+            continue
+        role = (p.get("role") or "").strip()
+        ptype = (p.get("type") or "").strip()
+        if role == "owner":
+            continue
+        if ptype == "anyone" or p.get("id") == "anyoneWithLink":
+            if role in ("writer", "organizer", "fileOrganizer"):
+                public_part = "Công khai qua link (sửa)"
+            elif role == "commenter":
+                public_part = "Công khai qua link (nhận xét)"
+            else:
+                public_part = "Công khai qua link (xem)"
+        else:
+            if role in ("writer", "organizer", "fileOrganizer"):
+                editors += 1
+            elif role == "commenter":
+                commenters += 1
+            else:
+                viewers += 1
+    internal_parts: List[str] = []
+    if viewers:
+        internal_parts.append(f"{viewers} xem")
+    if commenters:
+        internal_parts.append(f"{commenters} nhận xét")
+    if editors:
+        internal_parts.append(f"{editors} sửa")
+    total_int = viewers + commenters + editors
+    if public_part and total_int:
+        return f"{public_part} + {total_int} nội bộ ({', '.join(internal_parts)})"
+    if public_part:
+        return public_part
+    if total_int:
+        return f"Chia sẻ nội bộ ({', '.join(internal_parts)})"
+    return "Riêng tư (chỉ chủ sở hữu)"
 
 
 def human_size(n: Optional[float]) -> str:
@@ -777,9 +917,11 @@ class Drive:
         return None
 
     # -- ghi ----------------------------------------------------------------
+    _RE_OUT_ID = re.compile(r"(?<![A-Za-z0-9_-])([A-Za-z0-9_-]{25,})(?![A-Za-z0-9_-])")
+
     def mkdir(self, name: str, parent_id: str) -> str:
         out = self.run(["mutate", "mkdir", name, "--parent", parent_id], as_json=False) or ""
-        m = re.search(r"\b([A-Za-z0-9_-]{25,})\b", out)
+        m = self._RE_OUT_ID.search(out)
         found = self.find_child(parent_id, name, folder_only=True)
         if found:
             return found["id"]
@@ -799,7 +941,7 @@ class Drive:
         found = self.find_child(parent_id, Path(local).name)
         if found:
             return found["id"]
-        m = re.search(r"\b([A-Za-z0-9_-]{25,})\b", out)
+        m = self._RE_OUT_ID.search(out)
         return m.group(1) if m else ""
 
     def update(self, file_id: str, local: Path, mime_type: Optional[str] = None) -> None:
@@ -820,7 +962,7 @@ class Drive:
         if parent_id:
             args += ["--parent", parent_id]
         out = self.run(args, as_json=False) or ""
-        m = re.search(r"\b([A-Za-z0-9_-]{25,})\b", out)
+        m = self._RE_OUT_ID.search(out)
         if parent_id:
             found = self.find_child(parent_id, new_name)
             if found:
@@ -830,7 +972,7 @@ class Drive:
     def create_shortcut(self, target_id: str, parent_id: str, shortcut_name: Optional[str] = None) -> str:
         """Tạo shortcut trỏ tới `target_id` trong `parent_id` (và đổi tên nếu truyền `shortcut_name`)."""
         out = self.run(["mutate", "create-shortcut", target_id, parent_id], as_json=False) or ""
-        m = re.search(r"\b([A-Za-z0-9_-]{25,})\b", out)
+        m = self._RE_OUT_ID.search(out)
         sc_id = m.group(1) if m else ""
         if not sc_id:
             for it in self.ls(parent_id):
@@ -1010,7 +1152,7 @@ RE_DATE_PREFIX = re.compile(r"^(\d{2,4}_)?\d{6}_")
 RE_EXT = re.compile(r"\.([A-Za-z0-9]{1,6})$")
 KNOWN_EXTS = {
     "pdf", "epub", "mobi", "azw3", "djvu", "doc", "docx", "xls", "xlsx", "csv", "tsv", "ppt", "pptx",
-    "txt", "md", "rtf", "odt", "ods", "odp", "html", "htm", "json", "xml", "yaml", "yml", "py", "ipynb",
+    "txt", "md", "rtf", "odt", "ods", "odp", "html", "htm", "mht", "mhtml", "json", "xml", "yaml", "yml", "py", "ipynb",
     "js", "ts", "css", "sh", "bat", "zip", "rar", "7z", "tar", "gz", "jpg", "jpeg", "png", "gif", "webp",
     "bmp", "tif", "tiff", "heic", "svg", "mp3", "m4a", "wav", "flac", "ogg", "aac", "wma", "mp4", "mkv",
     "avi", "mov", "wmv", "webm", "flv", "m4v", "srt", "vtt", "ass", "apk", "exe", "msi", "iso", "psd",
@@ -1027,6 +1169,20 @@ SEVERITY_ORDER = {"LỖI": 0, "CẢNH BÁO": 1, "GỢI Ý": 2}
 _VOWELS = set("aeiouyàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵ"
               "áéíóúñüäöüß")
 
+_GOOGLE_MIME_LABELS: Dict[str, str] = {
+    FOLDER_MIME: "Thư mục",
+    SHORTCUT_MIME: "Shortcut",
+    "application/vnd.google-apps.document": "Google Docs",
+    SHEET_MIME: "Google Sheets",
+    "application/vnd.google-apps.presentation": "Google Slides",
+    "application/vnd.google-apps.form": "Google Forms",
+    "application/vnd.google-apps.drawing": "Google Drawings",
+    "application/vnd.google-apps.colaboratory": "Google Colab",
+    "application/vnd.google-apps.site": "Google Sites",
+    "application/vnd.google-apps.map": "Google My Maps",
+    "application/vnd.google-apps.jam": "Google Jamboard",
+}
+
 
 def split_ext(name: str, mime: str = "") -> Tuple[str, str]:
     """Tách (phần tên, đuôi không dấu chấm). Tệp Google gốc/shortcut được coi là không có đuôi."""
@@ -1036,6 +1192,61 @@ def split_ext(name: str, mime: str = "") -> Tuple[str, str]:
     if m and (m.group(1).lower() in KNOWN_EXTS) and m.start() > 0:
         return name[: m.start()], m.group(1)
     return name, ""
+
+
+def format_label(mime: str, name: str = "") -> str:
+    """Trả về nhãn định dạng hiển thị ngắn gọn cho cột `Định Dạng` và thống kê."""
+    m = (mime or "").strip()
+    if m in _GOOGLE_MIME_LABELS:
+        return _GOOGLE_MIME_LABELS[m]
+    if m.startswith("application/vnd.google-apps."):
+        return "Google Workspace"
+    _, ext = split_ext(name or "", m)
+    if ext:
+        return ext.upper()
+    if m == "application/pdf":
+        return "PDF"
+    if m == "text/markdown":
+        return "MD"
+    if m == "text/plain":
+        return "TXT"
+    if "/" in m:
+        sub = m.split("/", 1)[1].split(";", 1)[0].strip()
+        if sub.isalnum() and len(sub) <= 8:
+            return sub.upper()
+    return "Tệp khác"
+
+
+def extract_extra_info_v6(
+    name: str,
+    mime: str = "",
+    parent_path: str = "",
+    shortcut_info: Optional[dict] = None,
+) -> str:
+    """Trích xuất cột `Thông Tin Bổ Sung` theo Chuẩn V6 từ tên mục hoặc thông tin đích shortcut."""
+    clean_name = nfc(name or "").strip()
+    if mime == FOLDER_MIME:
+        return "Thư mục tổng quan & danh mục hệ thống" if clean_name == TONG_QUAN_FOLDER else ""
+    if mime == SHORTCUT_MIME:
+        if not shortcut_info:
+            return ""
+        tname = shortcut_info.get("targetName") or ""
+        tmime = shortcut_info.get("targetMime") or shortcut_info.get("targetMimeType") or ""
+        tstatus = shortcut_info.get("targetStatus") or ""
+        tlbl = format_label(tmime, tname) if (tmime or tname) else ""
+        if tname:
+            base_str = f"→ [{tlbl}] {tname}" if tlbl else f"→ {tname}"
+        else:
+            base_str = f"→ [{tlbl}]" if tlbl else "→ Shortcut"
+        if tstatus == "broken":
+            return f"{base_str} (lỗi 404)"
+        if tstatus == "trashed":
+            return f"{base_str} (trong thùng rác)"
+        return base_str
+    base, _ = split_ext(clean_name, mime)
+    if " - " in base:
+        return base.split(" - ", 1)[1].strip()
+    return ""
 
 
 def is_tech_exception(parent_path: str, name: str) -> bool:

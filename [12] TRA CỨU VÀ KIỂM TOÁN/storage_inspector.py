@@ -195,6 +195,8 @@ def audit_tong_quan_coverage(
         )
         tq_path = f"{path}/{sc.TONG_QUAN_FOLDER}"
         tq_items = index.get(tq_path, {}).get("items", []) if tq_item else []
+        cat_path = sc.catalog_folder_for_path(path)
+        cat_items = index.get(cat_path, {}).get("items", []) if cat_path != tq_path else []
 
         expected_md = _expected_overview_md_name(path)
         expected_sheet = sc.normalize_sheet_title(path)
@@ -206,7 +208,7 @@ def audit_tong_quan_coverage(
         )
         has_sheet = any(
             it.get("mimeType") == sc.SHEET_MIME and it.get("name", "").startswith("Danh Mục Hệ Thống - ")
-            for it in tq_items
+            for it in [*tq_items, *cat_items]
         )
 
         if not tq_item or not has_md or not has_sheet:
