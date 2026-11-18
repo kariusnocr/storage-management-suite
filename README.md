@@ -1,14 +1,14 @@
-# Bộ Chương Trình Quản Lý Kho Dữ Liệu `[A] STORAGE` (Chuẩn V6 — v3.2)
+# Bộ Chương Trình Quản Lý Kho Dữ Liệu `[A] STORAGE` (Chuẩn V6 — v3.3)
 
-Kho lưu trữ chính thức chứa bộ **15 chương trình quản trị, chuẩn hóa, đọc và phân tích dữ liệu** cho kho Google Drive **`[A] STORAGE`**, được đồng bộ hai chiều với thư mục **`[A] STORAGE/[00] TỔNG QUAN/[03] QUẢN LÝ`** (`1dU9BqIFxdLyhsFzxZxOiKWVNHI0vk7W3`).
+Kho lưu trữ chính thức chứa bộ **18 chương trình quản trị, chuẩn hóa, đọc và phân tích dữ liệu đa phương tiện** cho kho Google Drive **`[A] STORAGE`**, được đồng bộ hai chiều với thư mục **`[A] STORAGE/[00] TỔNG QUAN/[03] QUẢN LÝ`** (`1dU9BqIFxdLyhsFzxZxOiKWVNHI0vk7W3`).
 
 ---
 
-## 1. Kiến trúc 15 Mô-đun (`[01]`–`[15]`)
+## 1. Kiến trúc 18 Mô-đun (`[01]`–`[18]`)
 
 | Thư mục mô-đun | Tệp mã nguồn | Lệnh `storage_cli.py` | Chức năng chính |
 | :--- | :--- | :--- | :--- |
-| `[01] THƯ VIỆN LÕI` | `storage_core.py`<br>`storage_config.json`<br>`tests/test_storage_suite.py` | `kiem-thu` | Thư viện lõi Chuẩn V6, bao bọc `gdrive` tốc độ cao (`stream_ls`, `stream_info`, `stream_capabilities`), bộ kiểm thử tự động ngoại tuyến (`22/22` bài kiểm thử) |
+| `[01] THƯ VIỆN LÕI` | `storage_core.py`<br>`storage_config.json`<br>`tests/test_storage_suite.py` | `kiem-thu` | Thư viện lõi Chuẩn V6, bao bọc `gdrive` tốc độ cao (`stream_ls`, `stream_info`, `stream_capabilities`), bộ kiểm thử tự động ngoại tuyến (`26/26` bài kiểm thử) |
 | `[02] QUÉT CHỈ MỤC` | `storage_indexer.py` | `quet` | Quét toàn kho theo tầng BFS dùng `stream_ls` hoặc quét tăng cường (`--tang-cuong`) kèm bộ đệm shortcut |
 | `[03] KIỂM TRA QUY ƯỚC` | `naming_auditor.py` | `kiem-tra` | Kiểm toán quy ước đặt tên & cấu trúc thư mục theo Chuẩn V6, sửa lỗi cơ học an toàn (`--sua-an-toan`) |
 | `[04] CHUẨN HÓA TÊN` | `storage_toolkit.py` | `chuan-hoa` | Chuẩn hóa tên bất biến (100% không chạm tệp đã đạt Chuẩn V6), khôi phục dấu tiếng Việt theo ngữ cảnh |
@@ -23,6 +23,9 @@ Kho lưu trữ chính thức chứa bộ **15 chương trình quản trị, chu�
 | `[13] ĐỌC TỆP` | `file_reader.py` | `doc-tep` | Bộ đọc đa định dạng (`PDF`, `DOCX`, `PPTX`, `XLSX`, `EPUB`, `MOBI/AZW3`, `DOC/XLS/PPT`, `MD/CSV/HTML/JSON`, Google Docs/Sheets/Slides, Ảnh EXIF, `MP3/MP4`, `ZIP/RAR/7Z`) có bộ đệm bền vững |
 | `[14] PHÂN TÍCH NỘI DUNG` | `content_analyzer.py` | `phan-tich` | Nhận diện ngôn ngữ, từ khóa `TF-IDF`, phân loại chủ đề, gợi ý tên Chuẩn V6 từ siêu dữ liệu, tìm trùng nội dung `SimHash 64-bit` và tìm kiếm toàn văn |
 | `[15] ĐỒNG BỘ GITHUB` | `github_sync.py` | `github` | Kiểm toán bảo mật mã nguồn, đồng bộ Git/GitHub, theo dõi GitHub Actions CI và đồng bộ liên hoàn Drive ↔ Local ↔ GitHub |
+| `[16] PHÂN TÍCH HÌNH ẢNH` | `image_analyzer.py` | `phan-tich-anh` | Đọc EXIF/GPS, đo độ sắc nét Laplacian/phơi sáng/bảng màu HEX, OCR (`tesseract`), tìm ảnh trùng trực quan `dHash`/`pHash 64-bit` và gợi ý tên V6 |
+| `[17] PHÂN TÍCH ÂM THANH` | `audio_analyzer.py` | `phan-tich-am-thanh` | Đọc luồng & thẻ ID3v1/v2 Unicode, đo EBU R128 `LUFS`/clipping/khoảng lặng, tìm trùng qua dấu vân tay phổ thời gian và kiểm toán lỗ hổng chuỗi bài |
+| `[18] PHÂN TÍCH VIDEO` | `video_analyzer.py` | `phan-tich-video` | Kiểm toán khóa học siêu tốc trên chỉ mục (`.ts`, tên dính liền, bài khuyết), phân tích luồng `ffprobe`, rút keyframes `pHash`/OCR slide, ghép Contact Sheet 3×2 |
 
 ---
 
@@ -38,9 +41,12 @@ python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" github trang-thai
 # 3. Đồng bộ liên hoàn mã nguồn lên cả Google Drive [03] QUẢN LÝ lẫn GitHub
 python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" github dong-bo-2-chieu --ghi-de-xung-dot --thuc-thi --dong-y
 
-# 4. Đọc và phân tích nội dung tệp theo nhánh
+# 4. Đọc và phân tích nội dung văn bản & đa phương tiện theo nhánh
 python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" doc-tep trich-xuat --nhanh "[05] SƯU TẦM/[01] SÁCH/[14] SỨC KHOẺ - Y HỌC" --gioi-han 25
 python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich phan-tich --tai-len
+python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich-anh phan-tich --nhanh "[01] HỌC THUẬT/[04] CHỨNG CHỈ/[01] IELTS" --tu-dong-doc --gioi-han 10 --ocr
+python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich-am-thanh kiem-tra-chuoi
+python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich-video kiem-tra-khoa-hoc
 ```
 
 ---

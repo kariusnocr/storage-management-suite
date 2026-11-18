@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-BỘ ĐIỀU PHỐI VẬN HÀNH HỢP NHẤT — [A] STORAGE (CHUẨN V6, v3.2)
+BỘ ĐIỀU PHỐI VẬN HÀNH HỢP NHẤT — [A] STORAGE (CHUẨN V6, v3.3)
 ==============================================================
 Điểm vào duy nhất (CLI) cho mọi tác vụ quản trị kho `[A] STORAGE`:
 
@@ -18,6 +18,9 @@ BỘ ĐIỀU PHỐI VẬN HÀNH HỢP NHẤT — [A] STORAGE (CHUẨN V6, v3.2)
 - `doc-tep`            : `[13] ĐỌC TỆP/file_reader.py`
 - `phan-tich`          : `[14] PHÂN TÍCH NỘI DUNG/content_analyzer.py`
 - `github`             : `[15] ĐỒNG BỘ GITHUB/github_sync.py`
+- `phan-tich-anh`      : `[16] PHÂN TÍCH HÌNH ẢNH/image_analyzer.py`
+- `phan-tich-am-thanh` : `[17] PHÂN TÍCH ÂM THANH/audio_analyzer.py`
+- `phan-tich-video`    : `[18] PHÂN TÍCH VIDEO/video_analyzer.py`
 - `kiem-thu`           : Chạy toàn bộ kiểm thử tự động trong `[01] THƯ VIỆN LÕI/tests`
 - `quy-trinh-nhanh`    : `[02] tăng cường` → `[03]` → `[04]` → `[05]` → `[07]` (mặc định chạy thử)
 - `bao-tri-dinh-ki`    : Quét toàn kho → `[03]` → `[06]` → `[04]` → `[12] kiểm toán tổng quan` → `[05]` → `[07]` (mặc định chạy thử)
@@ -69,6 +72,9 @@ MODULE_SCRIPTS = {
     "doc-tep": MODULES_ROOT / "[13] ĐỌC TỆP" / "file_reader.py",
     "phan-tich": MODULES_ROOT / "[14] PHÂN TÍCH NỘI DUNG" / "content_analyzer.py",
     "github": MODULES_ROOT / "[15] ĐỒNG BỘ GITHUB" / "github_sync.py",
+    "phan-tich-anh": MODULES_ROOT / "[16] PHÂN TÍCH HÌNH ẢNH" / "image_analyzer.py",
+    "phan-tich-am-thanh": MODULES_ROOT / "[17] PHÂN TÍCH ÂM THANH" / "audio_analyzer.py",
+    "phan-tich-video": MODULES_ROOT / "[18] PHÂN TÍCH VIDEO" / "video_analyzer.py",
 }
 
 

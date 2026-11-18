@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-BỘ KIỂM THỬ TỰ ĐỘNG NGOẠI TUYẾN — BỘ QUẢN LÝ [A] STORAGE (v3.0)
+BỘ KIỂM THỬ TỰ ĐỘNG NGOẠI TUYẾN — BỘ QUẢN LÝ [A] STORAGE (v3.3)
 =================================================================
-Kiểm chứng ngoại tuyến toàn bộ quy tắc lõi & hành vi an toàn của `[01]`–`[12]`
+Kiểm chứng ngoại tuyến toàn bộ quy tắc lõi & hành vi an toàn của `[01]`–`[18]`
 (dùng thư mục tạm + Drive giả lập).
 Chạy bằng:
     python3 -m unittest discover -s "[01] THƯ VIỆN LÕI/tests" -v
@@ -56,6 +56,9 @@ storage_inspector = _load_mod("storage_inspector_testmod", "[12] TRA CỨU VÀ K
 file_reader = _load_mod("file_reader_testmod", "[13] ĐỌC TỆP/file_reader.py")
 content_analyzer = _load_mod("content_analyzer_testmod", "[14] PHÂN TÍCH NỘI DUNG/content_analyzer.py")
 github_sync = _load_mod("github_sync_testmod", "[15] ĐỒNG BỘ GITHUB/github_sync.py")
+image_analyzer = _load_mod("image_analyzer_testmod", "[16] PHÂN TÍCH HÌNH ẢNH/image_analyzer.py")
+audio_analyzer = _load_mod("audio_analyzer_testmod", "[17] PHÂN TÍCH ÂM THANH/audio_analyzer.py")
+video_analyzer = _load_mod("video_analyzer_testmod", "[18] PHÂN TÍCH VIDEO/video_analyzer.py")
 
 
 def _it(fid: str, name: str, mime: str = "application/pdf", size: int = 1024, mod: str = "2026-11-16T06:00:00Z"):
@@ -1174,6 +1177,378 @@ class TestNewModulesV3(unittest.TestCase):
             )
             self.assertTrue(res_dry["ok"])
             self.assertTrue(res_dry["dry_run"])
+
+
+class TestMediaAnalyzersV33(unittest.TestCase):
+    @staticmethod
+    def _load_font(size: int = 56):
+        from PIL import ImageFont  # type: ignore
+        for fp in (
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        ):
+            if Path(fp).exists():
+                return ImageFont.truetype(fp, size)
+        return ImageFont.load_default()
+
+    def test_image_analyzer_exif_sharpness_ocr_and_perceptual_dup(self):
+        from PIL import Image, ImageDraw, ImageFilter  # type: ignore
+
+        with tempfile.TemporaryDirectory() as td:
+            old_env = os.environ.get("STORAGE_DATA_DIR")
+            os.environ["STORAGE_DATA_DIR"] = td
+            try:
+                td_p = Path(td)
+                # 1. Tạo ảnh slide sắc nét 1280x720 có văn bản lớn, khối màu & EXIF/GPS
+                slide = Image.new("RGB", (1280, 720), (248, 250, 252))
+                dr = ImageDraw.Draw(slide)
+                dr.rectangle([40, 40, 1240, 180], fill=(18, 52, 110))
+                dr.rectangle([40, 220, 480, 660], fill=(220, 68, 42))
+                dr.rectangle([520, 220, 1240, 660], fill=(255, 255, 255), outline=(20, 20, 20), width=6)
+                f_big = self._load_font(60)
+                f_body = self._load_font(44)
+                dr.text((70, 75), "QUANTUM COMPUTING SLIDE", fill=(255, 255, 255), font=f_big)
+                dr.text((555, 290), "LECTURE CHAPTER ONE", fill=(15, 23, 42), font=f_body)
+                dr.text((555, 380), "WAVE FUNCTION BASICS", fill=(15, 23, 42), font=f_body)
+
+                exif = slide.getexif()
+                exif[0x010E] = "Quantum Computing Lecture"
+                exif[0x013B] = "Nguyen Van A"
+                exif[0x9003] = "2026:11:18 10:30:00"
+                exif[0x8825] = {1: "N", 2: (21.0, 1.0, 0.0)}
+
+                img_hi = td_p / "IMG_20261118_001.jpg"
+                slide.save(img_hi, format="JPEG", quality=95, exif=exif)
+
+                # Bản nén lại & thu nhỏ 640x360 (SHA-256 khác hoàn toàn)
+                img_lo = td_p / "img_compressed_copy.jpg"
+                slide.resize((640, 360)).save(img_lo, format="JPEG", quality=60)
+
+                # Ảnh bị làm mờ mạnh -> cờ `anh_mo`
+                blurred = slide.filter(ImageFilter.GaussianBlur(radius=8))
+                img_blur = td_p / "blurred_sample.png"
+                blurred.save(img_blur, format="PNG")
+
+                res_hi = image_analyzer.analyze_local_image(img_hi, enable_ocr=True)
+                self.assertEqual(res_hi["status"], "ok")
+                self.assertIn("co_gps_exif", res_hi["flags"])
+                self.assertNotIn("anh_mo", res_hi["flags"])
+                self.assertGreater(res_hi["quality"]["sharpness_laplacian"], 45.0)
+                self.assertIn("QUANTUM", res_hi["ocr_text"].upper())
+
+                res_blur = image_analyzer.analyze_local_image(img_blur, enable_ocr=False)
+                self.assertIn("anh_mo", res_blur["flags"])
+
+                # Kiểm tra Drive giả lập + bộ đệm + trùng trực quan + gợi ý đổi tên V6 + hoàn tác
+                p_ielts = "[A] STORAGE/[01] HỌC THUẬT/[04] CHỨNG CHỈ/[01] IELTS"
+                index = {
+                    "[A] STORAGE": {"id": "root", "depth": 0, "items": []},
+                    p_ielts: {
+                        "id": "dir_ielts",
+                        "depth": 3,
+                        "items": [
+                            _it("im_hi", img_hi.name, mime="image/jpeg", size=img_hi.stat().st_size, mod="2026-11-18T10:00:00Z"),
+                            _it("im_lo", img_lo.name, mime="image/jpeg", size=img_lo.stat().st_size, mod="2026-11-18T10:05:00Z"),
+                        ],
+                    },
+                }
+                fake = FakeDrive(downloads={"im_hi": img_hi.read_bytes(), "im_lo": img_lo.read_bytes()})
+
+                b1 = image_analyzer.batch_analyze_images(index, fake, enable_ocr=True, workers=2)
+                self.assertEqual(b1["total"], 2)
+                self.assertEqual(b1["cache_hits"], 0)
+                b2 = image_analyzer.batch_analyze_images(index, fake, enable_ocr=True, workers=2)
+                self.assertEqual(b2["cache_hits"], 2)
+
+                summary = image_analyzer.summarize_images(b2["records"], max_hamming=8)
+                vgroups = summary["duplicates"]["visual_groups"]
+                self.assertEqual(len(vgroups), 1)
+                self.assertEqual(vgroups[0]["keep"]["id"], "im_hi")
+                self.assertEqual(vgroups[0]["extra"][0]["id"], "im_lo")
+
+                q_dry = image_analyzer.quarantine_visual_duplicates(summary["duplicates"], fake, index=index, execute=False)
+                self.assertTrue(q_dry["dry_run"])
+                self.assertEqual(q_dry["planned"], 1)
+
+                sug_map = {s["id"]: s["new_name"] for s in summary["rename_suggestions"]}
+                self.assertIn("im_hi", sug_map)
+                self.assertIn("Quantum Computing Lecture", sug_map["im_hi"])
+
+                ren_res = image_analyzer.apply_image_rename_suggestions(summary["rename_suggestions"], fake, index=index, execute=True)
+                self.assertEqual(ren_res["renamed"], len(summary["rename_suggestions"]))
+                undone = image_analyzer.undo_image_rename_batch(ren_res["batch_id"], fake, index=index)
+                self.assertEqual(undone, ren_res["renamed"])
+
+                hits = image_analyzer.search_image_cache(query="QUANTUM", flag="co_gps_exif", index=index)
+                self.assertGreaterEqual(len(hits), 1)
+
+                md_p, csv_p = image_analyzer.write_image_reports(summary)
+                self.assertTrue(md_p.exists())
+                self.assertTrue(csv_p.exists())
+            finally:
+                if old_env is None:
+                    os.environ.pop("STORAGE_DATA_DIR", None)
+                else:
+                    os.environ["STORAGE_DATA_DIR"] = old_env
+
+    def test_audio_analyzer_tags_loudness_silence_sequence_and_fingerprint(self):
+        import math
+        import shutil
+        import struct
+        import subprocess
+        import wave
+
+        if not shutil.which("ffmpeg"):
+            self.skipTest("Yêu cầu ffmpeg để chạy kiểm thử audio")
+
+        with tempfile.TemporaryDirectory() as td:
+            old_env = os.environ.get("STORAGE_DATA_DIR")
+            os.environ["STORAGE_DATA_DIR"] = td
+            try:
+                td_p = Path(td)
+                sr = 16000
+                dur_s = 6.0
+                n_samples = int(sr * dur_s)
+
+                # Tạo giai điệu WAV biến thiên biên độ & tần số (khung năng lượng rõ rệt)
+                melody_wav = td_p / "melody.wav"
+                frames = bytearray()
+                for i in range(n_samples):
+                    t = i / sr
+                    freq = 330.0 if t < 1.5 else (523.25 if t < 3.0 else (440.0 if t < 4.5 else 659.25))
+                    env = 0.7 if int(t * 2) % 2 == 0 else 0.15
+                    sample = int(max(-1.0, min(1.0, env * math.sin(2.0 * math.pi * freq * t))) * 32767)
+                    frames += struct.pack("<h", sample)
+                with wave.open(str(melody_wav), "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(sr)
+                    wf.writeframes(bytes(frames))
+
+                mp3_hi = td_p / "Track 01.mp3"
+                mp3_lo = td_p / "Audio Copy.mp3"
+                subprocess.run(
+                    [
+                        "ffmpeg", "-y", "-v", "error", "-i", str(melody_wav),
+                        "-b:a", "192k", "-id3v2_version", "3",
+                        "-metadata", "title=Ngữ Văn Đại Cương",
+                        "-metadata", "artist=Nguyễn Văn B",
+                        "-metadata", "album=USSH",
+                        str(mp3_hi),
+                    ],
+                    check=True,
+                )
+                subprocess.run(
+                    ["ffmpeg", "-y", "-v", "error", "-i", str(melody_wav), "-b:a", "48k", str(mp3_lo)],
+                    check=True,
+                )
+
+                # WAV bị clipping AC 440Hz (bi_re_tieng) và WAV im lặng (am_thanh_rong_im_lang)
+                clip_wav = td_p / "clipping.wav"
+                clip_frames = bytearray()
+                for i in range(sr * 2):
+                    val = int(max(-1.0, min(1.0, 1.8 * math.sin(2.0 * math.pi * 440.0 * (i / sr)))) * 32767)
+                    clip_frames += struct.pack("<h", val)
+                with wave.open(str(clip_wav), "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(sr)
+                    wf.writeframes(bytes(clip_frames))
+
+                sil_wav = td_p / "silent.wav"
+                with wave.open(str(sil_wav), "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(sr)
+                    wf.writeframes(b"\x00\x00" * (sr * 3))
+
+                r_clip = audio_analyzer.analyze_local_audio(clip_wav)
+                self.assertGreaterEqual(r_clip["signal"]["max_volume_db"], -0.1)
+                self.assertIn("bi_re_tieng", r_clip["flags"])
+                r_sil = audio_analyzer.analyze_local_audio(sil_wav)
+                self.assertIn("am_thanh_rong_im_lang", r_sil["flags"])
+
+                r_lo = audio_analyzer.analyze_local_audio(mp3_lo)
+                self.assertIn("bitrate_thap", r_lo["flags"])
+
+                p_hsk = "[A] STORAGE/[01] HỌC THUẬT/[04] CHỨNG CHỈ/[02] HSK"
+                index = {
+                    "[A] STORAGE": {"id": "root", "depth": 0, "items": []},
+                    p_hsk: {
+                        "id": "dir_hsk",
+                        "depth": 3,
+                        "items": [
+                            _it("au_hi", "Track 01.mp3", mime="audio/mpeg", size=mp3_hi.stat().st_size, mod="2026-11-18T10:00:00Z"),
+                            _it("au_lo", "Audio Copy.mp3", mime="audio/mpeg", size=mp3_lo.stat().st_size, mod="2026-11-18T10:01:00Z"),
+                            _it("au_p1", "Phần 01 - Bài Tập HSK.mp3", mime="audio/mpeg", size=2048),
+                            _it("au_p3", "Phần 03 - Bài Tập HSK.mp3", mime="audio/mpeg", size=2048),
+                            _it("au_p4", "Phần 04 - Bài Tập HSK.mp3", mime="audio/mpeg", size=2048),
+                        ],
+                    },
+                }
+                fake = FakeDrive(downloads={"au_hi": mp3_hi.read_bytes(), "au_lo": mp3_lo.read_bytes()})
+
+                r1 = audio_analyzer.analyze_drive_audio(index[p_hsk]["items"][0], p_hsk, fake)
+                r2 = audio_analyzer.analyze_drive_audio(index[p_hsk]["items"][1], p_hsk, fake)
+                self.assertEqual(r1["metadata"].get("title"), "Ngữ Văn Đại Cương")
+                self.assertIsNotNone(r1["signal"].get("integrated_lufs"))
+                self.assertIsNotNone(r1["signal"].get("mean_volume_db"))
+
+                summary = audio_analyzer.summarize_audio([r1, r2], index=index, min_cosine=0.88)
+                agroups = summary["duplicates"]["acoustic_groups"]
+                self.assertEqual(len(agroups), 1)
+                self.assertEqual(agroups[0]["keep"]["id"], "au_hi")
+                self.assertEqual(agroups[0]["extra"][0]["id"], "au_lo")
+
+                self.assertEqual(len(summary["sequence_gaps"]), 1)
+                self.assertEqual(summary["sequence_gaps"][0]["missing_numbers"], [2])
+
+                q_dry = audio_analyzer.quarantine_audio_duplicates(summary["duplicates"], fake, index=index, execute=False)
+                self.assertEqual(q_dry["planned"], 1)
+
+                sugs = summary["rename_suggestions"]
+                self.assertTrue(any(s["id"] == "au_hi" and "Ngữ Văn Đại Cương" in s["new_name"] for s in sugs))
+                ren = audio_analyzer.apply_audio_rename_suggestions(sugs, fake, index=index, execute=True)
+                self.assertGreaterEqual(ren["renamed"], 1)
+                self.assertEqual(audio_analyzer.undo_audio_rename_batch(ren["batch_id"], fake, index=index), ren["renamed"])
+
+                md_p, csv_p = audio_analyzer.write_audio_reports(summary)
+                self.assertTrue(md_p.exists())
+                self.assertTrue(csv_p.exists())
+            finally:
+                if old_env is None:
+                    os.environ.pop("STORAGE_DATA_DIR", None)
+                else:
+                    os.environ["STORAGE_DATA_DIR"] = old_env
+
+    def test_video_analyzer_streams_keyframes_duplicates_and_course_audit(self):
+        import shutil
+        import subprocess
+
+        if not shutil.which("ffmpeg"):
+            self.skipTest("Yêu cầu ffmpeg để chạy kiểm thử video")
+
+        with tempfile.TemporaryDirectory() as td:
+            old_env = os.environ.get("STORAGE_DATA_DIR")
+            os.environ["STORAGE_DATA_DIR"] = td
+            try:
+                td_p = Path(td)
+                vid_hd = td_p / "Bài 1 Vid 2026111801.mp4"
+                vid_sd = td_p / "vid_reencoded_480p.mp4"
+                vid_muted = td_p / "muted_static.mp4"
+
+                # Tạo video 720p thay đổi nội dung theo thời gian (testsrc) + âm thanh 440Hz
+                subprocess.run(
+                    [
+                        "ffmpeg", "-y", "-v", "error",
+                        "-f", "lavfi", "-i", "testsrc=duration=5:size=1280x720:rate=24",
+                        "-f", "lavfi", "-i", "sine=frequency=440:duration=5",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                        "-metadata", "title=Hướng Dẫn Python",
+                        str(vid_hd),
+                    ],
+                    check=True,
+                )
+                # Bản encode lại ở độ phân giải thấp hơn 640x360
+                subprocess.run(
+                    [
+                        "ffmpeg", "-y", "-v", "error", "-i", str(vid_hd),
+                        "-vf", "scale=640:360", "-c:v", "libx264", "-crf", "30", "-c:a", "aac",
+                        str(vid_sd),
+                    ],
+                    check=True,
+                )
+                # Video tĩnh không có âm thanh + độ phân giải thấp 320x240
+                subprocess.run(
+                    [
+                        "ffmpeg", "-y", "-v", "error",
+                        "-f", "lavfi", "-i", "color=c=navy:duration=4:size=320x240:rate=12",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an",
+                        str(vid_muted),
+                    ],
+                    check=True,
+                )
+
+                r_hd = video_analyzer.analyze_local_video(
+                    vid_hd, enable_ocr=False, make_contact_sheet=True, file_id="v_hd",
+                )
+                self.assertEqual(r_hd["status"], "ok")
+                self.assertEqual(r_hd["stats"]["resolution_tier"], "720p")
+                self.assertTrue(r_hd["stats"]["has_audio"])
+                self.assertGreaterEqual(len(r_hd["keyframes"]["phashes"]), 4)
+                self.assertTrue(Path(r_hd["keyframes"]["contact_sheet_path"]).exists())
+
+                r_muted = video_analyzer.analyze_local_video(vid_muted)
+                self.assertIn("khong_co_am_thanh", r_muted["flags"])
+                self.assertIn("do_phan_giai_thap", r_muted["flags"])
+                self.assertIn("khung_hinh_dung", r_muted["flags"])
+
+                # Kiểm tra Drive giả lập + trùng lặp keyframe pHash + kiểm toán khóa học chỉ mục
+                p_cad = "[A] STORAGE/[05] SƯU TẦM/[03] KHOÁ HỌC/[04] KHÓA HỌC AUTOCAD2D,3D"
+                p_ielts = "[A] STORAGE/[01] HỌC THUẬT/[04] CHỨNG CHỈ/[01] IELTS"
+                index = {
+                    "[A] STORAGE": {"id": "root", "depth": 0, "items": []},
+                    p_cad: {
+                        "id": "dir_cad",
+                        "depth": 3,
+                        "items": [
+                            _it("v_hd", "Vid 2026111801.mp4", mime="video/mp4", size=vid_hd.stat().st_size, mod="2026-11-18T10:00:00Z"),
+                            _it("v_sd", "vid_reencoded_480p.mp4", mime="video/mp4", size=vid_sd.stat().st_size, mod="2026-11-18T10:02:00Z"),
+                            _it("cad1", "Bài 1 Soluocvecacphienban Auto Ca Dtutruocdennay - AutoCAD.mp4", mime="video/mp4", size=5_000_000),
+                            _it("cad3", "Bài 3 Lamquenvoidoanlenh - AutoCAD.mp4", mime="video/mp4", size=5_000_000),
+                            _it("cad4", "Bài 4 Thietlapbanve - AutoCAD.mp4", mime="video/mp4", size=5_000_000),
+                        ],
+                    },
+                    p_ielts: {
+                        "id": "dir_ielts_v",
+                        "depth": 3,
+                        "items": [
+                            _it("ts1", "2 Gap Fill - IELTS.ts", mime="video/mp2t", size=2_000_000),
+                        ],
+                    },
+                }
+                fake = FakeDrive(downloads={"v_hd": vid_hd.read_bytes(), "v_sd": vid_sd.read_bytes()})
+
+                d_hd = video_analyzer.analyze_drive_video(index[p_cad]["items"][0], p_cad, fake, make_contact_sheet=True)
+                d_sd = video_analyzer.analyze_drive_video(index[p_cad]["items"][1], p_cad, fake)
+
+                summary = video_analyzer.summarize_videos([d_hd, d_sd], index=index)
+                vgroups = summary["duplicates"]["visual_groups"]
+                self.assertEqual(len(vgroups), 1)
+                self.assertEqual(vgroups[0]["keep"]["id"], "v_hd")
+                self.assertEqual(vgroups[0]["extra"][0]["id"], "v_sd")
+
+                cat = summary["catalog_audit"]
+                self.assertEqual(len(cat["ts_remux_candidates"]), 1)
+                self.assertEqual(cat["ts_remux_candidates"][0]["id"], "ts1")
+                self.assertGreaterEqual(len(cat["glued_ascii_names"]), 2)
+                self.assertEqual(len(cat["course_gaps"]), 1)
+                self.assertEqual(cat["course_gaps"][0]["missing_numbers"], [2])
+
+                q_dry = video_analyzer.quarantine_video_duplicates(summary["duplicates"], fake, index=index, execute=False)
+                self.assertEqual(q_dry["planned"], 1)
+
+                sugs = summary["rename_suggestions"]
+                self.assertTrue(any(s["id"] == "v_hd" and "Hướng Dẫn Python" in s["new_name"] for s in sugs))
+                ren = video_analyzer.apply_video_rename_suggestions(sugs, fake, index=index, execute=True)
+                self.assertGreaterEqual(ren["renamed"], 1)
+                self.assertEqual(video_analyzer.undo_video_rename_batch(ren["batch_id"], fake, index=index), ren["renamed"])
+
+                md_p, csv_p = video_analyzer.write_video_reports(summary)
+                self.assertTrue(md_p.exists())
+                self.assertTrue(csv_p.exists())
+            finally:
+                if old_env is None:
+                    os.environ.pop("STORAGE_DATA_DIR", None)
+                else:
+                    os.environ["STORAGE_DATA_DIR"] = old_env
+
+    def test_storage_cli_v33_registration(self):
+        self.assertEqual(sc.__version__, "3.3.0")
+        for key in ("phan-tich-anh", "phan-tich-am-thanh", "phan-tich-video"):
+            self.assertIn(key, storage_cli.MODULE_SCRIPTS)
+            self.assertTrue(storage_cli.MODULE_SCRIPTS[key].exists(), f"Missing module script: {key}")
 
 
 if __name__ == "__main__":
