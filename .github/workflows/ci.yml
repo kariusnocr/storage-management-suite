@@ -25,6 +25,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Cài đặt thư viện phụ thuộc (openpyxl)
+        run: |
+          python3 -m pip install --upgrade pip openpyxl
+
       - name: Kiểm tra cú pháp tĩnh toàn bộ mô-đun [01]–[15]
         run: |
           python3 -c '
