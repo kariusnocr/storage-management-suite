@@ -182,7 +182,7 @@ def format_doctor_report(res: Dict[str, Any]) -> str:
 
 
 def main(argv: List[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Chẩn đoán môi trường Karius Academic System (KAS) v5.0.")
+    ap = argparse.ArgumentParser(description="Chẩn đoán môi trường Karius Academic System (KAS) v1.0.")
     ap.add_argument("--json", action="store_true", dest="as_json", help="Xuất kết quả dạng JSON")
     args = ap.parse_args(argv)
     res = run_doctor()

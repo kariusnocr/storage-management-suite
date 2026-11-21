@@ -1,4 +1,4 @@
-"""Giao diện dòng lệnh hợp nhất `kas` — Karius Academic System (KAS) v5.0.0."""
+"""Giao diện dòng lệnh hợp nhất `kas` — Karius Academic System (KAS) v1.0.0."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from karius_academic_system import APP_NAME, APP_SHORT, __version__
 from karius_academic_system import core as sc
@@ -31,8 +31,10 @@ def _cmd_vault(argv: List[str]) -> int:
     p_ls.add_argument("--json", action="store_true", dest="as_json", help="Xuất JSON")
 
     p_add = sub.add_parser("add", help="Kết nối một kho mới (thư mục cục bộ hoặc URL/ID Google Drive)")
-    p_add.add_argument("slug", nargs="?", help="Mã ngắn của kho (bỏ trống sẽ tự sinh từ tên)")
-    p_add.add_argument("--nguon", "--source", required=True, dest="source", help="Đường dẫn thư mục trên máy hoặc URL/Folder ID Google Drive")
+    p_add.add_argument("target_or_slug", nargs="?", help="Mã kho (hoặc tên hiển thị nếu truyền thêm tham số thứ 2 là đường dẫn/URL)")
+    p_add.add_argument("source_pos", nargs="?", help="Đường dẫn thư mục cục bộ hoặc URL/Folder ID Google Drive (tùy chọn thay --nguon)")
+    p_add.add_argument("--nguon", "--source", dest="source", help="Đường dẫn thư mục trên máy hoặc URL/Folder ID Google Drive")
+    p_add.add_argument("--slug", dest="slug_opt", help="Mã ngắn của kho (tự sinh nếu bỏ trống)")
     p_add.add_argument("--ten", "--name", dest="name", help="Tên hiển thị của kho")
     p_add.add_argument("--backend", choices=["auto", "local", "gdrive-api", "gdrive-cli"], default="auto", help="Trình điều khiển kết nối")
     p_add.add_argument("--che-do", "--mode", dest="mode", choices=["auto", "academic_v7", "general"], default="auto", help="Chế độ chuẩn hóa cấu trúc")
@@ -65,8 +67,8 @@ def _cmd_vault(argv: List[str]) -> int:
         if not vaults:
             sc.log(f"Chưa có kho nào trong {reg.path}.")
             sc.log("Hãy kết nối kho đầu tiên bằng:")
-            sc.log("  kas vault add tai-lieu --nguon /duong/dan/thu/muc")
-            sc.log("  kas vault add drive-hoc-thuat --nguon https://drive.google.com/drive/folders/<FOLDER_ID>")
+            sc.log('  kas vault add "Tài Liệu Học Tập" "D:\\TaiLieu"')
+            sc.log('  kas vault add "Kho Drive" "https://drive.google.com/drive/folders/<FOLDER_ID>"')
             return 0
         for v in vaults:
             mark = "*" if v.slug == act_slug else " "
@@ -77,8 +79,23 @@ def _cmd_vault(argv: List[str]) -> int:
         return 0
 
     if args.action == "add":
-        kind, norm_root = sc.detect_source_kind(args.source)
+        # Hỗ trợ cả 2 cú pháp:
+        #   1) kas vault add tai-lieu --nguon /path/or/url [--ten "..."]
+        #   2) kas vault add "Tài Liệu Học Tập" /path/or/url
+        src_val = args.source or args.source_pos
+        slug_val = args.slug_opt
         display_name = args.name
+        if args.source:
+            slug_val = slug_val or args.target_or_slug
+        elif args.source_pos:
+            display_name = display_name or args.target_or_slug
+            slug_val = slug_val or sc.slugify_vault(args.target_or_slug or "")
+        elif args.target_or_slug:
+            src_val = args.target_or_slug
+        if not src_val:
+            sc.log("Thiếu nguồn kho! Ví dụ: `kas vault add \"Tài Liệu\" \"D:\\TaiLieu\"` hoặc `kas vault add tai-lieu --nguon \"D:\\TaiLieu\"`.")
+            return 1
+        kind, norm_root = sc.detect_source_kind(src_val)
         if kind == "gdrive" and not display_name:
             try:
                 drv = sc.create_backend(backend=None if args.backend == "auto" else args.backend)
@@ -88,8 +105,8 @@ def _cmd_vault(argv: List[str]) -> int:
             except Exception:
                 pass
         vc = reg.add_vault(
-            args.source,
-            slug=args.slug,
+            src_val,
+            slug=slug_val,
             name=display_name,
             backend=args.backend,
             mode=args.mode,
@@ -170,6 +187,144 @@ def _cmd_vault(argv: List[str]) -> int:
             reg.update_vault(vc.slug, known_ids=merged, mode="academic_v7", detected_mode="academic_v7")
             sc.reload_config(vc.slug)
         sc.log(f"Đã khởi tạo khung Chuẩn KAS V7 trong `{sc.ROOT_NAME}` (chế độ: academic_v7).")
+        return 0
+
+    return 1
+
+
+def _parse_rule_value(key: str, raw: str, current: Any) -> Any:
+    if isinstance(current, bool):
+        return raw.strip().lower() in {"1", "true", "yes", "on", "co", "bat"}
+    if isinstance(current, int):
+        return int(raw.strip())
+    if isinstance(current, list):
+        txt = raw.strip()
+        if txt.startswith("["):
+            return json.loads(txt)
+        return [x.strip() for x in txt.split(",") if x.strip()]
+    if isinstance(current, dict):
+        return json.loads(raw)
+    return raw
+
+
+def _cmd_rules(argv: List[str]) -> int:
+    ap = argparse.ArgumentParser(
+        prog="kas rules",
+        description="Tùy chỉnh thiết lập quy tắc đặt tên theo kho hoặc toàn cục (preset + tham số chi tiết + kiểm thử tức thì).",
+    )
+    sub = ap.add_subparsers(dest="action", required=True)
+
+    p_show = sub.add_parser("show", help="Xem bộ quy tắc đặt tên đang áp dụng")
+    p_show.add_argument("--json", action="store_true", dest="as_json", help="Xuất JSON")
+
+    sub.add_parser("presets", help="Liệt kê các bộ mẫu (preset) quy tắc đặt tên sẵn có")
+
+    p_pre = sub.add_parser("apply-preset", help="Áp dụng nhanh một bộ mẫu quy tắc đặt tên")
+    p_pre.add_argument("preset", choices=list(sc.NAMING_PRESETS), help="Tên preset")
+    p_pre.add_argument("--global", dest="is_global", action="store_true", help="Lưu làm mặc định toàn cục")
+
+    p_set = sub.add_parser("set", help="Thiết lập từng tham số quy tắc đặt tên (vd: folder_case title)")
+    p_set.add_argument("key", help="Tên trường quy tắc (xem bằng `kas rules show --json`)")
+    p_set.add_argument("value", help="Giá trị mới (true/false, số, chuỗi, danh sách cách nhau bởi dấu phẩy, hoặc JSON)")
+    p_set.add_argument("--global", dest="is_global", action="store_true", help="Lưu làm mặc định toàn cục")
+
+    p_test = sub.add_parser("test", help="Kiểm thử & xem trước chuẩn hóa cho một tên tệp hoặc thư mục")
+    p_test.add_argument("name", help="Tên tệp hoặc thư mục cần kiểm thử")
+    p_test.add_argument("--folder", action="store_true", help="Kiểm thử dưới dạng tên thư mục")
+    p_test.add_argument("--preset", choices=list(sc.NAMING_PRESETS), help="Thử tạm bằng một preset cụ thể")
+    p_test.add_argument("--json", action="store_true", dest="as_json", help="Xuất JSON")
+
+    p_exp = sub.add_parser("export", help="Xuất bộ quy tắc hiện tại ra tệp JSON")
+    p_exp.add_argument("path", help="Đường dẫn tệp JSON đích")
+
+    p_imp = sub.add_parser("import", help="Nhập bộ quy tắc từ tệp JSON")
+    p_imp.add_argument("path", help="Đường dẫn tệp JSON nguồn")
+    p_imp.add_argument("--global", dest="is_global", action="store_true", help="Lưu làm mặc định toàn cục")
+
+    p_rst = sub.add_parser("reset", help="Khôi phục quy tắc đặt tên về mặc định")
+    p_rst.add_argument("--global", dest="is_global", action="store_true", help="Khôi phục cấu hình toàn cục")
+
+    args = ap.parse_args(argv)
+
+    if args.action == "presets":
+        for key, meta in sc.NAMING_PRESETS.items():
+            sc.log(f"• {key:16s} — {meta['name']}")
+            sc.log(f"    {meta['description']}")
+        return 0
+
+    if args.action == "show":
+        rules, source = sc.get_active_naming_rules()
+        if args.as_json:
+            print(json.dumps({"source": source, "rules": rules.to_dict()}, ensure_ascii=False, indent=2))
+            return 0
+        d = rules.to_dict()
+        sc.log(f"Bộ quy tắc đặt tên đang áp dụng | preset={rules.preset} | nguồn={source}")
+        for k, v in d.items():
+            sc.log(f"  - {k:28s}: {v}")
+        return 0
+
+    if args.action == "apply-preset":
+        scope = "global" if args.is_global else "vault"
+        rules, path = sc.apply_naming_preset(args.preset, scope=scope)
+        sc.log(f"Đã áp dụng preset `{rules.preset}` ({scope}) tại {path}.")
+        return 0
+
+    if args.action == "set":
+        scope = "global" if args.is_global else "vault"
+        rules, _ = sc.get_active_naming_rules()
+        d = rules.to_dict()
+        if args.key not in d:
+            sc.log(f"Tham số không hợp lệ: `{args.key}`. Các tham số hợp lệ: {', '.join(sorted(d))}")
+            return 1
+        try:
+            d[args.key] = _parse_rule_value(args.key, args.value, d[args.key])
+        except Exception as exc:
+            sc.log(f"Giá trị không hợp lệ cho `{args.key}`: {exc}")
+            return 1
+        if args.key != "preset":
+            d["preset"] = "custom"
+        new_rules = sc.NamingRuleSet.from_dict(d)
+        path = sc.save_naming_rules(new_rules, scope=scope)
+        sc.log(f"Đã cập nhật `{args.key}` = {d[args.key]!r} ({scope}) tại {path}.")
+        return 0
+
+    if args.action == "test":
+        rules = sc.preset_rules(args.preset) if args.preset else sc.get_active_naming_rules()[0]
+        res = sc.preview_naming(args.name, is_folder=args.folder, rules=rules)
+        if args.as_json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+            return 0
+        sc.log(f"Kiểm thử ({'Thư mục' if args.folder else 'Tệp tin'} | preset={res['preset']}):")
+        sc.log(f"  Gốc      : {res['original']}")
+        sc.log(f"  Đề xuất  : {res['suggested']}")
+        sc.log(f"  Đạt chuẩn: {'CÓ ✅' if res['compliant'] else 'CHƯA ⚠️'}")
+        for i in res["issues"]:
+            sc.log(f"  • [{i['severity']}] {i['code']}: {i['description']}")
+        return 0
+
+    if args.action == "export":
+        rules, _ = sc.get_active_naming_rules()
+        out = Path(args.path).expanduser()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(rules.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+        sc.log(f"Đã xuất bộ quy tắc ra {out}.")
+        return 0
+
+    if args.action == "import":
+        src = Path(args.path).expanduser()
+        if not src.exists():
+            sc.log(f"Không tìm thấy tệp {src}.")
+            return 1
+        rules = sc.NamingRuleSet.from_dict(json.loads(src.read_text(encoding="utf-8")))
+        scope = "global" if args.is_global else "vault"
+        saved = sc.save_naming_rules(rules, scope=scope)
+        sc.log(f"Đã nhập bộ quy tắc `{rules.preset}` ({scope}) vào {saved}.")
+        return 0
+
+    if args.action == "reset":
+        scope = "global" if args.is_global else "vault"
+        removed = sc.reset_naming_rules(scope=scope)
+        sc.log(f"Đã khôi phục quy tắc mặc định ({scope})." if removed else f"Chưa có cấu hình tùy chỉnh ({scope}) để xóa.")
         return 0
 
     return 1
@@ -328,6 +483,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     all_cmds = [
         "vault",
+        "rules",
+        "ai",
+        "mcp",
         *MODULE_MAP.keys(),
         "danh-muc-chuan",
         "auth",
@@ -342,7 +500,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ]
     ap = argparse.ArgumentParser(
         prog="kas",
-        description=f"{APP_NAME} ({APP_SHORT}) v{__version__} — Hệ thống quản trị tri thức & đa kho dữ liệu.",
+        description=f"{APP_NAME} ({APP_SHORT}) v{__version__} — Hệ thống quản trị tri thức, đa kho dữ liệu & kết nối AI/MCP Agent.",
     )
     ap.add_argument("--kho", "--vault", dest="vault_slug", help="Chọn kho dữ liệu để thực thi lệnh")
     ap.add_argument("lenh", choices=all_cmds, help="Lệnh hoặc quy trình cần chạy")
@@ -365,6 +523,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
     if cmd == "vault":
         return _cmd_vault(rest)
+    if cmd == "rules":
+        return _cmd_rules(rest)
+    if cmd == "ai":
+        from karius_academic_system.ai.bridge import main as ai_main
+
+        return ai_main(rest)
+    if cmd == "mcp":
+        from karius_academic_system.ai.mcp_server import main as mcp_main
+
+        return mcp_main(rest)
     if cmd == "auth":
         return _cmd_auth(rest)
     if cmd == "db":

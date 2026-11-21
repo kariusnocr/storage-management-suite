@@ -1,4 +1,4 @@
-"""Ứng dụng Web Dashboard cục bộ (`kas ui`) — Karius Academic System (KAS) v5.0 (FastAPI + máy chủ thuần Python an toàn Smart App Control)."""
+"""Ứng dụng Web Dashboard cục bộ (`kas ui`) — Karius Academic System (KAS) v1.0 (FastAPI + máy chủ thuần Python an toàn Smart App Control)."""
 
 import argparse
 import collections
@@ -364,6 +364,158 @@ def _api_task_status_data(task_id: str) -> Tuple[int, Dict[str, Any]]:
     return 200, rec
 
 
+def _api_rules_get_data() -> Dict[str, Any]:
+    rules, source = sc.get_active_naming_rules()
+    return {
+        "source": source,
+        "has_vault_override": sc.has_custom_naming_rules("vault"),
+        "has_global_override": sc.has_custom_naming_rules("global"),
+        "rules": rules.to_dict(),
+        "presets": sc.NAMING_PRESETS,
+        "folder_index_styles": sc.FOLDER_INDEX_STYLES,
+        "folder_case_options": list(sc.FOLDER_CASE_OPTIONS),
+        "file_case_options": list(sc.FILE_CASE_OPTIONS),
+    }
+
+
+def _api_rules_save_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    scope = "global" if str(body.get("scope") or "vault").strip().lower() == "global" else "vault"
+    preset = str(body.get("preset") or "").strip()
+    raw_rules = body.get("rules")
+    if preset and not isinstance(raw_rules, dict):
+        if preset not in sc.NAMING_PRESETS:
+            return 400, {"detail": f"Preset không tồn tại: `{preset}`."}
+        rules, saved = sc.apply_naming_preset(preset, scope=scope)
+        return 200, {"ok": True, "scope": scope, "saved_path": str(saved), "data": _api_rules_get_data(), "rules": rules.to_dict()}
+    if not isinstance(raw_rules, dict):
+        return 400, {"detail": "Thiếu đối tượng `rules` hoặc tên `preset`."}
+    rules = sc.NamingRuleSet.from_dict(raw_rules)
+    saved = sc.save_naming_rules(rules, scope=scope)
+    return 200, {"ok": True, "scope": scope, "saved_path": str(saved), "data": _api_rules_get_data(), "rules": rules.to_dict()}
+
+
+def _api_rules_reset_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    scope = "global" if str(body.get("scope") or "vault").strip().lower() == "global" else "vault"
+    removed = sc.reset_naming_rules(scope=scope)
+    return 200, {"ok": True, "scope": scope, "removed": removed, "data": _api_rules_get_data()}
+
+
+def _api_rules_preview_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    raw_names = body.get("names")
+    if isinstance(raw_names, list):
+        names = [str(x) for x in raw_names if str(x)]
+    else:
+        single = str(body.get("name") or "")
+        names = [single] if single else []
+    if not names:
+        return 400, {"detail": "Vui lòng nhập ít nhất một tên tệp hoặc thư mục cần kiểm thử."}
+    is_folder = bool(body.get("is_folder", False))
+    raw_rules = body.get("rules")
+    preset = str(body.get("preset") or "").strip()
+    if isinstance(raw_rules, dict):
+        rules = sc.NamingRuleSet.from_dict(raw_rules)
+    elif preset and preset in sc.NAMING_PRESETS:
+        rules = sc.preset_rules(preset)
+    else:
+        rules, _ = sc.get_active_naming_rules()
+    return 200, {
+        "ok": True,
+        "preset": rules.preset,
+        "results": [sc.preview_naming(nm, is_folder=is_folder, rules=rules) for nm in names[:50]],
+    }
+
+
+def _api_ai_config_get_data(port: int = 8765) -> Dict[str, Any]:
+    from karius_academic_system.ai import AI_PROVIDERS, ai_config_path, generate_mcp_client_config, load_ai_config
+
+    cfg = load_ai_config()
+    return {
+        "config_path": str(ai_config_path()),
+        "config": cfg.masked_dict(),
+        "providers": AI_PROVIDERS,
+        "mcp": {
+            "stdio_command": "kas mcp serve",
+            "http_endpoint": f"http://127.0.0.1:{port}/api/mcp",
+            "claude_desktop": generate_mcp_client_config(client="claude", http_port=port),
+            "cursor_antigravity": generate_mcp_client_config(client="cursor", http_port=port),
+            "http_client": generate_mcp_client_config(client="http", http_port=port),
+        },
+    }
+
+
+def _api_ai_config_save_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ai import AI_PROVIDERS, load_ai_config, save_ai_config
+
+    cfg = load_ai_config()
+    if body.get("provider"):
+        prov = str(body["provider"]).strip()
+        if prov not in AI_PROVIDERS:
+            return 400, {"detail": f"Provider không hỗ trợ: `{prov}`."}
+        cfg.provider = prov
+        if not body.get("base_url"):
+            cfg.base_url = AI_PROVIDERS[prov]["default_base_url"]
+        if not body.get("model"):
+            cfg.model = AI_PROVIDERS[prov]["default_model"]
+    if "base_url" in body and body["base_url"] is not None:
+        cfg.base_url = str(body["base_url"]).strip().rstrip("/")
+    if "model" in body and body["model"] is not None:
+        cfg.model = str(body["model"]).strip()
+    if body.get("clear_api_key"):
+        cfg.api_key = ""
+    elif body.get("api_key"):
+        cfg.api_key = str(body["api_key"]).strip()
+    if "system_prompt" in body and body["system_prompt"] is not None:
+        cfg.system_prompt = str(body["system_prompt"])
+    if "temperature" in body and body["temperature"] is not None:
+        cfg.temperature = max(0.0, min(1.5, float(body["temperature"])))
+    saved = save_ai_config(cfg)
+    return 200, {"ok": True, "saved_path": str(saved), "config": cfg.masked_dict()}
+
+
+def _api_ai_chat_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ai import chat_with_agent
+
+    message = str(body.get("message") or "").strip()
+    if not message:
+        return 400, {"detail": "Vui lòng nhập nội dung câu hỏi cho Trợ Lý AI."}
+    history = body.get("history") if isinstance(body.get("history"), list) else []
+    try:
+        res = chat_with_agent(message, history=history)
+        return 200, res
+    except Exception as exc:
+        return 502, {"ok": False, "detail": str(exc)}
+
+
+def _api_agent_tools_data() -> Dict[str, Any]:
+    from karius_academic_system.ai import get_agent_tool_schemas, get_openai_tools_spec
+
+    return {
+        "app": f"{APP_NAME} ({APP_SHORT}) v{__version__}",
+        "mcp_tools": get_agent_tool_schemas(),
+        "openai_tools": get_openai_tools_spec(),
+    }
+
+
+def _api_agent_execute_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ai import execute_agent_tool
+
+    tool_name = str(body.get("tool") or body.get("name") or "").strip()
+    if not tool_name:
+        return 400, {"detail": "Thiếu tên công cụ `tool`."}
+    tool_args = body.get("arguments") if isinstance(body.get("arguments"), dict) else {}
+    res = execute_agent_tool(tool_name, tool_args)
+    return 200, {"ok": True, "tool": tool_name, "result": res}
+
+
+def _api_mcp_rpc_data(body: Dict[str, Any]) -> Tuple[int, Any]:
+    from karius_academic_system.ai import handle_mcp_jsonrpc
+
+    resp = handle_mcp_jsonrpc(body)
+    if resp is None:
+        return 200, {"jsonrpc": "2.0", "ok": True}
+    return 200, resp
+
+
 def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.server.ThreadingHTTPServer:
     """
     Khởi tạo máy chủ HTTP thuần thư viện chuẩn Python (`http.server.ThreadingHTTPServer`).
@@ -420,6 +572,15 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     return
                 if path == "/api/overview":
                     self._send_json(200, _api_overview_data())
+                    return
+                if path == "/api/rules":
+                    self._send_json(200, _api_rules_get_data())
+                    return
+                if path == "/api/ai/config":
+                    self._send_json(200, _api_ai_config_get_data(port=self.server.server_address[1]))
+                    return
+                if path == "/api/agent/tools":
+                    self._send_json(200, _api_agent_tools_data())
                     return
                 if path == "/api/search":
                     q = (_q1("q") or "").strip()
@@ -481,6 +642,34 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     code, data = _api_vault_init_structure_data(body)
                     self._send_json(code, data)
                     return
+                if path == "/api/rules":
+                    code, data = _api_rules_save_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/rules/reset":
+                    code, data = _api_rules_reset_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/rules/preview":
+                    code, data = _api_rules_preview_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/ai/config":
+                    code, data = _api_ai_config_save_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/ai/chat":
+                    code, data = _api_ai_chat_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/agent/execute":
+                    code, data = _api_agent_execute_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/mcp":
+                    code, data = _api_mcp_rpc_data(body)
+                    self._send_json(code, data)
+                    return
                 if path == "/api/catalog-v7/execute":
                     res = _api_catalog_execute_data(
                         mode=str(body.get("mode", "smart")),
@@ -515,7 +704,7 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
 def create_app():
     """Khởi tạo ứng dụng FastAPI phục vụ giao diện quản trị cục bộ `kas ui`."""
     try:
-        from fastapi import FastAPI, HTTPException, Query
+        from fastapi import Body, FastAPI, HTTPException, Query
         from fastapi.responses import HTMLResponse, JSONResponse
         from pydantic import BaseModel
     except (ImportError, OSError) as exc:
@@ -526,7 +715,7 @@ def create_app():
     app = FastAPI(
         title=f"{APP_NAME} ({APP_SHORT})",
         version=__version__,
-        description="Hệ thống quản trị tri thức & đa kho dữ liệu (Chuẩn V6 / Danh Mục V7).",
+        description="Hệ thống quản trị tri thức, đa kho dữ liệu, tùy chỉnh quy tắc đặt tên & kết nối AI/MCP Agent.",
     )
 
     class VaultAddRequest(BaseModel):
@@ -593,6 +782,63 @@ def create_app():
         if code != 200:
             raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi khởi tạo khung"))
         return JSONResponse(data)
+
+    @app.get("/api/rules")
+    def api_rules_get() -> Dict[str, Any]:
+        return _api_rules_get_data()
+
+    @app.post("/api/rules")
+    def api_rules_save(body: Dict[str, Any] = Body(...)):
+        code, data = _api_rules_save_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi lưu quy tắc"))
+        return JSONResponse(data)
+
+    @app.post("/api/rules/reset")
+    def api_rules_reset(body: Dict[str, Any] = Body(default={})):
+        code, data = _api_rules_reset_data(body)
+        return JSONResponse(data, status_code=code)
+
+    @app.post("/api/rules/preview")
+    def api_rules_preview(body: Dict[str, Any] = Body(...)):
+        code, data = _api_rules_preview_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi kiểm thử tên"))
+        return JSONResponse(data)
+
+    @app.get("/api/ai/config")
+    def api_ai_config_get() -> Dict[str, Any]:
+        return _api_ai_config_get_data()
+
+    @app.post("/api/ai/config")
+    def api_ai_config_save(body: Dict[str, Any] = Body(...)):
+        code, data = _api_ai_config_save_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi lưu cấu hình AI"))
+        return JSONResponse(data)
+
+    @app.post("/api/ai/chat")
+    def api_ai_chat(body: Dict[str, Any] = Body(...)):
+        code, data = _api_ai_chat_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi phản hồi AI"))
+        return JSONResponse(data)
+
+    @app.get("/api/agent/tools")
+    def api_agent_tools() -> Dict[str, Any]:
+        return _api_agent_tools_data()
+
+    @app.post("/api/agent/execute")
+    def api_agent_execute(body: Dict[str, Any] = Body(...)):
+        code, data = _api_agent_execute_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi gọi công cụ Agent"))
+        return JSONResponse(data)
+
+    @app.post("/api/mcp")
+    def api_mcp_rpc(body: Dict[str, Any] = Body(...)):
+        code, data = _api_mcp_rpc_data(body)
+        return JSONResponse(data, status_code=code)
 
     @app.get("/api/overview")
     def api_overview() -> Dict[str, Any]:

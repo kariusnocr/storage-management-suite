@@ -30,12 +30,15 @@ def _skip_quarantine(path: str, branch: str | None) -> bool:
     return sc.is_quarantine_path(path) and not (branch and sc.is_quarantine_path(branch))
 
 
-def audit(index, branch=None, check_structure=True, vault_mode: str | None = None):
+def audit(index, branch=None, check_structure=True, vault_mode: str | None = None, rules=None):
     issues = []  # (mức độ, mã, đường dẫn cha, tên, id, loại, mô tả, đề xuất)
     eff_mode = vault_mode or sc.effective_vault_mode()
     if eff_mode == "auto":
         eff_mode, _ = sc.detect_vault_layout(index, root_name=sc.ROOT_NAME)
     academic_mode = eff_mode != "general"
+    custom_rules = rules
+    if custom_rules is None and sc.has_custom_naming_rules():
+        custom_rules, _ = sc.get_active_naming_rules(vault_mode=eff_mode)
 
     for path, data in index.items():
         if branch and not (path == branch or path.startswith(branch.rstrip("/") + "/")):
@@ -49,7 +52,17 @@ def audit(index, branch=None, check_structure=True, vault_mode: str | None = Non
         for it in items:
             is_folder = it["mimeType"] == sc.FOLDER_MIME
             name = it["name"]
-            if is_folder:
+            if custom_rules is not None:
+                body_up = re.sub(r"^\[\d{1,3}\]\s*", "", sc.nfc(name)).strip().upper()
+                if is_folder and body_up in {"MACOSX", "__MACOSX"}:
+                    found = [("CẢNH BÁO", "RAC_HE_THONG", "Thư mục rác hệ điều hành (MACOSX)")]
+                elif not is_folder and name.lower() in {".ds_store", "thumbs.db", "desktop.ini"}:
+                    found = [("CẢNH BÁO", "RAC_HE_THONG", "Tệp rác siêu dữ liệu hệ điều hành")]
+                else:
+                    found = sc.evaluate_name_with_rules(
+                        name, is_folder=is_folder, mime=it["mimeType"], parent_path=path, rules=custom_rules
+                    )
+            elif is_folder:
                 if not academic_mode:
                     # Trong kho thường (general), chỉ kiểm tra ký tự lỗi / rác hệ thống, không ép tiền tố [STT]
                     body_up = re.sub(r"^\[\d{1,3}\]\s*", "", sc.nfc(name)).strip().upper()
@@ -66,7 +79,10 @@ def audit(index, branch=None, check_structure=True, vault_mode: str | None = Non
                     found = sc.check_file_name(name, it["mimeType"], path)
             if not found:
                 continue
-            suggestion = sc.safe_fix_name(name, is_folder, it["mimeType"]) if academic_mode else ""
+            if custom_rules is not None:
+                suggestion = sc.normalize_name_with_rules(name, is_folder=is_folder, mime=it["mimeType"], rules=custom_rules)
+            else:
+                suggestion = sc.safe_fix_name(name, is_folder, it["mimeType"]) if academic_mode else ""
             for sev, code, desc in found:
                 issues.append((sev, code, path, name, it["id"], "Thư mục" if is_folder else "Tệp tin", desc,
                                suggestion if suggestion != name else ""))
@@ -185,8 +201,11 @@ def build_report(issues, index, branch, min_sev):
     return "\n".join(lines), shown
 
 
-def build_fix_plan(index, branch):
+def build_fix_plan(index, branch, rules=None):
     plan = []
+    custom_rules = rules
+    if custom_rules is None and sc.has_custom_naming_rules():
+        custom_rules, _ = sc.get_active_naming_rules()
     for path, data in index.items():
         if branch and not (path == branch or path.startswith(branch.rstrip("/") + "/")):
             continue
@@ -204,7 +223,10 @@ def build_fix_plan(index, branch):
                 continue
             if ".obsidian" in path or it["name"].startswith("."):
                 continue
-            new = sc.safe_fix_name(it["name"], is_folder, it["mimeType"])
+            if custom_rules is not None:
+                new = sc.normalize_name_with_rules(it["name"], is_folder=is_folder, mime=it["mimeType"], rules=custom_rules)
+            else:
+                new = sc.safe_fix_name(it["name"], is_folder, it["mimeType"])
             if new == it["name"] or not new:
                 continue
             if sc.nfc(new) in taken and sc.nfc(new) != sc.nfc(it["name"]):

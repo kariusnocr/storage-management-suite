@@ -1,22 +1,25 @@
-#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Cài đặt Karius Academic System (KAS) trên Windows 11 AN TOÀN VỚI SMART APP CONTROL (không cần tắt bảo mật).
+    Cài đặt Karius Academic System (KAS) v1.0.0 trên Windows 11 AN TOÀN VỚI SMART APP CONTROL (không cần tắt bảo mật).
 .DESCRIPTION
     Không dùng tệp .exe chưa ký số hay pip.exe. Chạy trực tiếp qua trình thông dịch Python chính thức
-    đã ký số (Python Software Foundation / Microsoft Store), cài các gói thuần Python, tạo lệnh `kas`
-    trong PATH và lối tắt Desktop "Karius Academic System (KAS)" mở bằng cửa sổ Microsoft Edge App Window.
+    đã ký số (Python Software Foundation / Microsoft Store), tương thích PowerShell 5.1 & PowerShell 7,
+    hỗ trợ cài offline từ gói ZIP (không bị lỗi 404 khi kho GitHub ở chế độ Private) hoặc cài online qua
+    GitHub CLI (`gh`) / `$env:GITHUB_TOKEN`.
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "5.0.0",
+    [string]$Version = "1.0.0",
     [string]$WheelPath = "",
+    [string]$GitHubToken = "",
+    [string]$Repo = "kariusnocr/storage-management-suite",
     [switch]$WithExtras,
     [switch]$NoLaunch
 )
 
 $ErrorActionPreference = "Stop"
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.ServicePointManager]::SecurityProtocol } catch {}
 
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Cyan
@@ -29,7 +32,8 @@ function Find-SignedPython {
     $pyCmd = Get-Command py -ErrorAction SilentlyContinue
     if ($pyCmd) {
         try {
-            $exe = (& py -3 -c "import sys; print(sys.executable)" 2>$null).Trim()
+            $exe = (& py -3 -c "import sys; print(sys.executable)" 2>$null | Select-Object -First 1)
+            if ($exe) { $exe = $exe.ToString().Trim() }
             if ($exe -and (Test-Path $exe) -and ($exe -notmatch "WindowsApps\\python\.exe$")) {
                 return $exe
             }
@@ -39,7 +43,8 @@ function Find-SignedPython {
         $cmd = Get-Command $name -ErrorAction SilentlyContinue
         if ($cmd) {
             try {
-                $exe = (& $cmd.Source -c "import sys; print(sys.executable)" 2>$null).Trim()
+                $exe = (& $cmd.Source -c "import sys; print(sys.executable)" 2>$null | Select-Object -First 1)
+                if ($exe) { $exe = $exe.ToString().Trim() }
                 if ($exe -and (Test-Path $exe) -and ($exe -notmatch "WindowsApps\\python\.exe$")) {
                     return $exe
                 }
@@ -53,6 +58,82 @@ function Find-SignedPython {
     foreach ($pat in $patterns) {
         $hits = Get-Item $pat -ErrorAction SilentlyContinue | Sort-Object FullName -Descending
         if ($hits) { return $hits[0].FullName }
+    }
+    return $null
+}
+
+function Find-LocalWheel {
+    $candidates = @()
+    if ($PSScriptRoot) { $candidates += $PSScriptRoot }
+    $cwdPath = (Get-Location).Path
+    if ($cwdPath) { $candidates += $cwdPath }
+    $dlDir = Join-Path $env:USERPROFILE "Downloads"
+    if (Test-Path $dlDir) {
+        $candidates += $dlDir
+        $subDl = Get-ChildItem -Path $dlDir -Directory -Filter "kas-windows-sac-safe*" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 2
+        foreach ($d in $subDl) { $candidates += $d.FullName }
+    }
+    foreach ($dir in ($candidates | Select-Object -Unique)) {
+        if (-not $dir -or -not (Test-Path $dir)) { continue }
+        $hit = Get-ChildItem -Path $dir -Filter "karius_academic_system-*.whl" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($hit) { return $hit.FullName }
+    }
+    return $null
+}
+
+function Download-ReleaseWheel {
+    param([string]$RepoName, [string]$TagVer, [string]$Token)
+
+    $tmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("kas_install_" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
+    New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+    $whlName = "karius_academic_system-$TagVer-py3-none-any.whl"
+    $destWhl = Join-Path $tmpDir $whlName
+
+    # 1. Uu tien `gh release download` neu may da dang nhap GitHub CLI (ho tro ca repo Private)
+    $ghCmd = Get-Command gh -ErrorAction SilentlyContinue
+    if ($ghCmd) {
+        try {
+            Write-Host "      Dang tai $whlName qua GitHub CLI (gh)..." -ForegroundColor DarkGray
+            & gh release download "v$TagVer" -R $RepoName -p $whlName -D $tmpDir --clobber 2>$null | Out-Null
+            if (Test-Path $destWhl) { return $destWhl }
+        } catch {}
+    }
+
+    # 2. Neu co GitHub Token (ho tro repo Private qua GitHub Releases API)
+    $effToken = if ($Token) { $Token } elseif ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } elseif ($env:GH_TOKEN) { $env:GH_TOKEN } else { "" }
+    if ($effToken) {
+        try {
+            Write-Host "      Dang tai $whlName qua GitHub API (co xac thuc token)..." -ForegroundColor DarkGray
+            $hdr = @{ Authorization = "Bearer $effToken"; "User-Agent" = "KAS-Installer"; Accept = "application/vnd.github+json" }
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$RepoName/releases/tags/v$TagVer" -Headers $hdr
+            $asset = $rel.assets | Where-Object { $_.name -eq $whlName } | Select-Object -First 1
+            if ($asset) {
+                $dlHdr = @{ Authorization = "Bearer $effToken"; "User-Agent" = "KAS-Installer"; Accept = "application/octet-stream" }
+                Invoke-WebRequest -Uri $asset.url -Headers $dlHdr -OutFile $destWhl -UseBasicParsing
+                if (Test-Path $destWhl) { return $destWhl }
+            }
+        } catch {
+            Write-Host "      [!] Khong tai duoc bang token: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    # 3. Thu tai URL cong khai (neu repo dang Public)
+    $publicUrl = "https://github.com/$RepoName/releases/download/v$TagVer/$whlName"
+    try {
+        Write-Host "      Dang tai $whlName tu GitHub Release..." -ForegroundColor DarkGray
+        Invoke-WebRequest -Uri $publicUrl -OutFile $destWhl -UseBasicParsing
+        if (Test-Path $destWhl) { return $destWhl }
+    } catch {
+        Write-Host ""
+        Write-Host "[!] KHONG TAI DUOC GOI CAI DAT TU GITHUB (loi 404 / kho dang o che do Private)." -ForegroundColor Red
+        Write-Host "    Cach cai nhanh nhat (KHONG can token, KHONG bao gio bi 404):" -ForegroundColor Yellow
+        Write-Host "    1. Tai tep 'kas-windows-sac-safe.zip' tu GitHub Releases v$TagVer" -ForegroundColor White
+        Write-Host "       hoac tu Google Drive: [A] STORAGE / [00] TONG QUAN / [03] QUAN LY / [02] GOI PHAT HANH" -ForegroundColor White
+        Write-Host "    2. Giai nen tep ZIP ra mot thu muc (vd: Downloads\kas-windows-sac-safe)." -ForegroundColor White
+        Write-Host "    3. Nhap dup 'Cai_Dat_KAS_Windows11.cmd' ngay trong thu muc vua giai nen!" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "    (Hoac neu dung PowerShell voi repo Private, hay dang nhap 'gh auth login' hoac dat `$env:GITHUB_TOKEN='ghp_...' roi chay lai.)" -ForegroundColor DarkGray
+        exit 1
     }
     return $null
 }
@@ -83,21 +164,27 @@ if (-not (Test-Path $pythonwExe)) { $pythonwExe = $pythonExe }
 $pyVer = (& $pythonExe --version 2>&1).ToString().Trim()
 Write-Host "[1/4] Trinh thong dich Python da ky so: $pythonExe ($pyVer)" -ForegroundColor Green
 
-if (-not $WheelPath) {
-    $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-    $localWhl = Get-ChildItem -Path $scriptDir -Filter "karius_academic_system-*.whl" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+# Dam bao pip luon san sang
+try {
+    & $pythonExe -m pip --version 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { & $pythonExe -m ensurepip --upgrade | Out-Null }
+} catch {
+    & $pythonExe -m ensurepip --upgrade | Out-Null
+}
+
+if (-not $WheelPath -or -not (Test-Path $WheelPath)) {
+    $localWhl = Find-LocalWheel
     if ($localWhl) {
-        $WheelPath = $localWhl.FullName
+        $WheelPath = $localWhl
+    } else {
+        $WheelPath = Download-ReleaseWheel -RepoName $Repo -TagVer $Version -Token $GitHubToken
     }
 }
 
-$wheelUrl = "https://github.com/kariusnocr/storage-management-suite/releases/download/v$Version/karius_academic_system-$Version-py3-none-any.whl"
-$installSource = if ($WheelPath -and (Test-Path $WheelPath)) { $WheelPath } else { $wheelUrl }
+Write-Host "[2/4] Dang cai dat Karius Academic System (KAS) v$Version & thu vien thuan Python..." -ForegroundColor Cyan
+Write-Host "      Nguon: $WheelPath" -ForegroundColor DarkGray
 
-Write-Host "[2/4] Dang cai dat Karius Academic System (KAS) & thu vien thuan Python qua 'python -m pip'..." -ForegroundColor Cyan
-Write-Host "      Nguon: $installSource" -ForegroundColor DarkGray
-
-& $pythonExe -m pip install --user --upgrade --no-warn-script-location $installSource
+& $pythonExe -m pip install --user --upgrade --force-reinstall --no-warn-script-location $WheelPath
 & $pythonExe -m pip install --user --upgrade --no-warn-script-location openpyxl google-api-python-client google-auth-oauthlib google-auth-httplib2
 
 if ($WithExtras) {
@@ -148,7 +235,7 @@ try {
         $sc.TargetPath = $pythonwExe
         $sc.Arguments = "-m karius_academic_system desktop --browser --stdlib"
         $sc.WorkingDirectory = $env:USERPROFILE
-        $sc.Description = "Karius Academic System (KAS) v$Version — Quan tri Da Kho Du Lieu"
+        $sc.Description = "Karius Academic System (KAS) v$Version — Quan tri Da Kho Du Lieu & AI Agent"
         $sc.IconLocation = "$env:SystemRoot\System32\shell32.dll,43"
         $sc.Save()
     }
@@ -165,11 +252,11 @@ $env:PYTHONUTF8 = "1"
 
 Write-Host ""
 Write-Host "HOAN TAT! Ban co the:" -ForegroundColor Green
-Write-Host "  1. Nhap dup 'Karius Academic System (KAS)' tren Desktop de ket noi kho cuc bo hoac Google Drive." -ForegroundColor White
+Write-Host "  1. Nhap dup 'Karius Academic System (KAS)' tren Desktop de ket noi kho cuc bo, Google Drive, Quy tac dat ten & Tro ly AI." -ForegroundColor White
 Write-Host "  2. Mo PowerShell moi va go:" -ForegroundColor White
-Write-Host "       kas vault add tai-lieu --nguon D:\TaiLieu" -ForegroundColor Cyan
-Write-Host "       kas vault add my-drive --nguon https://drive.google.com/drive/folders/<FOLDER_ID>" -ForegroundColor Cyan
-Write-Host "       kas quet  |  kas doctor" -ForegroundColor Cyan
+Write-Host '       kas vault add "Tai Lieu" "D:\TaiLieu"' -ForegroundColor Cyan
+Write-Host '       kas vault add "[A] STORAGE" "https://drive.google.com/drive/folders/<FOLDER_ID>"' -ForegroundColor Cyan
+Write-Host "       kas rules presets  |  kas ai chat  |  kas mcp config" -ForegroundColor Cyan
 Write-Host ""
 
 if (-not $NoLaunch) {

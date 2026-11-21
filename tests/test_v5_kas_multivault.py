@@ -1,4 +1,4 @@
-"""Bộ kiểm thử chuyên sâu cho Karius Academic System (KAS) v5.0.0 — Đa Kho (Multi-Vault) & LocalFSBackend."""
+"""Bộ kiểm thử chuyên sâu cho Karius Academic System (KAS) v1.0.0 — Đa Kho (Multi-Vault) & LocalFSBackend."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ class TestKASMultiVaultAndLocalFS(unittest.TestCase):
     def test_default_config_has_no_hardcoded_personal_drive_ids(self):
         self.assertEqual(APP_NAME, "Karius Academic System")
         self.assertEqual(APP_SHORT, "KAS")
-        self.assertEqual(__version__, "5.0.0")
+        self.assertEqual(__version__, "1.0.0")
         cfg = sc.load_config()
         self.assertEqual(cfg["root_id"], "")
         self.assertEqual(cfg["known_ids"], {})

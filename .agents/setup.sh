@@ -37,4 +37,4 @@ grep -q "TESSDATA_PREFIX=${TESS_DIR}" "${BASHRC}" || echo "export TESSDATA_PREFI
 export PATH="${HOME}/.local/bin:${PATH}"
 export TESSDATA_PREFIX="${TESS_DIR}"
 
-echo "Karius Academic System (KAS) 5.0.0 ready (CLI: $(command -v kas || echo 'python3 -m karius_academic_system'))."
+echo "Karius Academic System (KAS) 1.0.0 ready (CLI: $(command -v kas || echo 'python3 -m karius_academic_system'))."

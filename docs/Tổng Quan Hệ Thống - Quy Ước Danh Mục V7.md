@@ -1,4 +1,4 @@
-# QUY ƯỚC ĐẶT TÊN & TINH GỌN DANH MỤC HỆ THỐNG — CHUẨN V7 (KAS `v5.0.0`)
+# QUY ƯỚC ĐẶT TÊN & TINH GỌN DANH MỤC HỆ THỐNG — CHUẨN V7 (KAS `v1.0.0`)
 
 Tài liệu này chuẩn hóa hệ thống bảng **`Danh Mục Hệ Thống`** tập trung tại **`<Kho Dữ Liệu> / [00] TỔNG QUAN / [01] DANH SÁCH`** dành cho mọi kho sử dụng chế độ **KAS Academic V7 (`academic_v7`)** trong **Karius Academic System (KAS)**.
 

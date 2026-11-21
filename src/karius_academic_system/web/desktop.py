@@ -1,4 +1,4 @@
-"""Ứng dụng Desktop gốc (`kas desktop`) — Karius Academic System (KAS) v5.0."""
+"""Ứng dụng Desktop gốc (`kas desktop`) — Karius Academic System (KAS) v1.0."""
 
 from __future__ import annotations
 

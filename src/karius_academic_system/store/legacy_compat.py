@@ -66,10 +66,10 @@ def load_index(path: Optional[Path] = None, required: bool = True) -> Index:
 
 
 def save_index(index: Index, path: Optional[Path] = None, sync_sqlite: bool = True) -> Path:
-    """Lưu chỉ mục nguyên tử ra JSON và tự đồng bộ vào `storage.db` (SQLite WAL + FTS5)."""
+    """Lưu chỉ mục nguyên tử ra JSON và tự đồng bộ vào `kas.db` (SQLite WAL + FTS5)."""
     p = Path(path) if path else index_path()
     write_json(p, index, indent=None)
-    if sync_sqlite and path is None:
+    if sync_sqlite and (path is None or p.resolve() == index_path().resolve()):
         try:
             with StorageDB(db_path()) as db:
                 db.import_index_dict(index)

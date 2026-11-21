@@ -21,7 +21,12 @@ def build_sac_bundle(dist_dir: Path, out_zip: Path) -> Path:
     out_zip.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.write(wheel, arcname=wheel.name)
-        for name in ("install_windows_sac_safe.ps1", "Chay_Karius_Academic_System.cmd", "README_WINDOWS_SAC.txt"):
+        for name in (
+            "Cai_Dat_KAS_Windows11.cmd",
+            "install_windows_sac_safe.ps1",
+            "Chay_Karius_Academic_System.cmd",
+            "README_WINDOWS_SAC.txt",
+        ):
             src = win_dir / name
             if src.exists():
                 zf.write(src, arcname=name)

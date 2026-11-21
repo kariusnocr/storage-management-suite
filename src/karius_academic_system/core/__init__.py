@@ -1,4 +1,4 @@
-"""Thư viện lõi hợp nhất `karius_academic_system.core` (KAS v5.0.0) — xuất toàn bộ API lõi đa kho."""
+"""Thư viện lõi hợp nhất `karius_academic_system.core` (KAS v1.0.0) — xuất toàn bộ API lõi đa kho."""
 
 from __future__ import annotations
 
@@ -121,6 +121,24 @@ from karius_academic_system.core.naming import (
     safe_fix_name,
     split_ext,
     title_case_vn,
+)
+from karius_academic_system.core.naming_rules import (
+    FILE_CASE_OPTIONS,
+    FOLDER_CASE_OPTIONS,
+    FOLDER_INDEX_STYLES,
+    NAMING_PRESETS,
+    NamingRuleSet,
+    apply_naming_preset,
+    evaluate_name_with_rules,
+    get_active_naming_rules,
+    global_naming_rules_path,
+    has_custom_naming_rules,
+    normalize_name_with_rules,
+    preset_rules,
+    preview_naming,
+    reset_naming_rules,
+    save_naming_rules,
+    vault_naming_rules_path,
 )
 from karius_academic_system.core.ocr import ocr_image_file, ocr_pdf_pages, ocr_pil_image, reset_ocr_cache, resolve_tesseract_lang
 from karius_academic_system.core.utils import (

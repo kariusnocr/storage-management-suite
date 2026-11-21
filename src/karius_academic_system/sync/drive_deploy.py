@@ -470,7 +470,7 @@ def archive_legacy_module_folders(
 
 
 def main(argv: Optional[List[str]] = None) -> None:
-    ap = argparse.ArgumentParser(description="Triển khai & đồng bộ tài liệu + gói phát hành lên [03] QUẢN LÝ (KAS v5.0).")
+    ap = argparse.ArgumentParser(description="Triển khai & đồng bộ tài liệu + gói phát hành lên [03] QUẢN LÝ (KAS v1.0).")
     ap.add_argument("lenh", choices=["danh-sach", "tai-ve", "day-len", "phat-hanh-drive"], help="Thao tác cần thực hiện")
     ap.add_argument("--thu-muc", help="Thư mục nguồn trên máy (mặc định: thư mục gốc kho lưu trữ)")
     ap.add_argument("--thuc-thi", action="store_true", help="Thực sự ghi lên kho dữ liệu (mặc định chạy thử)")
