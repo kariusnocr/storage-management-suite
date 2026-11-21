@@ -83,7 +83,7 @@ class TestKASv1NamingRulesAndAI(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_custom_naming_rules_presets_cli_and_auditor_enforcement(self):
-        self.assertEqual(__version__, "1.0.0")
+        self.assertEqual(__version__, "1.0.1")
 
         # 1. Preset snake_case_dev chuẩn hóa không dấu + chữ thường + dấu gạch dưới
         p_snake = sc.preview_naming("01_Bài Tập AI.PDF", is_folder=False, rules=sc.preset_rules("snake_case_dev"))
@@ -139,7 +139,7 @@ class TestKASv1NamingRulesAndAI(unittest.TestCase):
     def test_mcp_jsonrpc_server_and_agent_tools(self):
         # 1. Initialize handshake
         init_resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
-        self.assertEqual(init_resp["result"]["serverInfo"]["version"], "1.0.0")
+        self.assertEqual(init_resp["result"]["serverInfo"]["version"], __version__)
 
         # 2. tools/list
         tools_resp = handle_mcp_jsonrpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
@@ -283,24 +283,36 @@ class TestKASv1NamingRulesAndAI(unittest.TestCase):
         finally:
             stop_fn()
 
-        # Kiểm chứng gói Windows SAC-safe ZIP chứa tệp cài 1 nhấp đúp Cai_Dat_KAS_Windows11.cmd
+        # Kiểm chứng toàn bộ script Windows (.ps1/.cmd) là 100% ASCII thuần (tránh lỗi PowerShell 5.1 ANSI/em-dash)
+        repo_root = Path(__file__).resolve().parent.parent
+        win_dir = repo_root / "packaging" / "windows"
+        for script_path in (*win_dir.glob("*.ps1"), *win_dir.glob("*.cmd")):
+            raw_bytes = script_path.read_bytes()
+            non_ascii = [b for b in raw_bytes if b >= 128]
+            self.assertEqual(non_ascii, [], f"{script_path.name} contains non-ASCII bytes that break Windows PowerShell 5.1 / cmd.exe")
+
+        # Kiểm chứng gói Windows SAC-safe ZIP chứa tệp cài 1 nhấp đúp Cai_Dat_KAS_Windows11.cmd với dòng CRLF chuẩn Windows
         import importlib.util
 
-        repo_root = Path(__file__).resolve().parent.parent
         spec = importlib.util.spec_from_file_location("build_sac_bundle", repo_root / "packaging" / "build_sac_bundle.py")
         assert spec and spec.loader
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         dist_dir = self.root / "fake_dist"
         dist_dir.mkdir()
-        (dist_dir / "karius_academic_system-1.0.0-py3-none-any.whl").write_bytes(b"fake-wheel")
+        (dist_dir / f"karius_academic_system-{__version__}-py3-none-any.whl").write_bytes(b"fake-wheel")
         out_zip = self.root / "kas-windows-sac-safe.zip"
         mod.build_sac_bundle(dist_dir, out_zip)
         with zipfile.ZipFile(out_zip) as zf:
             names = set(zf.namelist())
-        self.assertIn("Cai_Dat_KAS_Windows11.cmd", names)
-        self.assertIn("install_windows_sac_safe.ps1", names)
-        self.assertIn("karius_academic_system-1.0.0-py3-none-any.whl", names)
+            self.assertIn("Cai_Dat_KAS_Windows11.cmd", names)
+            self.assertIn("install_windows_sac_safe.ps1", names)
+            self.assertIn(f"karius_academic_system-{__version__}-py3-none-any.whl", names)
+            for win_file in ("Cai_Dat_KAS_Windows11.cmd", "install_windows_sac_safe.ps1", "Chay_Karius_Academic_System.cmd"):
+                data = zf.read(win_file)
+                self.assertTrue(all(b < 128 for b in data), f"{win_file} in ZIP must be pure ASCII")
+                self.assertIn(b"\r\n", data, f"{win_file} in ZIP must use CRLF")
+                self.assertNotIn(b"\n", data.replace(b"\r\n", b""), f"{win_file} in ZIP has stray LF without CR")
 
 
 if __name__ == "__main__":

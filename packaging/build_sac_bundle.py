@@ -29,7 +29,8 @@ def build_sac_bundle(dist_dir: Path, out_zip: Path) -> Path:
         ):
             src = win_dir / name
             if src.exists():
-                zf.write(src, arcname=name)
+                text = src.read_text(encoding="utf-8").replace("\r\n", "\n").replace("\n", "\r\n")
+                zf.writestr(name, text.encode("utf-8"))
     return out_zip
 
 
