@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=66.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "storage-management-suite"
+version = "4.0.0"
+description = "Phần mềm quản trị, chuẩn hóa Chuẩn V6/Danh Mục V7, đọc và phân tích đa phương tiện cho kho Google Drive [A] STORAGE"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [
+  { name = "kariusnocr" }
+]
+keywords = ["google-drive", "storage", "catalog", "vietnamese", "ocr", "sqlite", "fastapi", "desktop"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "openpyxl>=3.0.9",
+]
+
+[project.optional-dependencies]
+media = [
+  "Pillow>=9.4.0",
+  "numpy>=1.24.0",
+]
+web = [
+  "fastapi>=0.92.0",
+  "uvicorn>=0.17.6",
+]
+drive-api = [
+  "google-api-python-client>=2.100.0",
+  "google-auth>=2.23.0",
+  "google-auth-oauthlib>=1.1.0",
+  "google-auth-httplib2>=0.1.1",
+]
+desktop = [
+  "fastapi>=0.92.0",
+  "uvicorn>=0.17.6",
+  "pywebview>=5.0",
+]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.6.0",
+  "mypy>=1.10.0",
+  "build>=1.2.0",
+  "wheel>=0.40.0",
+  "httpx>=0.27.0",
+]
+all = [
+  "Pillow>=9.4.0",
+  "numpy>=1.24.0",
+  "fastapi>=0.92.0",
+  "uvicorn>=0.17.6",
+  "google-api-python-client>=2.100.0",
+  "google-auth>=2.23.0",
+  "google-auth-oauthlib>=1.1.0",
+  "google-auth-httplib2>=0.1.1",
+  "pywebview>=5.0",
+]
+
+[project.scripts]
+astorage = "storage_suite.cli.main:main"
+storage-suite = "storage_suite.cli.main:main"
+
+[project.gui-scripts]
+astorage-desktop = "storage_suite.web.desktop:main"
+
+[project.urls]
+Repository = "https://github.com/kariusnocr/storage-management-suite"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+storage_suite = ["data/*.json", "web/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501", "E402", "E701", "E702", "E731", "E741", "F841"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/storage_suite/core/__init__.py" = ["F401"]

@@ -2,14 +2,14 @@ name: Storage Suite CI
 
 on:
   push:
-    branches: [ main, "sync/**" ]
+    branches: [ main, "sync/**", "feat/**" ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
 jobs:
   test-suite:
-    name: Kiểm thử tự động (Python ${{ matrix.python-version }})
+    name: Kiểm thử & Đóng gói (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -25,29 +25,38 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cài đặt công cụ đa phương tiện (ffmpeg, tesseract-ocr, fonts-dejavu-core)
+      - name: Cài đặt công cụ đa phương tiện (ffmpeg, tesseract-ocr, vie, poppler, 7z, fonts)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg tesseract-ocr fonts-dejavu-core
+          sudo apt-get install -y -qq ffmpeg tesseract-ocr tesseract-ocr-vie poppler-utils p7zip-full fonts-dejavu-core
 
-      - name: Cài đặt thư viện phụ thuộc (openpyxl, pillow, numpy)
+      - name: Cài đặt gói phần mềm và phụ thuộc phát triển
         run: |
-          python3 -m pip install --upgrade pip openpyxl pillow numpy
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e ".[media,web,drive-api,dev]"
 
-      - name: Kiểm tra cú pháp tĩnh toàn bộ mô-đun [01]–[18]
+      - name: Kiểm tra cú pháp tĩnh toàn bộ mã nguồn Python
         run: |
           python3 -c '
-          import pathlib, py_compile, sys
-          files = sorted(pathlib.Path(".").rglob("*.py"))
+          import pathlib, py_compile
+          files = sorted(pathlib.Path("src").rglob("*.py")) + sorted(pathlib.Path("tests").rglob("*.py"))
           for f in files:
               py_compile.compile(str(f), doraise=True)
           print(f"Đã kiểm tra cú pháp thành công {len(files)} tệp Python.")
           '
 
-      - name: Kiểm toán bảo mật mã nguồn ([15] github_sync.py)
-        run: |
-          python3 "[15] ĐỒNG BỘ GITHUB/github_sync.py" kiem-tra-bao-mat
+      - name: Kiểm tra chất lượng mã với Ruff
+        run: ruff check src tests
 
-      - name: Chạy bộ kiểm thử tự động ngoại tuyến ([01] test_storage_suite.py)
+      - name: Kiểm toán bảo mật kho mã nguồn
+        run: astorage github kiem-tra-bao-mat
+
+      - name: Chạy bộ kiểm thử tự động ngoại tuyến (pytest)
+        run: pytest -v --cov=storage_suite --cov-report=term-missing
+
+      - name: Kiểm chứng đóng gói Wheel & Sdist
         run: |
-          python3 -m unittest discover -s "[01] THƯ VIỆN LÕI/tests" -v
+          python3 -m build
+          ls -lh dist/
+          astorage version
+          astorage doctor || true
