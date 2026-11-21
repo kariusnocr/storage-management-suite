@@ -1588,7 +1588,17 @@ def main(argv: Optional[List[str]] = None) -> None:
             return
         drive = sc.create_drive()
         with sc.StorageDB() as db:
-            res = sc.apply_catalog_migration_plan(drive, plan, execute=True, apply_prunes=apply_prunes, db=db)
+            res = sc.apply_catalog_migration_plan(
+                drive,
+                plan,
+                execute=True,
+                apply_prunes=apply_prunes,
+                db=db,
+                workers=args.luong,
+                index=index,
+            )
+        if res.get("index_updated"):
+            sc.save_index(index)
         sc.log(
             f"Hoàn tất Chuẩn Danh Mục V7: đổi tên={res['renamed']} | tinh gọn/cách ly={res['pruned']} | "
             f"lỗi={len(res['errors'])} | mã hoàn tác={res['batch_id'] or '—'}"

@@ -529,14 +529,21 @@ def build_catalog_migration_plan(
                 continue
 
             if is_excluded_catalog_folder(src_path, pol):
+                src_parts = src_path.split("/")
+                is_tq_only = (TONG_QUAN_FOLDER in src_parts) and not any(
+                    _strip_stt(seg).upper() in {"__MACOSX", "MACOSX", ".OBSIDIAN", ".GIT", "__PYCACHE__", "NODE_MODULES", "TESTS"}
+                    or seg.strip().startswith(".")
+                    or _strip_stt(seg).upper().endswith("MACOSX")
+                    for seg in src_parts
+                )
                 prunes.append({
                     "id": it["id"],
                     "parent_id": parent_id,
                     "catalog_folder": fpath,
                     "source_path": src_path,
                     "name": it["name"],
-                    "category": "system_junk",
-                    "reason": "excluded_tech_or_macosx",
+                    "category": "pruned_catalog" if is_tq_only else "system_junk",
+                    "reason": "excluded_tong_quan_meta" if is_tq_only else "excluded_tech_or_macosx",
                 })
                 continue
 
@@ -627,15 +634,19 @@ def apply_catalog_migration_plan(
     apply_prunes: bool = True,
     db: Optional[Any] = None,
     quarantine_root_id: Optional[str] = None,
+    workers: int = 12,
+    chunk_size: int = 100,
+    index: Optional[Dict[str, Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Thực thi kế hoạch chuẩn hóa & tinh gọn Danh Mục V7 (mặc định dry-run).
-    - Đổi tên tại chỗ (bảo toàn 100% Drive File ID).
-    - Di chuyển bảng rác / bảng đã tinh gọn vào `[07] KIỂM TRA` (không bao giờ xóa vĩnh viễn).
+    - Đổi tên tại chỗ theo từng lô (bảo toàn 100% Drive File ID).
+    - Di chuyển bảng rác / bảng đã tinh gọn vào `[07] KIỂM TRA` theo lô song song (không xóa cứng).
     - Lưu toàn bộ thao tác vào `StorageDB` Unified Undo Journal để hoàn tác 1 lệnh.
     """
     from storage_suite.core.config import CONFIG
     from storage_suite.core.config import quarantine_root_id as default_qroot
+    from storage_suite.core.utils import log as _log
 
     renames = plan.get("renames", [])
     prunes = plan.get("prunes", []) if apply_prunes else []
@@ -646,30 +657,41 @@ def apply_catalog_migration_plan(
             "pruned": len(prunes),
             "errors": [],
             "batch_id": "",
+            "index_updated": False,
         }
 
     actions: List[UndoAction] = []
     errors: List[str] = []
+    renamed_map: Dict[str, str] = {}
+    pruned_ids: Set[str] = set()
 
     if renames:
-        pairs = [(r["id"], r["new_name"]) for r in renames]
-        res = drive.batch_rename(pairs)
         by_id = {r["id"]: r for r in renames}
-        for fid, ok, err in res:
-            rec = by_id[fid]
-            if ok:
-                actions.append(
-                    UndoAction(
-                        op="catalog_rename",
-                        item_id=fid,
-                        old_name=rec["old_name"],
-                        new_name=rec["new_name"],
-                        old_parent_id=rec.get("parent_id", ""),
-                        path=rec.get("catalog_folder", ""),
+        ren_chunk = 50
+        done_ren = 0
+        for i in range(0, len(renames), ren_chunk):
+            batch = renames[i : i + ren_chunk]
+            pairs = [(r["id"], r["new_name"]) for r in batch]
+            res = drive.batch_rename(pairs)
+            for fid, ok, err in res:
+                rec = by_id[fid]
+                if ok:
+                    done_ren += 1
+                    renamed_map[fid] = rec["new_name"]
+                    actions.append(
+                        UndoAction(
+                            op="catalog_rename",
+                            item_id=fid,
+                            old_name=rec["old_name"],
+                            new_name=rec["new_name"],
+                            old_parent_id=rec.get("parent_id", ""),
+                            path=rec.get("catalog_folder", ""),
+                        )
                     )
-                )
-            else:
-                errors.append(f"rename {fid}: {err}")
+                else:
+                    errors.append(f"rename {fid}: {err}")
+            if len(renames) > ren_chunk:
+                _log(f"  [V7 đổi tên] {min(i + len(batch), len(renames))}/{len(renames)} (thành công: {done_ren}, lỗi: {len(errors)})")
 
     if prunes:
         qroot = quarantine_root_id or default_qroot()
@@ -686,37 +708,74 @@ def apply_catalog_migration_plan(
             move_items.append((pr["id"], dest_id))
             prune_by_id[pr["id"]] = (pr, dest_id)
 
-        mres = drive.batch_move(move_items)
-        for fid, ok, err in mres:
-            pr, dest_id = prune_by_id[fid]
-            if ok:
-                actions.append(
-                    UndoAction(
-                        op="catalog_prune",
-                        item_id=fid,
-                        old_name=pr["name"],
-                        new_name=pr["name"],
-                        old_parent_id=pr.get("parent_id", ""),
-                        new_parent_id=dest_id,
-                        path=pr.get("catalog_folder", ""),
-                        extra={"reason": pr.get("reason", "")},
+        step = max(10, int(chunk_size))
+        eff_workers = max(1, int(workers))
+        done_pr = 0
+        for i in range(0, len(move_items), step):
+            chunk = move_items[i : i + step]
+            try:
+                mres = drive.batch_move(chunk, workers=eff_workers)
+            except TypeError:
+                mres = drive.batch_move(chunk)
+            for fid, ok, err in mres:
+                pr, dest_id = prune_by_id[fid]
+                if ok:
+                    done_pr += 1
+                    pruned_ids.add(fid)
+                    actions.append(
+                        UndoAction(
+                            op="catalog_prune",
+                            item_id=fid,
+                            old_name=pr["name"],
+                            new_name=pr["name"],
+                            old_parent_id=pr.get("parent_id", ""),
+                            new_parent_id=dest_id,
+                            path=pr.get("catalog_folder", ""),
+                            extra={"reason": pr.get("reason", "")},
+                        )
                     )
-                )
-            else:
-                errors.append(f"move {fid}: {err}")
+                else:
+                    errors.append(f"move {fid}: {err}")
+            if len(move_items) > step:
+                _log(f"  [V7 tinh gọn] {min(i + len(chunk), len(move_items))}/{len(move_items)} (thành công: {done_pr}, lỗi: {len(errors)})")
+
+    index_updated = False
+    if index is not None and (renamed_map or pruned_ids):
+        for fpath, meta in index.items():
+            if not is_in_danh_sach_tree(fpath):
+                continue
+            items = meta.get("items")
+            if not isinstance(items, list):
+                continue
+            new_items = []
+            changed = False
+            for it in items:
+                iid = it.get("id")
+                if iid in pruned_ids:
+                    changed = True
+                    continue
+                if iid in renamed_map:
+                    it = dict(it)
+                    it["name"] = renamed_map[iid]
+                    changed = True
+                new_items.append(it)
+            if changed:
+                meta["items"] = new_items
+                index_updated = True
 
     batch_id = ""
     if db is not None and actions:
         batch_id = db.record_undo_batch(
             kind="catalog_v7",
             actions=actions,
-            description=f"Chuẩn hóa & tinh gọn Danh Mục V7 ({len(renames)} đổi tên, {len(prunes)} tinh gọn)",
+            description=f"Chuẩn hóa & tinh gọn Danh Mục V7 ({len(renamed_map)} đổi tên, {len(pruned_ids)} tinh gọn)",
         )
 
     return {
         "execute": True,
-        "renamed": sum(1 for a in actions if a.op == "catalog_rename"),
-        "pruned": sum(1 for a in actions if a.op == "catalog_prune"),
+        "renamed": len(renamed_map),
+        "pruned": len(pruned_ids),
         "errors": errors,
         "batch_id": batch_id,
+        "index_updated": index_updated,
     }

@@ -36,6 +36,7 @@ QUARANTINE = {
     "duplicate_tongquan": _Q_CFG.get("duplicate_tongquan", "[01] TỔNG QUAN TRÙNG LẶP"),
     "broken_shortcut": _Q_CFG.get("broken_shortcut", "[01] SHORTCUT LỖI 404"),
     "redundant_shortcut": _Q_CFG.get("redundant_shortcut", "[02] SHORTCUT ĐÃ SAO CHÉP"),
+    "system_junk": _Q_CFG.get("system_junk", "[06] RÁC HỆ THỐNG"),
 }
 
 _DEDUP_CFG = sc.CONFIG.get("dedup", {})
@@ -561,7 +562,7 @@ def check_capabilities(
 def _resolve_quarantine_destinations(drive: sc.Drive, kinds_needed: Set[str]) -> Dict[str, str]:
     kiem_tra = sc.quarantine_root_id()
     dest: Dict[str, str] = {}
-    for k in ("duplicate", "broken_shortcut", "redundant_shortcut"):
+    for k in ("duplicate", "broken_shortcut", "redundant_shortcut", "system_junk"):
         if k in kinds_needed or (k == "duplicate" and "duplicate_tongquan" in kinds_needed):
             dest[k] = drive.ensure_folder(QUARANTINE[k], kiem_tra)
     if "duplicate_tongquan" in kinds_needed:
@@ -597,18 +598,32 @@ def execute_moves(moves: List[dict], index: dict, workers: int = 8, drive: Optio
 
     ok = fail = 0
     moved_ids: Set[str] = set()
+    undo_actions: List[sc.UndoAction] = []
     results = drive.batch_move(pairs, workers=workers)
     for n, (fid, success, err) in enumerate(results, 1):
         m = by_id[fid]
         if success:
             ok += 1
             moved_ids.add(fid)
+            from_id = m.get("from_parent_id") or index.get(m["from_path"], {}).get("id") or ""
             qlog.append({
                 **m,
-                "from_id": index.get(m["from_path"], {}).get("id"),
+                "from_id": from_id,
                 "to_id": dest[m["kind"]],
                 "ts": int(time.time()),
             })
+            undo_actions.append(
+                sc.UndoAction(
+                    op="quarantine_move",
+                    item_id=fid,
+                    old_name=m["name"],
+                    new_name=m["name"],
+                    old_parent_id=from_id,
+                    new_parent_id=dest[m["kind"]],
+                    path=m.get("from_path", ""),
+                    extra={"kind": m["kind"], "subkind": m.get("subkind", m["kind"])},
+                )
+            )
         else:
             fail += 1
             if "403" in err or "insufficientFilePermissions" in err or "cannotMove" in err:
@@ -619,6 +634,17 @@ def execute_moves(moves: List[dict], index: dict, workers: int = 8, drive: Optio
         if n % 100 == 0:
             sc.write_json(log_path, qlog)
     sc.write_json(log_path, qlog)
+    batch_id = ""
+    if undo_actions:
+        try:
+            with sc.StorageDB() as db:
+                batch_id = db.record_undo_batch(
+                    kind="quarantine",
+                    actions=undo_actions,
+                    description=f"Cách ly {len(undo_actions)} mục vào {sc.KIEM_TRA_FOLDER}",
+                )
+        except Exception:
+            batch_id = ""
     if moved_ids:
         touched_paths = {m["from_path"] for m in allowed if m["id"] in moved_ids}
         for fp in touched_paths:
@@ -627,7 +653,8 @@ def execute_moves(moves: List[dict], index: dict, workers: int = 8, drive: Optio
         sc.save_index(index)
     sc.log(
         f"Đã chuyển vào cách ly: {ok} | đã làm trước đó: {skipped_already} | "
-        f"KHÔNG CÓ QUYỀN: {len(blocked)} | lỗi khác: {max(0, fail - len(blocked))} | log: {log_path}"
+        f"KHÔNG CÓ QUYỀN: {len(blocked)} | lỗi khác: {max(0, fail - len(blocked))} | "
+        f"mã hoàn tác: {batch_id or '—'} | log: {log_path}"
     )
     return blocked
 

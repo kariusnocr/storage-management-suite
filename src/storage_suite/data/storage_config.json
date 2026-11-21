@@ -32,7 +32,8 @@
     "ingest": "[04] NHẬP DỮ LIỆU",
     "empty_folder": "[05] THƯ MỤC RỖNG",
     "system_junk": "[06] RÁC HỆ THỐNG",
-    "pruned_catalog": "[07] DANH MỤC ĐÃ TINH GỌN"
+    "pruned_catalog": "[07] DANH MỤC ĐÃ TINH GỌN",
+    "legacy_code": "[08] MÃ NGUỒN CŨ V3"
   },
   "catalog_policy": {
     "spec_version": "V7",

@@ -366,6 +366,94 @@ def cmd_push(
     return 3 if conflicts else 0
 
 
+LEGACY_MODULE_FOLDERS = {
+    "[01] THƯ VIỆN LÕI",
+    "[02] QUÉT CHỈ MỤC",
+    "[03] KIỂM TRA QUY ƯỚC",
+    "[04] CHUẨN HÓA TÊN",
+    "[05] DANH MỤC HỆ THỐNG",
+    "[06] RÀ SOÁT TRÙNG LẶP",
+    "[07] BÁO CÁO THỐNG KÊ",
+    "[08] TRIỂN KHAI MÃ NGUỒN",
+    "[09] ĐIỀU PHỐI VẬN HÀNH",
+    "[10] SAO CHÉP DI CHUYỂN",
+    "[11] NHẬP DỮ LIỆU MỚI",
+    "[12] TRA CỨU VÀ KIỂM TOÁN",
+    "[13] ĐỌC TỆP",
+    "[14] PHÂN TÍCH NỘI DUNG",
+    "[15] ĐỒNG BỘ GITHUB",
+    "[16] PHÂN TÍCH HÌNH ẢNH",
+    "[17] PHÂN TÍCH ÂM THANH",
+    "[18] PHÂN TÍCH VIDEO",
+}
+
+
+def archive_legacy_module_folders(
+    drive: sc.Drive,
+    *,
+    dry_run: bool = True,
+    db: Optional[sc.StorageDB] = None,
+) -> Dict[str, object]:
+    """Lưu trữ an toàn các thư mục mô-đun cũ `[01]`–`[18]` trên `[03] QUẢN LÝ` về `[07] KIỂM TRA/[08] MÃ NGUỒN CŨ V3` (không xóa)."""
+    legacy_keys = {sc.nfc(n) for n in LEGACY_MODULE_FOLDERS}
+    remote_items = drive.ls(QUAN_LY_ID)
+    targets = [
+        it for it in remote_items
+        if it.get("mimeType") == sc.FOLDER_MIME and sc.nfc(it.get("name", "")) in legacy_keys
+    ]
+    if not targets:
+        return {"found": 0, "moved": 0, "batch_id": "", "items": []}
+
+    sub_name = sc.CONFIG.get("quarantine_subfolders", {}).get("legacy_code", "[08] MÃ NGUỒN CŨ V3")
+    if dry_run:
+        return {
+            "found": len(targets),
+            "moved": 0,
+            "batch_id": "",
+            "dest_name": sub_name,
+            "items": [it["name"] for it in targets],
+        }
+
+    dest_id = drive.ensure_folder(sub_name, sc.quarantine_root_id())
+    results = drive.batch_move([(it["id"], dest_id) for it in targets], workers=8)
+    by_id = {it["id"]: it for it in targets}
+    actions: List[sc.UndoAction] = []
+    errors: List[str] = []
+    for fid, ok, err in results:
+        it = by_id[fid]
+        if ok:
+            actions.append(
+                sc.UndoAction(
+                    op="archive_legacy_module",
+                    item_id=fid,
+                    old_name=it["name"],
+                    new_name=it["name"],
+                    old_parent_id=QUAN_LY_ID,
+                    new_parent_id=dest_id,
+                    path=f"{sc.ROOT_NAME}/{sc.TONG_QUAN_FOLDER}/[03] QUẢN LÝ",
+                )
+            )
+        else:
+            errors.append(f"{it['name']}: {err}")
+
+    batch_id = ""
+    if db is not None and actions:
+        batch_id = db.record_undo_batch(
+            kind="archive_legacy_v3",
+            actions=actions,
+            description=f"Lưu trữ {len(actions)} thư mục mã cũ [01]–[18] từ [03] QUẢN LÝ → {sub_name}",
+        )
+    return {
+        "found": len(targets),
+        "moved": len(actions),
+        "errors": errors,
+        "batch_id": batch_id,
+        "dest_id": dest_id,
+        "dest_name": sub_name,
+        "items": [it["name"] for it in targets],
+    }
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     ap = argparse.ArgumentParser(description="Triển khai & đồng bộ tài liệu + gói phát hành lên [03] QUẢN LÝ (v4.0).")
     ap.add_argument("lenh", choices=["danh-sach", "tai-ve", "day-len", "phat-hanh-drive"], help="Thao tác cần thực hiện")
@@ -375,6 +463,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     ap.add_argument("--ep-buoc", action="store_true", help="Tải lên lại kể cả tệp có SHA-256 không đổi")
     ap.add_argument("--ghi-de-xung-dot", action="store_true", help="Cho phép ghi đè nếu bản trên Drive mới hơn manifest")
     ap.add_argument("--don-tep-du", action="store_true", help="Đưa tệp dư trên Drive (không còn ở máy) vào [07] KIỂM TRA")
+    ap.add_argument("--luu-tru-ma-cu", action="store_true", help="Chuyển 18 thư mục mã nguồn cũ [01]–[18] trên [03] QUẢN LÝ về [07] KIỂM TRA/[08] MÃ NGUỒN CŨ V3")
     args = ap.parse_args(argv)
 
     drive = sc.create_drive()
@@ -398,6 +487,20 @@ def main(argv: Optional[List[str]] = None) -> None:
                 overwrite_conflict=args.ghi_de_xung_dot,
                 clean_extras=args.don_tep_du,
             )
+            if args.luu_tru_ma_cu or args.don_tep_du:
+                with sc.StorageDB() as db:
+                    arc = archive_legacy_module_folders(drive, dry_run=not args.thuc_thi, db=db)
+                if arc["found"]:
+                    if args.thuc_thi:
+                        sc.log(
+                            f"Đã lưu trữ {arc['moved']}/{arc['found']} thư mục mã cũ [01]–[18] → "
+                            f"{sc.KIEM_TRA_FOLDER}/{arc['dest_name']} | mã hoàn tác: {arc['batch_id'] or '—'}"
+                        )
+                    else:
+                        sc.log(
+                            f"(Chạy thử) Sẽ lưu trữ {arc['found']} thư mục mã cũ [01]–[18] → "
+                            f"{sc.KIEM_TRA_FOLDER}/{arc['dest_name']}"
+                        )
             if rc:
                 sys.exit(rc)
         finally:

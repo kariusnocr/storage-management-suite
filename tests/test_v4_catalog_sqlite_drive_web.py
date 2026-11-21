@@ -318,6 +318,37 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
         self.assertEqual(len(junk), 2)
         self.assertEqual({j["subkind"] for j in junk}, {"macosx_folder", "os_junk_file"})
 
+        # Kiểm chứng execute_moves với system_junk đi đúng [06] RÁC HỆ THỐNG và cập nhật index
+        with tempfile.TemporaryDirectory() as td_q:
+            old_env = os.environ.get("STORAGE_DATA_DIR")
+            os.environ["STORAGE_DATA_DIR"] = td_q
+            try:
+                mdrive = _MockDrive()
+                mdrive.capabilities = lambda fid, fields="": {"canMoveItemOutOfDrive": True, "canEdit": True}  # type: ignore[attr-defined]
+                blocked = dedup.execute_moves(junk, idx, workers=2, drive=mdrive)
+                self.assertEqual(blocked, [])
+                self.assertEqual(len(mdrive.moved), 2)
+                self.assertTrue(any(nm == "[06] RÁC HỆ THỐNG" for nm, _ in mdrive.ensured))
+                self.assertEqual(len(idx["[A] STORAGE/[01] HỌC THUẬT"]["items"]), 1)
+            finally:
+                if old_env is None:
+                    os.environ.pop("STORAGE_DATA_DIR", None)
+                else:
+                    os.environ["STORAGE_DATA_DIR"] = old_env
+
+        # Kiểm chứng lưu trữ thư mục mã cũ [01]–[18] không đụng tới [01] TÀI LIỆU HỆ THỐNG
+        mdrive2 = _MockDrive()
+        mdrive2.ls = lambda fid: [  # type: ignore[attr-defined]
+            _it("leg1", "[01] THƯ VIỆN LÕI", sc.FOLDER_MIME),
+            _it("leg2", "[18] PHÂN TÍCH VIDEO", sc.FOLDER_MIME),
+            _it("new1", "[01] TÀI LIỆU HỆ THỐNG", sc.FOLDER_MIME),
+            _it("new2", "[02] GÓI PHÁT HÀNH", sc.FOLDER_MIME),
+        ]
+        arc = drive_deploy.archive_legacy_module_folders(mdrive2, dry_run=False)
+        self.assertEqual(arc["found"], 2)
+        self.assertEqual(arc["moved"], 2)
+        self.assertEqual([fid for fid, _ in mdrive2.moved], ["leg1", "leg2"])
+
         doc_res = doctor.run_doctor()
         self.assertEqual(doc_res["version"], __version__)
         self.assertIn("python_packages", doc_res)
