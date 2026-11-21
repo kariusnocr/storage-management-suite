@@ -1,58 +1,115 @@
-# Bộ Chương Trình Quản Lý Kho Dữ Liệu `[A] STORAGE` (Chuẩn V6 — v3.3)
+# Storage Management Suite `v4.0.0` — Phần Mềm Quản Lý Kho Dữ Liệu `[A] STORAGE`
 
-Kho lưu trữ chính thức chứa bộ **18 chương trình quản trị, chuẩn hóa, đọc và phân tích dữ liệu đa phương tiện** cho kho Google Drive **`[A] STORAGE`**, được đồng bộ hai chiều với thư mục **`[A] STORAGE/[00] TỔNG QUAN/[03] QUẢN LÝ`** (`1dU9BqIFxdLyhsFzxZxOiKWVNHI0vk7W3`).
-
----
-
-## 1. Kiến trúc 18 Mô-đun (`[01]`–`[18]`)
-
-| Thư mục mô-đun | Tệp mã nguồn | Lệnh `storage_cli.py` | Chức năng chính |
-| :--- | :--- | :--- | :--- |
-| `[01] THƯ VIỆN LÕI` | `storage_core.py`<br>`storage_config.json`<br>`tests/test_storage_suite.py` | `kiem-thu` | Thư viện lõi Chuẩn V6, bao bọc `gdrive` tốc độ cao (`stream_ls`, `stream_info`, `stream_capabilities`), bộ kiểm thử tự động ngoại tuyến (`26/26` bài kiểm thử) |
-| `[02] QUÉT CHỈ MỤC` | `storage_indexer.py` | `quet` | Quét toàn kho theo tầng BFS dùng `stream_ls` hoặc quét tăng cường (`--tang-cuong`) kèm bộ đệm shortcut |
-| `[03] KIỂM TRA QUY ƯỚC` | `naming_auditor.py` | `kiem-tra` | Kiểm toán quy ước đặt tên & cấu trúc thư mục theo Chuẩn V6, sửa lỗi cơ học an toàn (`--sua-an-toan`) |
-| `[04] CHUẨN HÓA TÊN` | `storage_toolkit.py` | `chuan-hoa` | Chuẩn hóa tên bất biến (100% không chạm tệp đã đạt Chuẩn V6), khôi phục dấu tiếng Việt theo ngữ cảnh |
-| `[05] DANH MỤC HỆ THỐNG` | `sheet_engine.py`<br>`sheet_updater.py` | `danh-muc` | Tạo và cập nhật tại chỗ hệ thống bảng Google Sheets `Danh Mục Hệ Thống - …` kèm tab `Thống Kê Nhanh` |
-| `[06] RÀ SOÁT TRÙNG LẶP` | `dedup_scanner.py` | `trung-lap` | Phát hiện và cách ly an toàn bản sao trùng lặp (`SHA-256`), phiên bản thừa, `TongQuan.md` trùng và shortcut lỗi |
-| `[07] BÁO CÁO THỐNG KÊ` | `stats_reporter.py` | `bao-cao` | Tính điểm **Sức khỏe Kho (Health Score)**, phân tích xu hướng snapshot và xuất nhật kí biến động `.md` / `.csv` |
-| `[08] TRIỂN KHAI MÃ NGUỒN` | `deploy_sync.py` | `trien-khai` | Đồng bộ hai chiều giữa thư mục cục bộ và Google Drive `[03] QUẢN LÝ` qua `sync_manifest.json` (giữ 100% File ID) |
-| `[09] ĐIỀU PHỐI VẬN HÀNH` | `storage_cli.py` | *(điểm vào chính)* | CLI điều phối hợp nhất cho mọi mô-đun lẻ cùng 2 quy trình `quy-trinh-nhanh` và `bao-tri-dinh-ki` |
-| `[10] SAO CHÉP DI CHUYỂN` | `transfer_manager.py` | `sao-chep-di-chuyen` | Sao chép/di chuyển đệ quy, chia nhánh tự động đánh số `[STT]`, đổi số thứ tự và hoàn tác theo lô |
-| `[11] NHẬP DỮ LIỆU MỚI` | `data_ingestor.py` | `nhap-du-lieu` | Tiếp nhận dữ liệu mới từ máy cục bộ, Drive ID/URL hoặc khu `[07] KIỂM TRA/[04] NHẬP DỮ LIỆU`, tự phân loại chủ đề & đặt tên Chuẩn V6 |
-| `[12] TRA CỨU VÀ KIỂM TOÁN` | `storage_inspector.py` | `tra-cuu` | Tìm kiếm tức thì (<0,2s), kiểm toán & tự động bù đắp bộ 3 `[00] TỔNG QUAN`, kiểm toán quyền và dọn thư mục rỗng |
-| `[13] ĐỌC TỆP` | `file_reader.py` | `doc-tep` | Bộ đọc đa định dạng (`PDF`, `DOCX`, `PPTX`, `XLSX`, `EPUB`, `MOBI/AZW3`, `DOC/XLS/PPT`, `MD/CSV/HTML/JSON`, Google Docs/Sheets/Slides, Ảnh EXIF, `MP3/MP4`, `ZIP/RAR/7Z`) có bộ đệm bền vững |
-| `[14] PHÂN TÍCH NỘI DUNG` | `content_analyzer.py` | `phan-tich` | Nhận diện ngôn ngữ, từ khóa `TF-IDF`, phân loại chủ đề, gợi ý tên Chuẩn V6 từ siêu dữ liệu, tìm trùng nội dung `SimHash 64-bit` và tìm kiếm toàn văn |
-| `[15] ĐỒNG BỘ GITHUB` | `github_sync.py` | `github` | Kiểm toán bảo mật mã nguồn, đồng bộ Git/GitHub, theo dõi GitHub Actions CI và đồng bộ liên hoàn Drive ↔ Local ↔ GitHub |
-| `[16] PHÂN TÍCH HÌNH ẢNH` | `image_analyzer.py` | `phan-tich-anh` | Đọc EXIF/GPS, đo độ sắc nét Laplacian/phơi sáng/bảng màu HEX, OCR (`tesseract`), tìm ảnh trùng trực quan `dHash`/`pHash 64-bit` và gợi ý tên V6 |
-| `[17] PHÂN TÍCH ÂM THANH` | `audio_analyzer.py` | `phan-tich-am-thanh` | Đọc luồng & thẻ ID3v1/v2 Unicode, đo EBU R128 `LUFS`/clipping/khoảng lặng, tìm trùng qua dấu vân tay phổ thời gian và kiểm toán lỗ hổng chuỗi bài |
-| `[18] PHÂN TÍCH VIDEO` | `video_analyzer.py` | `phan-tich-video` | Kiểm toán khóa học siêu tốc trên chỉ mục (`.ts`, tên dính liền, bài khuyết), phân tích luồng `ffprobe`, rút keyframes `pHash`/OCR slide, ghép Contact Sheet 3×2 |
+Phần mềm quản trị toàn diện kho Google Drive **`[A] STORAGE`** theo **Chuẩn V6** & **Chuẩn Danh Mục V7** — tích hợp bộ 18 mô-đun vận hành/phân tích đa phương tiện, cơ sở dữ liệu **SQLite WAL + FTS5**, **2 backend Google Drive** (`gdrive` CLI & **Google Drive API v3 OAuth 2.0** độc lập), giao diện **Web Dashboard cục bộ (`astorage ui`)**, ứng dụng **Desktop (`astorage desktop`)**, đóng gói nhị phân đa nền tảng (**Windows/macOS/Linux**) và **Docker**.
 
 ---
 
-## 2. Hướng dẫn sử dụng nhanh
+## 1. Tính năng Nổi bật ở `v4.0.0`
 
+- **Chuẩn Đặt Tên & Tinh Gọn Thông Minh Danh Mục V7**:
+  - Duy nhất 1 dấu phân cách `" - "` (`USSH: Trường ĐH KHXH&NV`, `Tôn Giáo – Tín Ngưỡng`).
+  - **Chống trùng tên tuyệt đối (Zero-Collision)**: Tự động gắn `, <Ngữ Cảnh Cha>` cho tên chung/trùng tên (`Handout`, `Key`, `Slide`, `Cấu Phần Sách`...).
+  - **Tinh gọn thông minh (Phương án 2)**: Loại trừ `MACOSX`/rác kỹ thuật, lập bảng tối ưu cho gốc + cấp `1..4` + cấp `5` không rỗng + cấp `6` quy mô lớn (`≥ 15` mục), giảm từ `2.741` xuống `~493` bảng (`-82%`) và bảo toàn `100%` Drive File ID.
+  - Kiểm toán chuyên biệt 5 mã mới: `DANH_MUC_RAC_KY_THUAT`, `DANH_MUC_MO_COI`, `DANH_MUC_TRUNG_TEN`, `DANH_MUC_SAI_TEN`, `DANH_MUC_CO_THE_TINH_GON`.
+- **Kiến trúc Phần mềm Chuẩn (`src/storage_suite/`)**:
+  - Loại bỏ hoàn toàn mã khởi nạp lặp; gọi quy trình **in-process** chia sẻ ngữ cảnh.
+  - Tầng lưu trữ **SQLite (`storage.db`, WAL + FTS5)**: tìm kiếm toàn kho `<20 ms`, kèm **Unified Undo Journal** (`astorage undo`).
+  - Bộ OCR hợp nhất (`vie+eng`) dùng chung cho PDF scan, hình ảnh và slide video.
+- **Kết nối Google Drive Độc lập (Dual Backend)**:
+  - `GDriveCLIClient`: tốc độ cao trên cloud VM (`gdrive readonly stream`).
+  - `GoogleDriveAPIClient` (**OAuth 2.0**): chạy độc lập trên Windows/macOS/Linux cá nhân không cần cài `gdrive` CLI (`astorage auth login`).
+- **Đóng gói Phần mềm Mức 3**:
+  - CLI hợp nhất: `astorage` / `storage-suite`
+  - Web Dashboard cục bộ: `astorage ui` (`http://127.0.0.1:8765`)
+  - Desktop App: `astorage desktop` (cửa sổ gốc `pywebview`)
+  - Binary độc lập (`packaging/pyinstaller.spec`) & Container (`Dockerfile`, `docker-compose.yml`).
+
+---
+
+## 2. Cài đặt Nhanh
+
+### Cài từ mã nguồn (Python 3.11+)
 ```bash
-# 1. Chạy bộ kiểm thử tự động ngoại tuyến (không cần kết nối mạng)
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" kiem-thu
+# Cài bản đầy đủ (CLI + Media/OCR + Web UI + Google Drive API OAuth 2.0 + Desktop)
+pip install -e ".[all]"
 
-# 2. Kiểm tra trạng thái đồng bộ GitHub, Google Drive [03] QUẢN LÝ và GitHub Actions CI
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" github trang-thai
+# Hoặc cài riêng từng thành phần:
+pip install -e ".[media,web,drive-api]"
+```
 
-# 3. Đồng bộ liên hoàn mã nguồn lên cả Google Drive [03] QUẢN LÝ lẫn GitHub
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" github dong-bo-2-chieu --ghi-de-xung-dot --thuc-thi --dong-y
+### Đăng nhập Google Drive API trên máy cá nhân (Windows/macOS/Linux)
+```bash
+astorage auth login --credentials /đường/dẫn/credentials.json
+astorage auth status
+```
 
-# 4. Đọc và phân tích nội dung văn bản & đa phương tiện theo nhánh
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" doc-tep trich-xuat --nhanh "[05] SƯU TẦM/[01] SÁCH/[14] SỨC KHOẺ - Y HỌC" --gioi-han 25
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich phan-tich --tai-len
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich-anh phan-tich --nhanh "[01] HỌC THUẬT/[04] CHỨNG CHỈ/[01] IELTS" --tu-dong-doc --gioi-han 10 --ocr
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich-am-thanh kiem-tra-chuoi
-python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" phan-tich-video kiem-tra-khoa-hoc
+### Chạy bằng Docker
+```bash
+docker compose up --build -d
+# Mở trình duyệt tại http://127.0.0.1:8765
 ```
 
 ---
 
-## 3. Nguyên tắc An toàn & Bảo mật
+## 3. Hướng dẫn Sử dụng Nhanh (`astorage`)
 
-1. **Mặc định Chạy thử (Dry-run)**: Mọi thao tác có ghi dữ liệu lên Google Drive hoặc GitHub đều mặc định chạy thử; chỉ thực thi khi truyền cờ `--thuc-thi` (hoặc `--execute`).
-2. **Bảo toàn 100% Drive File ID & Không xóa vĩnh viễn**: Mọi bản cập nhật mã nguồn, tài liệu và bảng tính đều ghi đè tại chỗ (`update`/`rename`); các mục dư thừa chỉ di chuyển vào khu cách ly `[07] KIỂM TRA` kèm nhật kí hoàn tác.
-3. **Tách biệt Mã nguồn & Dữ liệu vận hành**: Dữ liệu chỉ mục lớn (`storage_index.json`, `content_cache/`, `snapshots/`) được lưu tại `~/storage_data` bên ngoài kho Git và được bảo vệ tự động bởi `github_sync.py kiem-tra-bao-mat`.
+```bash
+# 1. Chẩn đoán sức khỏe môi trường & công cụ
+astorage doctor
+
+# 2. Chạy bộ kiểm thử tự động ngoại tuyến
+astorage kiem-thu
+
+# 3. Quét chỉ mục kho (lưu tự động vào SQLite FTS5 + JSON snapshot)
+astorage quet --tang-cuong
+
+# 4. Tra cứu toàn kho tức thì (<20 ms) bằng SQLite FTS5
+astorage db search "triet hoc"
+
+# 5. Kiểm toán Chuẩn V6 + Danh Mục V7
+astorage kiem-tra
+
+# 6. Lập kế hoạch (chạy thử) & thực thi Chuẩn Danh Mục V7 (Tinh gọn thông minh + Chống trùng tên)
+astorage danh-muc-chuan
+astorage danh-muc-chuan --thuc-thi --dong-y
+
+# 7. Quét trùng lặp + cách ly thư mục rác MACOSX (chạy thử mặc định)
+astorage trung-lap --don-rac-he-thong
+
+# 8. Hoàn tác 1 lệnh từ Unified Undo Journal
+astorage undo list
+astorage undo run <batch_id> --thuc-thi --dong-y
+
+# 9. Mở Giao diện Web Dashboard hoặc Ứng dụng Desktop
+astorage ui
+astorage desktop
+
+# 10. Xuất bản tài liệu + gói `.whl` lên Google Drive [00] TỔNG QUAN/[03] QUẢN LÝ
+astorage trien-khai phat-hanh-drive
+```
+
+---
+
+## 4. Cấu trúc Kho Mã Nguồn (`v4.0.0`)
+
+| Thư mục / Tệp | Vai trò |
+| :--- | :--- |
+| `pyproject.toml` | Khai báo gói PEP 621, entry points `astorage`, `storage-suite`, `astorage-desktop` |
+| `src/storage_suite/core/` | Cấu hình đa hồ sơ (`profiles.toml`), Dual Drive (`cli` + `api` OAuth 2.0), Chuẩn V6, **Chuẩn Danh Mục V7**, OCR hợp nhất (`vie+eng`) |
+| `src/storage_suite/store/` | Cơ sở dữ liệu SQLite (`storage.db`, WAL + FTS5) & Unified Undo Journal |
+| `src/storage_suite/ops/` | Quét chỉ mục, kiểm toán V6/V7, chuẩn hóa tên, động cơ danh mục, rà soát trùng & `MACOSX`, thống kê, chuyển/nhập dữ liệu, tra cứu, `doctor`, `watch` |
+| `src/storage_suite/media/` | Bộ đọc đa định dạng (`PDF/Office/EPUB/MOBI/Archive`) & phân tích Nội dung, Hình ảnh, Âm thanh, Video |
+| `src/storage_suite/sync/` | Đồng bộ tài liệu & gói phát hành lên Drive `[03] QUẢN LÝ` và đồng bộ GitHub/CI |
+| `src/storage_suite/cli/` | Điểm vào CLI hợp nhất & bộ chạy quy trình in-process |
+| `src/storage_suite/web/` | FastAPI Dashboard cục bộ (`astorage ui`) & trình khởi chạy Desktop (`pywebview`) |
+| `packaging/` & `Dockerfile` | Cấu hình PyInstaller đa nền tảng (`.exe`/`.app`/Linux) và container Docker |
+| `docs/` | Tài liệu đặc tả Chuẩn Danh Mục V7, tổng quan hệ thống và hướng dẫn cài đặt |
+| `tests/` | Bộ kiểm thử mô-đun ngoại tuyến (`unittest` / `pytest`) |
+
+---
+
+## 5. Nguyên tắc An toàn & Bảo mật
+
+1. **Mặc định Chạy thử (Dry-run)**: Mọi thao tác ghi lên Google Drive hoặc GitHub chỉ thực thi khi truyền `--thuc-thi` (hoặc xác nhận rõ trong Web UI).
+2. **Bảo toàn 100% Drive File ID & Không xóa vĩnh viễn**: Mọi bản cập nhật đều đổi tên/ghi đè tại chỗ; tệp dư, bảng tinh gọn và thư mục rác `MACOSX` chỉ di chuyển vào `[07] KIỂM TRA` kèm nhật kí hoàn tác trong **Unified Undo Journal**.
+3. **Tách biệt Mã nguồn & Dữ liệu vận hành**: Cơ sở dữ liệu `storage.db`, ảnh chụp, bộ đệm và token OAuth được lưu ngoài kho Git (`~/storage_data/` và `~/.config/astorage/`).

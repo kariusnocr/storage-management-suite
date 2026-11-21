@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Storage Management Suite v4.0 — [A] STORAGE</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: #263348;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #6366f1;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --radius: 12px;
+    }
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0284c7;
+      --accent-2: #4f46e5;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .brand h1 { font-size: 18px; font-weight: 700; }
+    .brand span { font-size: 12px; color: var(--muted); }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    nav {
+      display: flex;
+      gap: 6px;
+      padding: 12px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .tab-btn:hover { background: var(--surface-2); color: var(--text); }
+    .tab-btn.active { background: var(--surface-2); color: var(--accent); border-color: var(--border); }
+    main { max-width: 1340px; margin: 0 auto; padding: 24px 28px 60px; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .card-val { font-size: 26px; font-weight: 700; }
+    .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn.danger { background: var(--err); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+    input[type="text"], select {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      flex: 1;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .pill.ok { background: rgba(34,197,94,.16); color: var(--ok); }
+    .pill.warn { background: rgba(245,158,11,.16); color: var(--warn); }
+    .pill.err { background: rgba(239,68,68,.16); color: var(--err); }
+    .pill.info { background: rgba(56,189,248,.16); color: var(--accent); }
+    .bar-track { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-top: 6px; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    pre.console {
+      background: #020617;
+      color: #e2e8f0;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      max-height: 360px;
+      overflow: auto;
+      white-space: pre-wrap;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 18px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-badge">v4.0</div>
+      <div>
+        <h1>Storage Management Suite</h1>
+        <span id="header-meta">Đang tải thông tin kho [A] STORAGE...</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn secondary" onclick="toggleTheme()">Đổi giao diện</button>
+      <button class="btn" onclick="refreshAll()">Làm mới</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="tab-btn active" onclick="switchTab('overview', this)">Tổng quan Kho</button>
+    <button class="tab-btn" onclick="switchTab('search', this)">Tra cứu FTS5</button>
+    <button class="tab-btn" onclick="switchTab('catalog', this)">Chuẩn Danh Mục V7</button>
+    <button class="tab-btn" onclick="switchTab('audit', this)">Kiểm toán V6/V7</button>
+    <button class="tab-btn" onclick="switchTab('doctor', this)">Chẩn đoán & Hoàn tác</button>
+  </nav>
+
+  <main>
+    <section id="tab-overview" class="section active">
+      <div class="kpi-grid" id="kpi-cards"></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Phân bổ dung lượng theo nhánh cấp 1</div>
+          <div id="branch-bars"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Tác vụ nhanh (An toàn — Chạy thử mặc định)</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
+            <button class="btn secondary" onclick="runTask('doctor', [])">Chẩn đoán hệ thống</button>
+            <button class="btn secondary" onclick="runTask('kiem-tra', [])">Kiểm toán V6 + V7</button>
+            <button class="btn secondary" onclick="runTask('danh-muc', ['--chuan-hoa-v7'])">Xem thử Danh Mục V7</button>
+            <button class="btn secondary" onclick="runTask('trung-lap', ['--don-rac-he-thong'])">Quét trùng & MACOSX</button>
+            <button class="btn secondary" onclick="runTask('github', ['trang-thai'])">Trạng thái GitHub</button>
+          </div>
+          <pre id="task-console" class="console">Chọn một tác vụ để xem nhật kí trực tiếp...</pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-search" class="section">
+      <div class="card">
+        <div class="card-title">Tìm kiếm toàn kho tức thì (SQLite FTS5 — hỗ trợ có dấu & không dấu)</div>
+        <div class="search-bar">
+          <input type="text" id="fts-input" placeholder="Nhập tên sách, môn học, mã học phần (vd: triet hoc, PHI3186, IELTS)..." onkeydown="if(event.key==='Enter') runSearch()" />
+          <button class="btn" onclick="runSearch()">Tìm kiếm</button>
+        </div>
+        <div id="search-meta" class="card-sub"></div>
+        <table>
+          <thead><tr><th>Tên mục</th><th>Thư mục cha</th><th>Dung lượng</th><th>Liên kết</th></tr></thead>
+          <tbody id="search-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-catalog" class="section">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div class="card-title">Chuẩn Danh Mục V7 — Tinh gọn Thông minh & Chống trùng tên tuyệt đối</div>
+            <div id="cat-summary" class="card-sub">Đang tính toán kế hoạch...</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="cat-mode" onchange="loadCatalogPlan()" style="flex:0;">
+              <option value="smart" selected>Phương án 2: Tinh gọn thông minh (~493 bảng)</option>
+              <option value="full">Đầy đủ (chỉ khử trùng tên & rác)</option>
+            </select>
+            <button class="btn secondary" onclick="loadCatalogPlan()">Tính lại kế hoạch</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Tên bảng hiện tại</th><th>Tên chuẩn V7 đề xuất (Giữ 100% ID)</th><th>Lý do</th></tr></thead>
+          <tbody id="cat-renames-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-audit" class="section">
+      <div class="card">
+        <div class="card-title">Báo cáo Kiểm toán Chuẩn V6 & Danh Mục V7</div>
+        <div id="audit-summary" class="card-sub">Đang kiểm toán chỉ mục...</div>
+        <table>
+          <thead><tr><th>Mức độ</th><th>Mã</th><th>Tên mục</th><th>Mô tả</th><th>Đề xuất</th></tr></thead>
+          <tbody id="audit-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-doctor" class="section">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Chẩn đoán môi trường phần mềm (`astorage doctor`)</div>
+          <div id="doctor-view" class="card-sub">Đang kiểm tra...</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Sổ cái Hoàn tác Hợp nhất (Unified Undo Journal)</div>
+          <table>
+            <thead><tr><th>Mã lô</th><th>Loại</th><th>Số thao tác</th><th>Trạng thái</th></tr></thead>
+            <tbody id="undo-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const el = document.documentElement;
+      el.setAttribute('data-theme', el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    }
+    function switchTab(name, btn) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      if (btn) btn.classList.add('active');
+      if (name === 'catalog') loadCatalogPlan();
+      if (name === 'audit') loadAudit();
+      if (name === 'doctor') loadDoctor();
+    }
+    function esc(s) {
+      return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+    async function loadOverview() {
+      const r = await fetch('/api/overview');
+      const d = await r.json();
+      document.getElementById('header-meta').textContent =
+        `${d.root_name} | Backend Drive: ${d.drive_backend.selected.toUpperCase()} | SQLite: ${d.stats.db_size_human}`;
+      const cat = d.catalog_v7 || {};
+      const kpis = [
+        {t: 'Tổng số tệp', v: d.stats.files.toLocaleString('vi-VN'), s: `${d.stats.folders.toLocaleString('vi-VN')} thư mục`},
+        {t: 'Tổng dung lượng', v: d.stats.size_human, s: `Cập nhật: ${d.stats.last_import_utc || 'chưa quét'}`},
+        {t: 'Danh Mục V7 (Tinh gọn)', v: `${cat.target_eligible_catalogs || 0}`, s: `Hiện có ${cat.existing_sheets || 0} → giảm ${cat.prunes_count || 0} bảng thừa`},
+        {t: 'Rác hệ thống (MACOSX)', v: `${d.system_junk_count || 0}`, s: `Sẵn sàng cách ly an toàn về [07] KIỂM TRA`},
+      ];
+      document.getElementById('kpi-cards').innerHTML = kpis.map(k => `
+        <div class="card">
+          <div class="card-title">${esc(k.t)}</div>
+          <div class="card-val">${esc(k.v)}</div>
+          <div class="card-sub">${esc(k.s)}</div>
+        </div>`).join('');
+
+      const maxB = Math.max(1, ...d.branches.map(b => b.bytes));
+      document.getElementById('branch-bars').innerHTML = d.branches.map(b => `
+        <div style="margin-top:12px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px;">
+            <strong>${esc(b.name)}</strong>
+            <span>${esc(b.size_human)} (${b.files.toLocaleString('vi-VN')} tệp)</span>
+          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2, Math.round(b.bytes * 100 / maxB))}%"></div></div>
+        </div>`).join('');
+    }
+    async function runSearch() {
+      const q = document.getElementById('fts-input').value.trim();
+      if (!q) return;
+      const r = await fetch('/api/search?q=' + encodeURIComponent(q) + '&limit=50');
+      const d = await r.json();
+      document.getElementById('search-meta').textContent = `Tìm thấy ${d.count} kết quả trong ${d.elapsed_ms} ms`;
+      document.getElementById('search-tbody').innerHTML = d.results.map(x => `
+        <tr>
+          <td><strong>${esc(x.name)}</strong></td>
+          <td style="color:var(--muted);">${esc(x.parent_path)}</td>
+          <td>${esc(x.size_human)}</td>
+          <td><a href="${esc(x.url)}" target="_blank">Mở Drive</a></td>
+        </tr>`).join('');
+    }
+    async function loadCatalogPlan() {
+      const mode = document.getElementById('cat-mode').value;
+      const r = await fetch('/api/catalog-v7/plan?mode=' + encodeURIComponent(mode) + '&limit=80');
+      const d = await r.json();
+      const s = d.summary || {};
+      document.getElementById('cat-summary').textContent =
+        `Hiện có: ${s.existing_sheets || 0} bảng | Mục tiêu: ${s.target_eligible_catalogs || 0} | ` +
+        `Đổi tên V7 (0 trùng): ${s.renames_count || 0} | Tinh gọn/cách ly: ${s.prunes_count || 0} (rác: ${s.prunes_junk_count || 0})`;
+      document.getElementById('cat-renames-tbody').innerHTML = (d.renames || []).map(x => `
+        <tr>
+          <td>${esc(x.old_name)}</td>
+          <td><strong style="color:var(--accent);">${esc(x.new_name)}</strong></td>
+          <td><span class="pill info">${esc(x.reason)}</span></td>
+        </tr>`).join('') || '<tr><td colspan="3">Mọi bảng đều đã đúng chuẩn V7.</td></tr>';
+    }
+    async function loadAudit() {
+      const r = await fetch('/api/audit?limit=80');
+      const d = await r.json();
+      document.getElementById('audit-summary').innerHTML = (d.by_code || []).map(x => {
+        const cls = x.severity === 'LỖI' ? 'err' : (x.severity === 'CẢNH BÁO' ? 'warn' : 'info');
+        return `<span class="pill ${cls}" style="margin:2px 6px 2px 0;">${esc(x.code)}: ${x.count}</span>`;
+      }).join('') || '<span class="pill ok">0 phát hiện</span>';
+      document.getElementById('audit-tbody').innerHTML = (d.items || []).map(x => {
+        const cls = x.severity === 'LỖI' ? 'err' : (x.severity === 'CẢNH BÁO' ? 'warn' : 'info');
+        return `<tr>
+          <td><span class="pill ${cls}">${esc(x.severity)}</span></td>
+          <td><code>${esc(x.code)}</code></td>
+          <td>${esc(x.name || '—')}</td>
+          <td>${esc(x.description)}</td>
+          <td>${esc(x.suggestion || '—')}</td>
+        </tr>`;
+      }).join('');
+    }
+    async function loadDoctor() {
+      const [dr, ur] = await Promise.all([fetch('/api/doctor'), fetch('/api/undo/batches')]);
+      const d = await dr.json();
+      const u = await ur.json();
+      document.getElementById('doctor-view').innerHTML = `
+        <p style="margin:8px 0;"><strong>Trạng thái tổng thể:</strong> <span class="pill ${d.overall_ok ? 'ok' : 'warn'}">${d.overall_ok ? 'SẴN SÀNG' : 'CẦN BỔ SUNG'}</span></p>
+        <p><strong>Python:</strong> ${esc(d.python)} | <strong>OCR:</strong> ${esc(d.ocr.lang || '—')} (Tiếng Việt: ${d.ocr.vietnamese_ready ? 'OK' : 'Thiếu'})</p>
+        <p><strong>Drive Backend:</strong> ${esc(d.drive.selected)} | <strong>GitHub CLI:</strong> ${d.github.authenticated ? 'Đã đăng nhập' : 'Chưa'}</p>
+        <div style="margin-top:10px;">${d.cli_tools.map(t => `<span class="pill ${t.ok ? 'ok' : 'warn'}" style="margin:2px 4px 2px 0;">${esc(t.name)}</span>`).join('')}</div>`;
+      document.getElementById('undo-tbody').innerHTML = (u.batches || []).map(b => `
+        <tr>
+          <td><code>${esc(b.batch_id)}</code></td>
+          <td>${esc(b.kind)}</td>
+          <td>${b.action_count}</td>
+          <td><span class="pill ${b.undone_at ? 'info' : 'ok'}">${b.undone_at ? 'Đã hoàn tác' : 'Sẵn sàng'}</span></td>
+        </tr>`).join('') || '<tr><td colspan="4">Chưa có lịch sử hoàn tác.</td></tr>';
+    }
+    async function runTask(cmd, args) {
+      const box = document.getElementById('task-console');
+      box.textContent = `Đang chạy: astorage ${cmd} ${args.join(' ')} ...`;
+      const r = await fetch('/api/tasks/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({command: cmd, args})
+      });
+      const t = await r.json();
+      const poll = setInterval(async () => {
+        const sr = await fetch('/api/tasks/' + t.id);
+        const st = await sr.json();
+        box.textContent = st.output || `Trạng thái: ${st.status}...`;
+        if (st.status !== 'running') clearInterval(poll);
+      }, 600);
+    }
+    function refreshAll() { loadOverview(); }
+    loadOverview();
+  </script>
+</body>
+</html>

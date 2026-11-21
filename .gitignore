@@ -3,8 +3,17 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Unit test / coverage caches
+# Packaging / build outputs
+build/
+dist/
+*.egg-info/
+.eggs/
+*.spec.bak
+
+# Unit test / coverage / linter caches
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 
@@ -22,12 +31,18 @@ Thumbs.db
 *.key
 *credentials*.json
 *secret*.json
+token.json
 
-# Local runtime data & large caches (stored in ~/storage_data outside repo)
+# Local runtime data, SQLite DB & large caches (stored in ~/storage_data outside repo)
 storage_data/
+runtime_data/
+runtime_config/
 content_cache/
 media_cache/
 snapshots/
 runs/
+*.db
+*.db-wal
+*.db-shm
 *.tmp
 *.bak

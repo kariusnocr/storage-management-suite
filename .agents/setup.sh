@@ -4,13 +4,19 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 export PIP_NO_INPUT=1
 
-# 1. Ensure required Python packages (openpyxl, Pillow, numpy) are importable.
-if ! python3 -c "import openpyxl, PIL, numpy" >/dev/null 2>&1; then
-  python3 -m pip install --user --quiet --no-input --break-system-packages openpyxl pillow numpy 2>/dev/null \
-    || python3 -m pip install --user --quiet --no-input openpyxl pillow numpy
+# 1. Ensure required Python packages (openpyxl, Pillow, numpy, fastapi, uvicorn) are importable.
+if ! python3 -c "import openpyxl, PIL, numpy, fastapi, uvicorn" >/dev/null 2>&1; then
+  python3 -m pip install --user --quiet --no-input --break-system-packages openpyxl pillow numpy fastapi uvicorn 2>/dev/null \
+    || python3 -m pip install --user --quiet --no-input openpyxl pillow numpy fastapi uvicorn
 fi
 
-# 2. Ensure runtime data directories exist outside the Git repository.
+# 2. Install storage-management-suite in editable mode (--no-build-isolation works offline with preinstalled setuptools).
+if [ -f "pyproject.toml" ]; then
+  python3 -m pip install --user --quiet --no-input --no-build-isolation --no-deps --break-system-packages -e . 2>/dev/null \
+    || python3 -m pip install --user --quiet --no-input --no-build-isolation --no-deps -e .
+fi
+
+# 3. Ensure runtime data directories exist outside the Git repository.
 STORAGE_DATA_DIR="${STORAGE_DATA_DIR:-$HOME/storage_data}"
 mkdir -p \
   "$STORAGE_DATA_DIR/tessdata" \
@@ -20,7 +26,7 @@ mkdir -p \
   "$STORAGE_DATA_DIR/content_cache" \
   "$STORAGE_DATA_DIR/media_cache"
 
-# 3. Configure Tesseract tessdata with Vietnamese + English (vie+eng) support.
+# 4. Configure Tesseract tessdata with Vietnamese + English (vie+eng) support.
 SYS_TESSDATA=""
 for cand in \
   "/usr/share/tesseract-ocr/5/tessdata" \
@@ -58,7 +64,7 @@ if [ ! -s "$STORAGE_DATA_DIR/tessdata/vie.traineddata" ]; then
   fi
 fi
 
-# 4. Persist environment variables idempotently in ~/.bashrc for non-interactive shells.
+# 5. Persist environment variables idempotently in ~/.bashrc for non-interactive shells.
 touch "$HOME/.bashrc"
 sed -i '/case \$- in/,/esac/d' "$HOME/.bashrc" 2>/dev/null || true
 
@@ -74,5 +80,6 @@ if [ -e "$STORAGE_DATA_DIR/tessdata/eng.traineddata" ] || [ -e "$STORAGE_DATA_DI
   persist_export 'export TESSDATA_PREFIX="$HOME/storage_data/tessdata"'
 fi
 
-# 5. Verify core Python imports.
-python3 -c "import openpyxl, PIL, numpy; print('storage-management-suite env ready')"
+# 6. Verify installation.
+export PATH="$HOME/.local/bin:$PATH"
+python3 -c "import storage_suite, openpyxl, PIL, numpy; print(f'storage-management-suite {storage_suite.__version__} ready')"

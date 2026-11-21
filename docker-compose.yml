@@ -1,0 +1,14 @@
+services:
+  astorage-ui:
+    build: .
+    container_name: storage-management-suite
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      - STORAGE_DATA_DIR=/data
+      - ASTORAGE_CONFIG_DIR=/config
+      - STORAGE_DRIVE_BACKEND=api
+    volumes:
+      - ./runtime_data:/data
+      - ./runtime_config:/config
+    restart: unless-stopped

@@ -1,63 +1,60 @@
 ---
 name: storage-suite-context
-description: Reference context for the [A] STORAGE Google Drive archive and kariusnocr/storage-management-suite (v3.3.0, Chuẩn V6). Use when working on any module [01]-[18], scanning/auditing Drive folders, updating catalogs, or syncing between Google Drive and GitHub.
+description: Reference context for Storage Management Suite v4.0.0 (`astorage`), the [A] STORAGE Google Drive archive, Chuẩn V6 / Chuẩn Danh Mục V7, and kariusnocr/storage-management-suite. Use when operating on [A] STORAGE, updating catalogs, running audits/analyzers, or syncing Drive and GitHub.
 ---
 
-# `[A] STORAGE` & `storage-management-suite` Context (v3.3.0)
+# `[A] STORAGE` & `storage-management-suite` Context (v4.0.0)
 
 ## 1. Key Identifiers & Locations
 
-- **GitHub Repository**: `kariusnocr/storage-management-suite` (default branch `main`, CI workflow `.github/workflows/ci.yml` — `Storage Suite CI`)
+- **GitHub Repository**: `kariusnocr/storage-management-suite` (`src/storage_suite/`, `tests/`, `docs/`, `packaging/`, `Dockerfile`)
+- **Unified Software CLI**: `astorage` (alias `storage-suite`), Desktop GUI: `astorage desktop` / `astorage ui`
 - **Google Drive Root**: `[A] STORAGE` (`194HC3C2WC1BSzfK3cn_0_uUJ4vfDuBsr`)
-- **Governance & Sync Folders** (also defined in `[01] THƯ VIỆN LÕI/storage_config.json`):
+- **Governance & Sync Folders**:
   - `[00] TỔNG QUAN`: `1ZLU1RnH4PpJ--CXXPjrum7uxncbOttZU`
-  - `[00] TỔNG QUAN/[01] DANH SÁCH` (centralized `v3.1` mirror tree of `2.700+` `Danh Mục Hệ Thống` sheets): `1GqdqbI1yVPD3e-HAenW6WioSQZpPaRYz`
-  - `[00] TỔNG QUAN/[02] NHẬT KÍ` (reports, change logs, `sheets_index.json`): `10FI7CMFvGgM9i1rj4IkUFRESv5-ito2Y`
-  - `[00] TỔNG QUAN/[03] QUẢN LÝ` (2-way sync mirror of modules `[01]`–`[18]`): `1dU9BqIFxdLyhsFzxZxOiKWVNHI0vk7W3`
+  - `[00] TỔNG QUAN/[01] DANH SÁCH`: `1GqdqbI1yVPD3e-HAenW6WioSQZpPaRYz`
+  - `[00] TỔNG QUAN/[02] NHẬT KÍ`: `10FI7CMFvGgM9i1rj4IkUFRESv5-ito2Y`
+  - `[00] TỔNG QUAN/[03] QUẢN LÝ` (v4.0: docs + `.whl` release bundle): `1dU9BqIFxdLyhsFzxZxOiKWVNHI0vk7W3`
   - `[07] KIỂM TRA` (quarantine & ingest staging): `1dpIWrMRwREX-bSt4k-PxSzVxbLrj3XLy`
     - `[01] SHORTCUT LỖI 404`: `1_o38THe5uq1ZDaiSH9l1QdSJZ0ZMlsAr`
     - `[02] SHORTCUT ĐÃ SAO CHÉP`: `1Mp-kCOZkl2MBSihpHBCdARGhVtA6DuxH`
     - `[03] TỆP TRÙNG LẶP`: `1oT10jMXJuS_Av8y_bAzPC_PVZzuj5LXK`
     - `[04] NHẬP DỮ LIỆU`: `1Xhgp46XpL3ng_l_d-_-wHb4S12DTuPri`
+    - `[06] RÁC HỆ THỐNG` & `[07] DANH MỤC ĐÃ TINH GỌN` (auto-created on execute)
 - **Master Catalog Spreadsheets**:
   - `Danh Mục Hệ Thống - Storage`: `1BJoV-UtcoSEdjq1w5e0HmfibyTdvLEX8cy22jeKKnDc`
-  - `Danh Mục Hệ Thống - Storage (Bản Danh Sách)`: `1Pakm-B2FZFFNOsxct_aRmFm2DDQxsQiVsiwB_l2xQt4`
-- **Top-Level Content Branches**:
-  - `[01] HỌC THUẬT` (`1seVG0DBozIgAI0_hpQZTc4m6nt1s9UIb`) — Đại học (USSH/VNU-LIC), Cao học, Phổ thông, Chứng chỉ (IELTS, HSK, MOS, TOEIC, VSTEP, ĐGNL-ĐGTD, SAT)
-  - `[02] NGHIÊN CỨU` (`19u5gcsMHbmbg03p_miRWC4PP3a42IqWV`) — Lĩnh vực, Liên ngành, Dự án
-  - `[03] SÁNG TÁC` (`1BZgLyYTL5YBVT8TJ5f0skYlg69lgQAyU`) — Thơ, Văn
-  - `[04] BIÊN TẬP` (`1z0wYSabv04y2TkxUja_RzvPs8LKLmvSX`) — G-Obsidians, điểm sách, đề cương
-  - `[05] SƯU TẦM` (`1L9IE9jHC5bUIB6UMwqXN0qDzfGW5DAm3`) — Sách (`[01]`–`[19]`), Tài liệu, Khoá học, Âm nhạc
-  - `[06] ĐỒNG BỘ` (`1zHUIuJq-QKrfbom1B63GWOc1V0HhfJUd`) — `[01] M-OBSIDIANS`
+  - `Danh Mục Hệ Thống - Storage, Bản Danh Sách`: `1Pakm-B2FZFFNOsxct_aRmFm2DDQxsQiVsiwB_l2xQt4`
 
-## 2. Chuẩn V6 Naming Rules
+## 2. Chuẩn V6 & Chuẩn Danh Mục V7
 
-1. **Folders**: `[STT] TÊN IN HOA CÓ DẤU` (2–3 digits in brackets, Vietnamese uppercase with diacritics, natural spaces, no `_`).
-2. **Content & Governance Files**: `Tên Viết Hoa Đầu Mỗi Chữ Có Dấu - Thông Tin Bổ Sung.[đuôi]` (no `[STT]` prefix; ` - ` separator; comma-separated metadata; lowercase extension; no extension for native Google Docs/Sheets/Slides/Shortcuts).
-3. **Source Code & Technical Configs**: `snake_case` PEP 8 (e.g. `storage_core.py`, `storage_config.json`, `sheets_index.json`, `.obsidian/*`).
+- **Folders**: `[STT] TÊN IN HOA CÓ DẤU`
+- **Content Files**: `Tên Viết Hoa Đầu Mỗi Chữ Có Dấu - Thông Tin Bổ Sung.[đuôi]` (no `[STT]`, lowercase ext)
+- **Catalog Sheets (V7 — Zero-Collision & Smart Pruning)**:
+  - Format: `Danh Mục Hệ Thống - <Tên Chuẩn Hóa>[, <Ngữ Cảnh Cha>]`
+  - Only ONE `" - "` separator: `[USSH] TRƯỜNG ĐH` → `USSH: Trường ĐH`; internal ` - ` → en-dash `–`.
+  - Generic/colliding names automatically receive `, <Parent Context>` until 0 collisions across the tree.
+  - **Smart Pruning Policy (`mode="smart"`)**: root + depth `1..4` + non-empty depth `5` + depth `6` with `>= 15` items; excludes `MACOSX`, `__MACOSX`, `.obsidian`, `.git`, `__pycache__`, `tests` (reduces `2.741` → `~493` sheets).
 
-## 3. Architecture (`[01]`–`[18]`) & Unified CLI
+## 3. Dual Drive Backends & SQLite Store
 
-All modules are orchestrated through `[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py`:
-- `[01]` `storage_core.py` / `storage_config.json` / `tests/test_storage_suite.py` (`kiem-thu`)
-- `[02]` `storage_indexer.py` (`quet` — wave-based BFS `stream_ls`, supports `--tang-cuong`, `--nhanh`)
-- `[03]` `naming_auditor.py` (`kiem-tra`) & `[04]` `storage_toolkit.py` (`chuan-hoa`)
-- `[05]` `sheet_engine.py` / `sheet_updater.py` (`danh-muc`)
-- `[06]` `dedup_scanner.py` (`trung-lap`) & `[07]` `stats_reporter.py` (`bao-cao`)
-- `[08]` `deploy_sync.py` (`trien-khai` — skips dotfiles such as `.agents`, `.git`, `.github`)
-- `[10]` `transfer_manager.py` (`sao-chep-di-chuyen`), `[11]` `data_ingestor.py` (`nhap-du-lieu`), `[12]` `storage_inspector.py` (`tra-cuu`)
-- `[13]` `file_reader.py` (`doc-tep`), `[14]` `content_analyzer.py` (`phan-tich`), `[15]` `github_sync.py` (`github`)
-- `[16]` `image_analyzer.py` (`phan-tich-anh`), `[17]` `audio_analyzer.py` (`phan-tich-am-thanh`), `[18]` `video_analyzer.py` (`phan-tich-video`)
+- **Drive Backends (`STORAGE_DRIVE_BACKEND=auto|cli|api`)**:
+  - `cli`: `GDriveCLIClient` (cloud VM `gdrive` binary with `stream_ls`).
+  - `api`: `GoogleDriveAPIClient` (standalone OAuth 2.0 Google Drive API v3 via `astorage auth login` for Windows/macOS/Linux).
+- **SQLite Store**: `~/storage_data/storage.db` (WAL + FTS5 full-text search + Unified Undo Journal).
 
-## 4. Safety & Operational Rules
+## 4. Key Commands
 
-1. **Dry-run by default**: Drive/GitHub writes only execute when `--thuc-thi` (or `--execute` in `[04]`) is passed.
-2. **Preserve Drive File IDs & never hard-delete**: Always update/rename in place; quarantine duplicates, broken shortcuts, and empty folders under `[07] KIỂM TRA` with undo logs.
-3. **Separate runtime data from Git**: Keep indexes, caches, snapshots, and `tessdata/` under `STORAGE_DATA_DIR` (default `~/storage_data`), never inside the Git repo.
-4. **Verification commands**:
-   ```bash
-   python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" kiem-thu
-   python3 "[15] ĐỒNG BỘ GITHUB/github_sync.py" kiem-tra-bao-mat
-   python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" github trang-thai
-   python3 "[09] ĐIỀU PHỐI VẬN HÀNH/storage_cli.py" quet --tang-cuong
-   ```
+```bash
+astorage doctor                          # Full environment & toolchain check
+astorage kiem-thu                        # Run offline test suite
+astorage quet --tang-cuong               # Incremental Drive scan -> SQLite + JSON
+astorage db search "triet hoc"           # Sub-20ms FTS5 search
+astorage kiem-tra                        # Chuẩn V6 + Catalog V7 audit
+astorage danh-muc-chuan                  # Dry-run Catalog V7 smart pruning & rename plan
+astorage trung-lap --don-rac-he-thong    # Dry-run dedup + MACOSX junk quarantine
+astorage undo list                       # Inspect Unified Undo Journal
+astorage ui                              # Start local Web Dashboard (127.0.0.1:8765)
+astorage desktop                         # Launch Desktop App (pywebview)
+astorage auth status                     # Check CLI + OAuth 2.0 Drive backends
+astorage trien-khai phat-hanh-drive      # Dry-run publish docs + .whl to Drive [03] QUẢN LÝ
+```
