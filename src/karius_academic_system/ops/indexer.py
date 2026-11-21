@@ -400,7 +400,7 @@ def summarize(index: dict, branch: Optional[str] = None):
 
 
 def main(argv: Optional[List[str]] = None):
-    ap = argparse.ArgumentParser(description="Quét chỉ mục toàn kho dữ liệu (KAS v5.0 — chỉ đọc, hỗ trợ Local & Google Drive).")
+    ap = argparse.ArgumentParser(description="Quét chỉ mục toàn kho dữ liệu (KAS v1.0 — chỉ đọc, hỗ trợ Local & Google Drive).")
     ap.add_argument("--nhanh", help="Chỉ quét lại một nhánh con trong kho")
     ap.add_argument("--tang-cuong", action="store_true", help="Quét tăng cường chỉ các thư mục thay đổi sau lần quét trước")
     ap.add_argument("--toan-bo", action="store_true", help="Ép quét lại toàn bộ kho")

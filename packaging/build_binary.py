@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Kịch bản đóng gói binary độc lập Karius Academic System (KAS) v5.0 qua PyInstaller."""
+"""Kịch bản đóng gói binary độc lập Karius Academic System (KAS) v1.0 qua PyInstaller."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def main() -> int:
                 stream.reconfigure(encoding="utf-8", errors="replace")
             except Exception:
                 pass
-    ap = argparse.ArgumentParser(description="Đóng gói nhị phân độc lập Karius Academic System (KAS) v5.0.")
+    ap = argparse.ArgumentParser(description="Đóng gói nhị phân độc lập Karius Academic System (KAS) v1.0.")
     ap.add_argument("--mode", choices=["cli", "desktop"], default="cli", help="Chế độ đóng gói: cli hoặc desktop (pywebview)")
     args = ap.parse_args()
 

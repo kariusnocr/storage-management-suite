@@ -1,4 +1,4 @@
-"""Các mô hình dữ liệu chuẩn hóa có kiểu tĩnh cho Karius Academic System (KAS) v5.0."""
+"""Các mô hình dữ liệu chuẩn hóa có kiểu tĩnh cho Karius Academic System (KAS) v1.0."""
 
 from __future__ import annotations
 

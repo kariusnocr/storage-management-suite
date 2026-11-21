@@ -1,7 +1,7 @@
-"""Karius Academic System (KAS) v5.0.0 — Hệ thống Quản trị Tri thức & Đa Kho Dữ Liệu."""
+"""Karius Academic System (KAS) v1.0.0 — Hệ thống Quản trị Tri thức, Đa Kho Dữ Liệu & Kết nối AI/Agent."""
 
 APP_NAME = "Karius Academic System"
 APP_SHORT = "KAS"
-__version__ = "5.0.0"
+__version__ = "1.0.0"
 
 __all__ = ["APP_NAME", "APP_SHORT", "__version__"]

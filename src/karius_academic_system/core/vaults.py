@@ -1,4 +1,4 @@
-"""Quản lý Đa Kho Dữ Liệu (Multi-Vault Registry) cho Karius Academic System (KAS) v5.0."""
+"""Quản lý Đa Kho Dữ Liệu (Multi-Vault Registry) cho Karius Academic System (KAS) v1.0."""
 
 from __future__ import annotations
 

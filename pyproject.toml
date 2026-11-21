@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "karius-academic-system"
-version = "5.0.0"
-description = "Karius Academic System (KAS) — Hệ thống quản trị tri thức & đa kho dữ liệu (Local Folder / Ổ rời / NAS / mọi kho Google Drive)"
+version = "1.0.0"
+description = "Karius Academic System (KAS) — Hệ thống quản trị tri thức, đa kho dữ liệu (Local/Google Drive), tùy chỉnh quy tắc đặt tên & kết nối AI/MCP Agent"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 authors = [
   { name = "kariusnocr" }
 ]
-keywords = ["karius-academic-system", "kas", "multi-vault", "google-drive", "local-storage", "catalog", "vietnamese", "ocr", "sqlite", "desktop"]
+keywords = ["karius-academic-system", "kas", "multi-vault", "google-drive", "local-storage", "naming-rules", "mcp", "ai-agent", "vietnamese", "ocr", "sqlite", "desktop"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",

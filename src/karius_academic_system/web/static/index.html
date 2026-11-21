@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Karius Academic System (KAS) v5.0</title>
+  <title>Karius Academic System (KAS) v1.0</title>
   <style>
     :root {
       --bg: #0b1120;
@@ -103,7 +103,7 @@
     }
     .tab-btn:hover { background: var(--surface-2); color: var(--text); }
     .tab-btn.active { background: var(--surface-2); color: var(--accent); border-color: var(--border); }
-    main { max-width: 1340px; margin: 0 auto; padding: 24px 28px 60px; }
+    main { max-width: 1360px; margin: 0 auto; padding: 24px 28px 60px; }
     .section { display: none; }
     .section.active { display: block; }
     .kpi-grid {
@@ -112,11 +112,11 @@
       gap: 16px;
       margin-bottom: 24px;
     }
-    .vault-grid {
+    .vault-grid, .preset-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
     }
     .card {
       background: var(--surface);
@@ -124,7 +124,7 @@
       border-radius: var(--radius);
       padding: 18px 20px;
     }
-    .card.vault-active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(56,189,248,0.25); }
+    .card.vault-active, .card.preset-active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(56,189,248,0.28); }
     .card-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
     .card-val { font-size: 26px; font-weight: 700; }
     .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
@@ -145,15 +145,19 @@
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
     .form-field { display: flex; flex-direction: column; gap: 6px; }
     .form-field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .toggle-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; }
+    .toggle-row input { accent-color: var(--accent); width: 16px; height: 16px; }
     .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
-    input[type="text"], select {
+    input[type="text"], input[type="password"], input[type="number"], select, textarea {
       background: var(--surface-2);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 9px 14px;
+      padding: 9px 12px;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
+      font-family: inherit;
     }
+    textarea { resize: vertical; min-height: 70px; }
     .search-bar input[type="text"] { flex: 1; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
     th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
@@ -174,7 +178,7 @@
       max-height: 300px;
       overflow: auto;
       white-space: pre-wrap;
-      margin-top: 12px;
+      margin-top: 10px;
       border: 1px solid var(--border);
     }
     .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -186,6 +190,27 @@
       padding: 20px;
       margin-bottom: 20px;
     }
+    /* Chat AI layout */
+    .ai-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
+    @media (max-width: 960px) { .ai-layout { grid-template-columns: 1fr; } }
+    .chat-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      height: 430px;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .chat-msg { max-width: 88%; padding: 10px 14px; border-radius: 12px; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+    .chat-msg.user { align-self: flex-end; background: var(--accent-2); color: #fff; }
+    .chat-msg.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+    .chat-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+    .chip { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -193,8 +218,8 @@
     <div class="brand">
       <div class="brand-badge">KAS</div>
       <div>
-        <h1>Karius Academic System <span id="verTag" style="font-weight:500;">v5.0</span></h1>
-        <span id="rootSubtitle">Hệ thống Quản trị Tri thức &amp; Đa Kho Dữ Liệu</span>
+        <h1>Karius Academic System <span id="verTag" style="font-weight:500;">v1.0</span></h1>
+        <span id="rootSubtitle">Hệ thống Quản trị Tri thức, Đa Kho Dữ Liệu &amp; Kết nối AI / Agent</span>
       </div>
     </div>
     <div class="header-actions">
@@ -212,17 +237,19 @@
     <button class="tab-btn active" data-tab="vaults">Kho Dữ Liệu (Vaults)</button>
     <button class="tab-btn" data-tab="overview">Tổng quan</button>
     <button class="tab-btn" data-tab="search">Tìm kiếm FTS5</button>
+    <button class="tab-btn" data-tab="rules">Quy Tắc Đặt Tên</button>
+    <button class="tab-btn" data-tab="ai">Trợ Lý AI &amp; Agent</button>
     <button class="tab-btn" data-tab="catalog">Chuẩn Danh Mục V7</button>
     <button class="tab-btn" data-tab="audit">Kiểm toán</button>
     <button class="tab-btn" data-tab="undo">Hoàn tác (Undo)</button>
-    <button class="tab-btn" data-tab="doctor">Chẩn đoán (Doctor)</button>
+    <button class="tab-btn" data-tab="doctor">Chẩn đoán</button>
   </nav>
 
   <main>
     <!-- TAB: KHO DỮ LIỆU (MULTI-VAULT) -->
     <section id="tab-vaults" class="section active">
       <div id="noVaultBanner" class="empty-banner" style="display:none;">
-        <h3 style="margin-bottom:6px;">Chào mừng đến với Karius Academic System (KAS)</h3>
+        <h3 style="margin-bottom:6px;">Chào mừng đến với Karius Academic System (KAS v1.0)</h3>
         <p style="font-size:13px; color:var(--muted);">
           KAS có thể quản lý <strong>mọi kho dữ liệu</strong> — từ thư mục cục bộ trên máy tính / ổ cứng rời / OneDrive / NAS đến bất kỳ thư mục Google Drive nào. Hãy kết nối kho đầu tiên của bạn bên dưới!
         </p>
@@ -297,6 +324,198 @@
       </div>
     </section>
 
+    <!-- TAB: TÙY CHỈNH QUY TẮC ĐẶT TÊN -->
+    <section id="tab-rules" class="section">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <div class="card-title">Chọn nhanh Bộ Mẫu Quy Tắc (Presets)</div>
+            <div id="rulesSourceMeta" style="font-size:12px; color:var(--muted);">Đang tải...</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn" onclick="saveNamingRules('vault')">Lưu cho Kho hiện tại</button>
+            <button class="btn secondary" onclick="saveNamingRules('global')">Lưu mặc định Toàn cục</button>
+            <button class="btn secondary" onclick="resetNamingRules('vault')">Khôi phục mặc định</button>
+          </div>
+        </div>
+        <div class="preset-grid" id="presetCards"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="card-title">Thiết lập chi tiết Quy Tắc Đặt Tên</div>
+        <div class="form-grid">
+          <div class="form-field">
+            <label>Kiểu tiền tố số thư mục</label>
+            <select id="rFolderIndexStyle" onchange="livePreviewRule()">
+              <option value="bracket_2">[01] Ngoặc vuông 2 chữ số</option>
+              <option value="bracket_3">[001] Ngoặc vuông 3 chữ số</option>
+              <option value="dot_2">01. Số + dấu chấm</option>
+              <option value="dash_2">01 - Số + gạch ngang</option>
+              <option value="none">Không dùng tiền tố số</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Kiểu chữ tên thư mục</label>
+            <select id="rFolderCase" onchange="livePreviewRule()">
+              <option value="upper">IN HOA (HỌC THUẬT)</option>
+              <option value="title">Viết Hoa Đầu Chữ (Học Thuật)</option>
+              <option value="lower">chữ thường (học thuật)</option>
+              <option value="snake">snake_case (hoc_thuat)</option>
+              <option value="kebab">kebab-case (hoc-thuat)</option>
+              <option value="preserve">Giữ nguyên</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Kiểu chữ tên tệp tin</label>
+            <select id="rFileCase" onchange="livePreviewRule()">
+              <option value="title">Viết Hoa Đầu Chữ (Title Case)</option>
+              <option value="sentence">Viết hoa đầu câu</option>
+              <option value="lower">chữ thường</option>
+              <option value="upper">IN HOA</option>
+              <option value="snake">snake_case</option>
+              <option value="kebab">kebab-case</option>
+              <option value="preserve">Giữ nguyên</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Dấu phân cách thông tin bổ sung</label>
+            <input type="text" id="rFileSep" value=" - " oninput="livePreviewRule()" />
+          </div>
+          <div class="form-field">
+            <label>Độ dài tên tối đa (0 = không giới hạn)</label>
+            <input type="number" id="rMaxLen" value="180" min="0" max="500" oninput="livePreviewRule()" />
+          </div>
+          <div class="form-field">
+            <label>Ký tự bị cấm</label>
+            <input type="text" id="rForbiddenChars" oninput="livePreviewRule()" />
+          </div>
+        </div>
+
+        <div class="form-grid" style="margin-top:14px;">
+          <label class="toggle-row"><input type="checkbox" id="rFolderReqIdx" onchange="livePreviewRule()" /> Bắt buộc tiền tố số cho thư mục</label>
+          <label class="toggle-row"><input type="checkbox" id="rFolderNoUnder" onchange="livePreviewRule()" /> Cấm dấu gạch dưới `_` ở thư mục</label>
+          <label class="toggle-row"><input type="checkbox" id="rFileNoIdx" onchange="livePreviewRule()" /> Cấm `[STT]` ở đầu tên tệp</label>
+          <label class="toggle-row"><input type="checkbox" id="rFileNoDate" onchange="livePreviewRule()" /> Cấm tiền tố ngày `YYMMDD_` ở tệp</label>
+          <label class="toggle-row"><input type="checkbox" id="rFileReqExtra" onchange="livePreviewRule()" /> Gợi ý bổ sung phần `- Thông Tin Bổ Sung`</label>
+          <label class="toggle-row"><input type="checkbox" id="rFileNoUnder" onchange="livePreviewRule()" /> Thay gạch dưới `_` bằng khoảng trắng ở tệp</label>
+          <label class="toggle-row"><input type="checkbox" id="rLowerExt" onchange="livePreviewRule()" /> Ép đuôi tệp chữ thường (`.pdf`)</label>
+          <label class="toggle-row"><input type="checkbox" id="rUnicodeNfc" onchange="livePreviewRule()" /> Chuẩn hóa tiếng Việt Unicode NFC</label>
+          <label class="toggle-row"><input type="checkbox" id="rStripAccents" onchange="livePreviewRule()" /> Bỏ dấu tiếng Việt (ASCII hóa)</label>
+        </div>
+
+        <div class="form-grid" style="margin-top:14px;">
+          <div class="form-field">
+            <label>Từ viết tắt giữ IN HOA (cách nhau bằng dấu phẩy)</label>
+            <input type="text" id="rAcronyms" placeholder="VD: AI, LLM, USSH, PDF, IELTS" oninput="livePreviewRule()" />
+          </div>
+          <div class="form-field">
+            <label>Thư mục bỏ qua kiểm tra (cách nhau bằng dấu phẩy)</label>
+            <input type="text" id="rIgnored" placeholder=".git, .obsidian, __pycache__, node_modules" />
+          </div>
+          <div class="form-field">
+            <label>Quy tắc thay thế chuỗi tùy biến (`gốc => đích`, mỗi dòng 1 cặp)</label>
+            <textarea id="rReplacements" placeholder="tai lieu => Tài Liệu&#10;bai tap => Bài Tập" oninput="livePreviewRule()"></textarea>
+          </div>
+          <div class="form-field">
+            <label>Mẫu Regex cấm tùy biến (mỗi dòng 1 biểu thức)</label>
+            <textarea id="rRegexBlacklist" placeholder="(?i)copy of&#10;\(\d+\)$" oninput="livePreviewRule()"></textarea>
+          </div>
+        </div>
+        <div id="rulesSaveMsg" style="font-size:13px; color:var(--ok); margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Bộ Thử Nghiệm Thời Gian Thực (Live Rule Simulator)</div>
+        <div class="search-bar" style="margin-top:8px;">
+          <input type="text" id="ruleTestInput" value="01_bai_tap_triet_hoc_AI.PDF" placeholder="Gõ bất kỳ tên tệp hoặc thư mục nào để kiểm thử ngay..." oninput="livePreviewRule()" />
+          <label class="toggle-row" style="padding:6px 10px;"><input type="checkbox" id="ruleTestIsFolder" onchange="livePreviewRule()" /> Là thư mục</label>
+          <button class="btn secondary" onclick="livePreviewRule()">Kiểm thử</button>
+        </div>
+        <div id="rulePreviewBox" style="font-size:13px;"></div>
+      </div>
+    </section>
+
+    <!-- TAB: TRỢ LÝ AI & AGENT (MCP) -->
+    <section id="tab-ai" class="section">
+      <div class="ai-layout">
+        <div class="card">
+          <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+            <div>
+              <div class="card-title" style="margin:0;">Trợ Lý Chatbot AI &amp; Agent KAS</div>
+              <div id="aiActiveBadge" style="font-size:12px; color:var(--muted);">Đang tải...</div>
+            </div>
+            <button class="btn secondary sm" onclick="clearChat()">Xóa hội thoại</button>
+          </div>
+
+          <div class="row-actions" style="margin-bottom:10px;">
+            <span class="chip" onclick="quickAsk('Thống kê tổng quan kho hiện tại')">Thống kê kho</span>
+            <span class="chip" onclick="quickAsk('Liệt kê các kho dữ liệu đang kết nối')">Các kho dữ liệu</span>
+            <span class="chip" onclick="quickAsk('Kiểm tra lỗi đặt tên trong kho hiện tại')">Kiểm toán quy ước</span>
+            <span class="chip" onclick="quickAsk('Xem quy tắc đặt tên đang áp dụng')">Quy tắc hiện hành</span>
+            <span class="chip" onclick="quickAsk('Thử tên 01_bai_tap_cuoi_ky.PDF')">Thử chuẩn hóa tên</span>
+          </div>
+
+          <div class="chat-box" id="chatBox"></div>
+
+          <div class="search-bar" style="margin:0;">
+            <input type="text" id="chatInput" placeholder="Hỏi AI về kho tài liệu, tìm tệp, kiểm toán, hoặc quy tắc đặt tên..." onkeydown="if(event.key==='Enter') sendChat()" />
+            <button class="btn" id="chatSendBtn" onclick="sendChat()">Gửi</button>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card">
+            <div class="card-title">Cấu hình Nhà cung cấp AI (Chatbot / LLM)</div>
+            <div class="form-field" style="margin-top:8px;">
+              <label>Nhà cung cấp AI</label>
+              <select id="aiProvider" onchange="onAiProviderChange()">
+                <option value="builtin_offline">Trợ Lý Cục Bộ KAS (Ngoại tuyến — Miễn phí)</option>
+                <option value="openai_compat">OpenAI / Ollama / LM Studio / OpenRouter / Groq</option>
+                <option value="gemini">Google Gemini API</option>
+                <option value="anthropic">Anthropic Claude API</option>
+              </select>
+            </div>
+            <div class="form-field" style="margin-top:8px;">
+              <label>Mô hình (Model)</label>
+              <input type="text" id="aiModel" placeholder="VD: gpt-4o-mini, gemini-2.5-flash, llama3.1..." />
+            </div>
+            <div class="form-field" style="margin-top:8px;">
+              <label>API Base URL (Ollama local: http://localhost:11434/v1)</label>
+              <input type="text" id="aiBaseUrl" placeholder="https://api.openai.com/v1" />
+            </div>
+            <div class="form-field" style="margin-top:8px;">
+              <label>API Key <span id="aiKeyStatus" style="font-weight:400;"></span></label>
+              <input type="password" id="aiApiKey" placeholder="Nhập API key mới (bỏ trống để giữ nguyên)" />
+            </div>
+            <div class="row-actions" style="margin-top:12px;">
+              <button class="btn sm" onclick="saveAiConfig(false)">Lưu cấu hình AI</button>
+              <button class="btn secondary sm" onclick="saveAiConfig(true)">Xóa Key</button>
+              <span id="aiCfgMsg" style="font-size:12px; color:var(--ok);"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="row-actions" style="justify-content:space-between;">
+              <div class="card-title" style="margin:0;">Kết nối AI Agent bên ngoài (Chuẩn MCP)</div>
+              <select id="mcpClientSel" style="padding:4px 8px; font-size:12px;" onchange="renderMcpSnippet()">
+                <option value="claude_desktop">Claude Desktop / Antigravity (stdio)</option>
+                <option value="cursor_antigravity">Cursor / Windsurf (stdio)</option>
+                <option value="http_client">HTTP MCP Endpoint (/api/mcp)</option>
+              </select>
+            </div>
+            <p style="font-size:12px; color:var(--muted); margin-top:6px;">
+              Dán cấu hình JSON bên dưới vào client AI Agent (Claude Desktop, Cursor, Antigravity…) để Agent thao tác trực tiếp mọi kho KAS qua <strong>10 công cụ MCP an toàn</strong>.
+            </p>
+            <pre class="console" id="mcpJsonBox" style="max-height:190px;"></pre>
+            <div class="row-actions" style="margin-top:8px;">
+              <button class="btn secondary sm" onclick="copyMcpJson()">Sao chép JSON MCP</button>
+              <span id="mcpCopyMsg" style="font-size:12px; color:var(--ok);"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- TAB: CHUẨN DANH MỤC V7 -->
     <section id="tab-catalog" class="section">
       <div class="card" style="margin-bottom:18px;">
@@ -368,6 +587,9 @@
     const fmt = (n) => Number(n || 0).toLocaleString('vi-VN');
     const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     let _vaultsCache = [];
+    let _rulesPayload = null;
+    let _aiPayload = null;
+    let _chatHistory = [];
 
     function openTab(tabName) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
@@ -376,6 +598,8 @@
       if (el) el.classList.add('active');
       if (tabName === 'vaults') loadVaults();
       if (tabName === 'overview') loadOverview();
+      if (tabName === 'rules') loadNamingRules();
+      if (tabName === 'ai') loadAiPanel();
       if (tabName === 'catalog') loadCatalogPlan();
       if (tabName === 'audit') loadAudit();
       if (tabName === 'undo') loadUndo();
@@ -514,6 +738,258 @@
       await refreshAll();
     }
 
+    /* ================= QUY TẮC ĐẶT TÊN ================= */
+    function fillRulesForm(r) {
+      document.getElementById('rFolderIndexStyle').value = r.folder_index_style || 'bracket_2';
+      document.getElementById('rFolderCase').value = r.folder_case || 'upper';
+      document.getElementById('rFileCase').value = r.file_case || 'title';
+      document.getElementById('rFileSep').value = r.file_separator ?? ' - ';
+      document.getElementById('rMaxLen').value = r.max_name_length ?? 180;
+      document.getElementById('rForbiddenChars').value = r.forbidden_chars || '';
+      document.getElementById('rFolderReqIdx').checked = !!r.folder_require_index_prefix;
+      document.getElementById('rFolderNoUnder').checked = !!r.folder_forbid_underscore;
+      document.getElementById('rFileNoIdx').checked = !!r.file_forbid_index_prefix;
+      document.getElementById('rFileNoDate').checked = !!r.file_forbid_date_prefix;
+      document.getElementById('rFileReqExtra').checked = !!r.file_require_extra_info;
+      document.getElementById('rFileNoUnder').checked = !!r.file_forbid_underscore;
+      document.getElementById('rLowerExt').checked = !!r.lowercase_extension;
+      document.getElementById('rUnicodeNfc').checked = !!r.unicode_nfc;
+      document.getElementById('rStripAccents').checked = !!r.strip_accents;
+      const acVals = Object.values(r.acronyms_upper || {});
+      document.getElementById('rAcronyms').value = acVals.join(', ');
+      document.getElementById('rIgnored').value = (r.ignored_folders || []).join(', ');
+      document.getElementById('rReplacements').value = Object.entries(r.custom_replacements || {})
+        .map(([k, v]) => `${k} => ${v}`).join('\n');
+      document.getElementById('rRegexBlacklist').value = (r.custom_regex_blacklist || []).join('\n');
+    }
+
+    function collectRulesForm(presetOverride) {
+      const acMap = {};
+      document.getElementById('rAcronyms').value.split(',').map(x => x.trim()).filter(Boolean).forEach(x => {
+        acMap[x.toLowerCase()] = x;
+      });
+      const repMap = {};
+      document.getElementById('rReplacements').value.split('\n').map(x => x.trim()).filter(Boolean).forEach(line => {
+        const idx = line.indexOf('=>');
+        if (idx > 0) repMap[line.slice(0, idx).trim()] = line.slice(idx + 2).trim();
+      });
+      return {
+        preset: presetOverride || 'custom',
+        folder_index_style: document.getElementById('rFolderIndexStyle').value,
+        folder_case: document.getElementById('rFolderCase').value,
+        file_case: document.getElementById('rFileCase').value,
+        file_separator: document.getElementById('rFileSep').value,
+        max_name_length: Number(document.getElementById('rMaxLen').value || 0),
+        forbidden_chars: document.getElementById('rForbiddenChars').value,
+        folder_require_index_prefix: document.getElementById('rFolderReqIdx').checked,
+        folder_forbid_underscore: document.getElementById('rFolderNoUnder').checked,
+        file_forbid_index_prefix: document.getElementById('rFileNoIdx').checked,
+        file_forbid_date_prefix: document.getElementById('rFileNoDate').checked,
+        file_require_extra_info: document.getElementById('rFileReqExtra').checked,
+        file_forbid_underscore: document.getElementById('rFileNoUnder').checked,
+        lowercase_extension: document.getElementById('rLowerExt').checked,
+        unicode_nfc: document.getElementById('rUnicodeNfc').checked,
+        strip_accents: document.getElementById('rStripAccents').checked,
+        acronyms_upper: acMap,
+        ignored_folders: document.getElementById('rIgnored').value.split(',').map(x => x.trim()).filter(Boolean),
+        custom_replacements: repMap,
+        custom_regex_blacklist: document.getElementById('rRegexBlacklist').value.split('\n').map(x => x.trim()).filter(Boolean),
+      };
+    }
+
+    async function loadNamingRules() {
+      const d = await fetch('/api/rules').then(r => r.json());
+      _rulesPayload = d;
+      document.getElementById('rulesSourceMeta').textContent = `Preset hiện hành: ${d.rules.preset} · Nguồn: ${d.source}`;
+      document.getElementById('presetCards').innerHTML = Object.entries(d.presets || {}).map(([key, meta]) => `
+        <div class="card ${d.rules.preset === key ? 'preset-active' : ''}" style="cursor:pointer;" onclick="selectPreset('${esc(key)}')">
+          <div class="row-actions" style="justify-content:space-between; margin-bottom:6px;">
+            <strong>${esc(meta.name)}</strong>
+            <span class="pill ${d.rules.preset === key ? 'ok' : 'info'}">${esc(key)}</span>
+          </div>
+          <div style="font-size:12px; color:var(--muted);">${esc(meta.description)}</div>
+        </div>
+      `).join('');
+      fillRulesForm(d.rules);
+      await livePreviewRule();
+    }
+
+    async function selectPreset(presetKey) {
+      if (!_rulesPayload || !_rulesPayload.presets[presetKey]) return;
+      fillRulesForm(_rulesPayload.presets[presetKey].rules);
+      document.getElementById('rulesSaveMsg').textContent = `Đã nạp mẫu "${presetKey}" vào biểu mẫu — bấm "Lưu cho Kho hiện tại" hoặc "Lưu mặc định Toàn cục" để áp dụng.`;
+      await livePreviewRule(presetKey);
+    }
+
+    async function saveNamingRules(scope) {
+      const rules = collectRulesForm();
+      const r = await fetch('/api/rules', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scope, rules}),
+      }).then(x => x.json());
+      document.getElementById('rulesSaveMsg').textContent = r.ok
+        ? `Đã lưu quy tắc đặt tên (${scope === 'global' ? 'Toàn cục' : 'Kho hiện tại'}) tại: ${r.saved_path}`
+        : `Lỗi: ${r.detail}`;
+      await loadNamingRules();
+    }
+
+    async function resetNamingRules(scope) {
+      await fetch('/api/rules/reset', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scope}),
+      });
+      document.getElementById('rulesSaveMsg').textContent = 'Đã khôi phục quy tắc đặt tên về mặc định của kho.';
+      await loadNamingRules();
+    }
+
+    async function livePreviewRule(presetOverride) {
+      const sample = document.getElementById('ruleTestInput').value;
+      const isFolder = document.getElementById('ruleTestIsFolder').checked;
+      const box = document.getElementById('rulePreviewBox');
+      if (!sample) { box.innerHTML = ''; return; }
+      const rules = collectRulesForm(presetOverride);
+      const res = await fetch('/api/rules/preview', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: sample, is_folder: isFolder, rules}),
+      }).then(r => r.json());
+      const item = (res.results || [])[0];
+      if (!item) return;
+      const badge = item.compliant
+        ? '<span class="pill ok">ĐẠT CHUẨN 100%</span>'
+        : `<span class="pill warn">${item.issues.length} PHÁT HIỆN</span>`;
+      const issuesHtml = item.issues.map(i => {
+        const cls = i.severity === 'LỖI' ? 'err' : (i.severity === 'CẢNH BÁO' ? 'warn' : 'info');
+        return `<div style="margin-top:6px;"><span class="pill ${cls}">${esc(i.severity)}</span> <code>${esc(i.code)}</code> — ${esc(i.description)}</div>`;
+      }).join('');
+      box.innerHTML = `
+        <div class="row-actions" style="margin-bottom:8px;">${badge} <span>Gốc: <code>${esc(item.original)}</code></span> → <span>Đề xuất: <strong style="color:var(--ok);">${esc(item.suggested)}</strong></span></div>
+        ${issuesHtml}
+      `;
+    }
+
+    /* ================= TRỢ LÝ AI & AGENT (MCP) ================= */
+    async function loadAiPanel() {
+      const d = await fetch('/api/ai/config').then(r => r.json());
+      _aiPayload = d;
+      const c = d.config || {};
+      document.getElementById('aiProvider').value = c.provider || 'builtin_offline';
+      document.getElementById('aiModel').value = c.model || '';
+      document.getElementById('aiBaseUrl').value = c.base_url || '';
+      document.getElementById('aiApiKey').value = '';
+      document.getElementById('aiKeyStatus').textContent = c.has_api_key ? `(Đã lưu: ${c.api_key_masked})` : '(Chưa đặt)';
+      document.getElementById('aiActiveBadge').textContent = `Provider: ${c.provider} · Model: ${c.model}`;
+      renderMcpSnippet();
+      if (_chatHistory.length === 0) {
+        appendChat('bot', 'Xin chào! Tôi là Trợ Lý AI & Agent của Karius Academic System (KAS v1.0). Hãy bấm một gợi ý phía trên hoặc nhập câu hỏi bất kỳ để thao tác trên kho dữ liệu của bạn.');
+      }
+    }
+
+    function onAiProviderChange() {
+      if (!_aiPayload) return;
+      const p = document.getElementById('aiProvider').value;
+      const meta = _aiPayload.providers[p];
+      if (meta) {
+        document.getElementById('aiModel').value = meta.default_model || '';
+        document.getElementById('aiBaseUrl').value = meta.default_base_url || '';
+      }
+    }
+
+    async function saveAiConfig(clearKey) {
+      const payload = {
+        provider: document.getElementById('aiProvider').value,
+        model: document.getElementById('aiModel').value.trim(),
+        base_url: document.getElementById('aiBaseUrl').value.trim(),
+        clear_api_key: !!clearKey,
+      };
+      const k = document.getElementById('aiApiKey').value.trim();
+      if (k && !clearKey) payload.api_key = k;
+      const r = await fetch('/api/ai/config', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      }).then(x => x.json());
+      document.getElementById('aiCfgMsg').textContent = r.ok ? 'Đã lưu!' : ('Lỗi: ' + r.detail);
+      await loadAiPanel();
+    }
+
+    function renderMcpSnippet() {
+      if (!_aiPayload || !_aiPayload.mcp) return;
+      const key = document.getElementById('mcpClientSel').value;
+      const cfgObj = _aiPayload.mcp[key] || _aiPayload.mcp.claude_desktop;
+      document.getElementById('mcpJsonBox').textContent = JSON.stringify(cfgObj, null, 2);
+    }
+
+    async function copyMcpJson() {
+      const txt = document.getElementById('mcpJsonBox').textContent;
+      try {
+        await navigator.clipboard.writeText(txt);
+        document.getElementById('mcpCopyMsg').textContent = 'Đã sao chép!';
+        setTimeout(() => { document.getElementById('mcpCopyMsg').textContent = ''; }, 2500);
+      } catch (e) {
+        document.getElementById('mcpCopyMsg').textContent = 'Hãy bôi đen & Ctrl+C';
+      }
+    }
+
+    function appendChat(role, text, toolCalls) {
+      const box = document.getElementById('chatBox');
+      const div = document.createElement('div');
+      div.className = 'chat-msg ' + (role === 'user' ? 'user' : 'bot');
+      let html = '';
+      if (toolCalls && toolCalls.length) {
+        html += '<div class="chat-tools">' + toolCalls.map(t => `<span class="pill info">⚙ ${esc(t.tool)}</span>`).join('') + '</div>';
+      }
+      html += esc(text);
+      div.innerHTML = html;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function clearChat() {
+      _chatHistory = [];
+      document.getElementById('chatBox').innerHTML = '';
+      appendChat('bot', 'Đã làm mới cuộc hội thoại. Bạn muốn tra cứu hoặc kiểm toán gì trên kho hiện tại?');
+    }
+
+    function quickAsk(text) {
+      document.getElementById('chatInput').value = text;
+      sendChat();
+    }
+
+    async function sendChat() {
+      const inp = document.getElementById('chatInput');
+      const btn = document.getElementById('chatSendBtn');
+      const msg = inp.value.trim();
+      if (!msg) return;
+      inp.value = '';
+      appendChat('user', msg);
+      btn.disabled = true;
+      btn.textContent = 'Đang xử lý...';
+      try {
+        const r = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({message: msg, history: _chatHistory.slice(-10)}),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          appendChat('bot', 'Lỗi AI Provider: ' + (data.detail || r.statusText));
+        } else {
+          appendChat('bot', data.reply || '', data.tool_calls || []);
+          _chatHistory.push({role: 'user', content: msg});
+          _chatHistory.push({role: 'assistant', content: data.reply || ''});
+        }
+      } catch (err) {
+        appendChat('bot', 'Không thể kết nối máy chủ cục bộ: ' + err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Gửi';
+      }
+    }
+
+    /* ================= TỔNG QUAN / TÌM KIẾM / V7 / KIỂM TOÁN / UNDO / DOCTOR ================= */
     async function loadOverview() {
       const d = await fetch('/api/overview').then(r => r.json());
       document.getElementById('verTag').textContent = 'v' + d.version;

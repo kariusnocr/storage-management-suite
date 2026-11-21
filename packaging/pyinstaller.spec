@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec đóng gói Karius Academic System (KAS) v5.0 thành ứng dụng độc lập (Windows/macOS/Linux)."""
+"""PyInstaller spec đóng gói Karius Academic System (KAS) v1.0 thành ứng dụng độc lập (Windows/macOS/Linux)."""
 
 import sys
 from pathlib import Path
