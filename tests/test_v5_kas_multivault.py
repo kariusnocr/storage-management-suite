@@ -44,7 +44,7 @@ class TestKASMultiVaultAndLocalFS(unittest.TestCase):
     def test_default_config_has_no_hardcoded_personal_drive_ids(self):
         self.assertEqual(APP_NAME, "Karius Academic System")
         self.assertEqual(APP_SHORT, "KAS")
-        self.assertEqual(__version__, "1.0.0")
+        self.assertTrue(__version__.startswith("1.0."), __version__)
         cfg = sc.load_config()
         self.assertEqual(cfg["root_id"], "")
         self.assertEqual(cfg["known_ids"], {})

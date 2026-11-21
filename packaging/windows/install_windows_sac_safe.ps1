@@ -1,15 +1,14 @@
 <#
 .SYNOPSIS
-    Cài đặt Karius Academic System (KAS) v1.0.0 trên Windows 11 AN TOÀN VỚI SMART APP CONTROL (không cần tắt bảo mật).
+    Cai dat Karius Academic System (KAS) v1.0.1 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
 .DESCRIPTION
-    Không dùng tệp .exe chưa ký số hay pip.exe. Chạy trực tiếp qua trình thông dịch Python chính thức
-    đã ký số (Python Software Foundation / Microsoft Store), tương thích PowerShell 5.1 & PowerShell 7,
-    hỗ trợ cài offline từ gói ZIP (không bị lỗi 404 khi kho GitHub ở chế độ Private) hoặc cài online qua
-    GitHub CLI (`gh`) / `$env:GITHUB_TOKEN`.
+    100% pure 7-bit ASCII (tuong thich tuyet doi Windows PowerShell 5.1 & PowerShell 7 khong loi ma hoa).
+    Khong dung tep .exe chua ky so hay pip.exe. Chay truc tiep qua trinh thong dich Python chinh thuc
+    da ky so, ho tro cai offline tu goi ZIP (khong bi 404 khi repo GitHub la Private) hoac qua gh / token.
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.0.0",
+    [string]$Version = "1.0.1",
     [string]$WheelPath = "",
     [string]$GitHubToken = "",
     [string]$Repo = "kariusnocr/storage-management-suite",
@@ -23,8 +22,8 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
 
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Cyan
-Write-Host "  KARIUS ACADEMIC SYSTEM (KAS) v$Version — CAI DAT WINDOWS 11" -ForegroundColor Cyan
-Write-Host "  (Tuong thich 100% Smart App Control — khong can tat bao mat)" -ForegroundColor Cyan
+Write-Host "  KARIUS ACADEMIC SYSTEM (KAS) v$Version - CAI DAT WINDOWS 11" -ForegroundColor Cyan
+Write-Host "  (Tuong thich 100% Smart App Control - khong can tat bao mat)" -ForegroundColor Cyan
 Write-Host "==================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -89,7 +88,6 @@ function Download-ReleaseWheel {
     $whlName = "karius_academic_system-$TagVer-py3-none-any.whl"
     $destWhl = Join-Path $tmpDir $whlName
 
-    # 1. Uu tien `gh release download` neu may da dang nhap GitHub CLI (ho tro ca repo Private)
     $ghCmd = Get-Command gh -ErrorAction SilentlyContinue
     if ($ghCmd) {
         try {
@@ -99,7 +97,6 @@ function Download-ReleaseWheel {
         } catch {}
     }
 
-    # 2. Neu co GitHub Token (ho tro repo Private qua GitHub Releases API)
     $effToken = if ($Token) { $Token } elseif ($env:GITHUB_TOKEN) { $env:GITHUB_TOKEN } elseif ($env:GH_TOKEN) { $env:GH_TOKEN } else { "" }
     if ($effToken) {
         try {
@@ -117,7 +114,6 @@ function Download-ReleaseWheel {
         }
     }
 
-    # 3. Thu tai URL cong khai (neu repo dang Public)
     $publicUrl = "https://github.com/$RepoName/releases/download/v$TagVer/$whlName"
     try {
         Write-Host "      Dang tai $whlName tu GitHub Release..." -ForegroundColor DarkGray
@@ -164,7 +160,6 @@ if (-not (Test-Path $pythonwExe)) { $pythonwExe = $pythonExe }
 $pyVer = (& $pythonExe --version 2>&1).ToString().Trim()
 Write-Host "[1/4] Trinh thong dich Python da ky so: $pythonExe ($pyVer)" -ForegroundColor Green
 
-# Dam bao pip luon san sang
 try {
     & $pythonExe -m pip --version 2>$null | Out-Null
     if ($LASTEXITCODE -ne 0) { & $pythonExe -m ensurepip --upgrade | Out-Null }
@@ -181,10 +176,11 @@ if (-not $WheelPath -or -not (Test-Path $WheelPath)) {
     }
 }
 
-Write-Host "[2/4] Dang cai dat Karius Academic System (KAS) v$Version & thu vien thuan Python..." -ForegroundColor Cyan
+Write-Host "[2/4] Dang cai dat Karius Academic System (KAS) v$Version va thu vien thuan Python..." -ForegroundColor Cyan
 Write-Host "      Nguon: $WheelPath" -ForegroundColor DarkGray
 
 & $pythonExe -m pip install --user --upgrade --force-reinstall --no-warn-script-location $WheelPath
+if ($LASTEXITCODE -ne 0) { throw "Cai dat goi KAS that bai (ma loi pip: $LASTEXITCODE)" }
 & $pythonExe -m pip install --user --upgrade --no-warn-script-location openpyxl google-api-python-client google-auth-oauthlib google-auth-httplib2
 
 if ($WithExtras) {
@@ -196,20 +192,11 @@ Write-Host "[3/4] Dang tao lenh CLI 'kas.cmd' (khong dung .exe chua ky) va them 
 $binDir = Join-Path $env:LOCALAPPDATA "kas\bin"
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
-$cliCmd = @"
-@echo off
-chcp 65001 >nul 2>&1
-set PYTHONUTF8=1
-"$pythonExe" -m karius_academic_system %*
-"@
-Set-Content -Path (Join-Path $binDir "kas.cmd") -Value $cliCmd -Encoding ASCII
+$cliCmd = "@echo off`r`nset PYTHONUTF8=1`r`n`"$pythonExe`" -m karius_academic_system %*`r`n"
+[System.IO.File]::WriteAllText((Join-Path $binDir "kas.cmd"), $cliCmd, [System.Text.Encoding]::ASCII)
 
-$desktopCmd = @"
-@echo off
-set PYTHONUTF8=1
-start "" "$pythonwExe" -m karius_academic_system desktop --browser --stdlib %*
-"@
-Set-Content -Path (Join-Path $binDir "kas-desktop.cmd") -Value $desktopCmd -Encoding ASCII
+$desktopCmd = "@echo off`r`nset PYTHONUTF8=1`r`nstart `"`" `"$pythonwExe`" -m karius_academic_system desktop --browser --stdlib %*`r`n"
+[System.IO.File]::WriteAllText((Join-Path $binDir "kas-desktop.cmd"), $desktopCmd, [System.Text.Encoding]::ASCII)
 
 $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
 if (-not $userPath) { $userPath = "" }
@@ -235,7 +222,7 @@ try {
         $sc.TargetPath = $pythonwExe
         $sc.Arguments = "-m karius_academic_system desktop --browser --stdlib"
         $sc.WorkingDirectory = $env:USERPROFILE
-        $sc.Description = "Karius Academic System (KAS) v$Version — Quan tri Da Kho Du Lieu & AI Agent"
+        $sc.Description = "Karius Academic System (KAS) v$Version - Quan tri Da Kho Du Lieu va AI Agent"
         $sc.IconLocation = "$env:SystemRoot\System32\shell32.dll,43"
         $sc.Save()
     }
@@ -252,7 +239,7 @@ $env:PYTHONUTF8 = "1"
 
 Write-Host ""
 Write-Host "HOAN TAT! Ban co the:" -ForegroundColor Green
-Write-Host "  1. Nhap dup 'Karius Academic System (KAS)' tren Desktop de ket noi kho cuc bo, Google Drive, Quy tac dat ten & Tro ly AI." -ForegroundColor White
+Write-Host "  1. Nhap dup 'Karius Academic System (KAS)' tren Desktop de ket noi kho cuc bo, Google Drive, Quy tac dat ten va Tro ly AI." -ForegroundColor White
 Write-Host "  2. Mo PowerShell moi va go:" -ForegroundColor White
 Write-Host '       kas vault add "Tai Lieu" "D:\TaiLieu"' -ForegroundColor Cyan
 Write-Host '       kas vault add "[A] STORAGE" "https://drive.google.com/drive/folders/<FOLDER_ID>"' -ForegroundColor Cyan
