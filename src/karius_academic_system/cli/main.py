@@ -558,6 +558,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             except Exception:
                 pass
 
+    sc.refresh_system_path()
     raw_args = list(sys.argv[1:] if argv is None else argv)
 
     # Trích xuất cờ toàn cục `--kho <slug>` / `--vault <slug>` trước lệnh con

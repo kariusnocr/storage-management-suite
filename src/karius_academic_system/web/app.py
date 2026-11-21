@@ -303,6 +303,39 @@ def _api_doctor_data() -> Dict[str, Any]:
     return run_doctor()
 
 
+def _api_setup_plan_data() -> Dict[str, Any]:
+    from karius_academic_system.ops.setup_tools import build_setup_plan
+
+    return build_setup_plan()
+
+
+def _api_setup_run_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops.setup_tools import start_setup_job
+
+    scope = str(body.get("scope") or "all").strip().lower()
+    do_py = scope in {"all", "python"} or bool(body.get("install_python", False))
+    do_tools = scope in {"all", "tools"} or bool(body.get("install_tools", False))
+    do_ocr = scope in {"all", "ocr", "ocr_data"} or bool(body.get("install_ocr_data", False))
+    if not (do_py or do_tools or do_ocr):
+        do_py = do_tools = do_ocr = True
+    return start_setup_job(
+        install_python=do_py,
+        install_tools=do_tools,
+        install_ocr_data=do_ocr,
+        include_pywebview=bool(body.get("include_pywebview", False)),
+        dry_run=bool(body.get("dry_run", False)),
+    )
+
+
+def _api_setup_job_data(job_id: str) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops.setup_tools import get_setup_job
+
+    job = get_setup_job(job_id)
+    if not job:
+        return 404, {"detail": "Không tìm thấy tiến trình cài đặt."}
+    return 200, job
+
+
 def _api_undo_list_data() -> Dict[str, Any]:
     with sc.StorageDB() as db:
         return {"batches": db.list_undo_batches(limit=30)}
@@ -885,6 +918,14 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                 if path == "/api/doctor":
                     self._send_json(200, _api_doctor_data())
                     return
+                if path == "/api/setup/plan":
+                    self._send_json(200, _api_setup_plan_data())
+                    return
+                if path.startswith("/api/setup/jobs/"):
+                    jid = urllib.parse.unquote(path[len("/api/setup/jobs/"):])
+                    code, data = _api_setup_job_data(jid)
+                    self._send_json(code, data)
+                    return
                 if path == "/api/undo/batches":
                     self._send_json(200, _api_undo_list_data())
                     return
@@ -1032,6 +1073,10 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     return
                 if path == "/api/tasks/run":
                     code, data = _api_task_run_data(str(body.get("command", "")), body.get("args"))
+                    self._send_json(code, data)
+                    return
+                if path == "/api/setup/run":
+                    code, data = _api_setup_run_data(body)
                     self._send_json(code, data)
                     return
                 if path.startswith("/api/undo/"):
@@ -1408,6 +1453,22 @@ def create_app():
     def api_doctor() -> Dict[str, Any]:
         return _api_doctor_data()
 
+    @app.get("/api/setup/plan")
+    def api_setup_plan() -> Dict[str, Any]:
+        return _api_setup_plan_data()
+
+    @app.post("/api/setup/run")
+    def api_setup_run(body: Dict[str, Any] = Body(default={})):
+        code, data = _api_setup_run_data(body)
+        return JSONResponse(data, status_code=code)
+
+    @app.get("/api/setup/jobs/{job_id}")
+    def api_setup_job(job_id: str) -> Dict[str, Any]:
+        code, data = _api_setup_job_data(job_id)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Không tìm thấy tiến trình cài đặt"))
+        return data
+
     @app.get("/api/undo/batches")
     def api_undo_list() -> Dict[str, Any]:
         return _api_undo_list_data()
@@ -1449,6 +1510,7 @@ def start_embedded_server(
     prefer_stdlib: bool = False,
 ) -> Tuple[threading.Thread, Callable[[], None], str]:
     """Khởi chạy máy chủ nền trả về `(thread, stop_fn, engine_name)` (tự dự phòng `--stdlib` trên Windows SAC)."""
+    sc.refresh_system_path()
     if not prefer_stdlib:
         try:
             import uvicorn

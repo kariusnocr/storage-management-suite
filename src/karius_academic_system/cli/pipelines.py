@@ -29,6 +29,8 @@ MODULE_MAP: Dict[str, str] = {
     "phan-tich-am-thanh": "karius_academic_system.media.audio_analyzer",
     "phan-tich-video": "karius_academic_system.media.video_analyzer",
     "doctor": "karius_academic_system.ops.doctor",
+    "setup": "karius_academic_system.ops.setup_tools",
+    "cai-dat-phu-thuoc": "karius_academic_system.ops.setup_tools",
     "watch": "karius_academic_system.ops.watcher",
 }
 

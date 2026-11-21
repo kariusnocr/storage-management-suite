@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
+import os
 import platform
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -14,19 +13,23 @@ from typing import Any, Dict, List
 
 from karius_academic_system import __version__
 from karius_academic_system import core as sc
+from karius_academic_system.ops.setup_tools import build_setup_plan, probe_python_package
 
 
 def _check_python_pkg(mod_name: str, pip_name: str, required: bool = False) -> Dict[str, Any]:
-    try:
-        mod = importlib.import_module(mod_name)
-        ver = getattr(mod, "__version__", "installed")
-        return {"name": pip_name, "ok": True, "version": str(ver), "required": required}
-    except ImportError:
-        return {"name": pip_name, "ok": False, "version": "", "required": required}
+    ok, ver_or_reason, blocked_sac = probe_python_package(mod_name)
+    return {
+        "name": pip_name,
+        "ok": ok,
+        "version": ver_or_reason if ok else "",
+        "blocked_by_sac": blocked_sac,
+        "note": ver_or_reason if blocked_sac else "",
+        "required": required,
+    }
 
 
 def _check_cli_tool(bin_name: str, purpose: str) -> Dict[str, Any]:
-    path = shutil.which(bin_name) or ""
+    path = sc.find_cli_tool(bin_name, refresh=False)
     return {"name": bin_name, "ok": bool(path), "path": path, "purpose": purpose}
 
 
@@ -42,18 +45,40 @@ def _check_fonts() -> Dict[str, Any]:
 
 
 def _check_gh() -> Dict[str, Any]:
-    gh = shutil.which("gh") or ""
+    gh = sc.find_cli_tool("gh", refresh=False)
+    gh_pat = sc.get_github_integration_status()
+    pat_connected = bool(gh_pat.get("connected") and gh_pat.get("method") == "pat")
+    pat_login = str(gh_pat.get("login") or "") if pat_connected else ""
     if not gh:
-        return {"available": False, "authenticated": False, "path": ""}
+        return {
+            "available": False,
+            "authenticated": pat_connected,
+            "cli_authenticated": False,
+            "pat_connected": pat_connected,
+            "pat_login": pat_login,
+            "path": "",
+        }
+    cli_authed = False
     try:
         proc = subprocess.run([gh, "auth", "status"], capture_output=True, text=True, timeout=10)
-        return {"available": True, "authenticated": proc.returncode == 0, "path": gh}
+        cli_authed = proc.returncode == 0
     except Exception:
-        return {"available": True, "authenticated": False, "path": gh}
+        cli_authed = False
+    return {
+        "available": True,
+        "authenticated": cli_authed or pat_connected,
+        "cli_authenticated": cli_authed,
+        "pat_connected": pat_connected,
+        "pat_login": pat_login,
+        "path": gh,
+    }
 
 
 def run_doctor() -> Dict[str, Any]:
     """Chẩn đoán toàn bộ phụ thuộc Python, công cụ đa phương tiện, OCR, Drive backends, GitHub và SQLite."""
+    # Tự làm mới PATH từ Registry/WinGet/Program Files trước khi kiểm tra
+    sc.refresh_system_path()
+
     py_pkgs = [
         _check_python_pkg("openpyxl", "openpyxl", required=True),
         _check_python_pkg("PIL", "Pillow", required=False),
@@ -73,12 +98,17 @@ def run_doctor() -> Dict[str, Any]:
         _check_cli_tool("pdftoppm", "Chuyển trang PDF sang ảnh OCR"),
         _check_cli_tool("7z", "Kiểm tra tệp nén ZIP/RAR/7Z"),
         _check_cli_tool("git", "Quản lý phiên bản Git"),
+        _check_cli_tool("gh", "GitHub CLI (PR, Releases, Repo)"),
     ]
 
     ocr_lang, ocr_prefix = sc.resolve_tesseract_lang(force_refresh=True)
+    vie_file_exists = (sc.shared_tessdata_dir() / "vie.traineddata").exists() or (
+        sc.tessdata_dir() / "vie.traineddata"
+    ).exists()
     drive_info = sc.detect_drive_backends()
     gh_info = _check_gh()
     fonts_info = _check_fonts()
+    setup_plan = build_setup_plan()
 
     db_file = sc.db_path()
     idx_file = sc.index_path()
@@ -123,13 +153,15 @@ def run_doctor() -> Dict[str, Any]:
         "ocr": {
             "ok": bool(ocr_lang),
             "lang": ocr_lang,
-            "vietnamese_ready": "vie" in (ocr_lang or ""),
-            "tessdata_prefix": ocr_prefix or "",
+            "vietnamese_ready": ("vie" in (ocr_lang or "")),
+            "vie_traineddata_downloaded": vie_file_exists,
+            "tessdata_prefix": ocr_prefix or str(sc.shared_tessdata_dir()),
         },
         "fonts": fonts_info,
         "drive": drive_info,
         "github": gh_info,
         "storage_db": db_stats,
+        "setup_plan": setup_plan,
     }
 
 
@@ -141,6 +173,37 @@ def format_doctor_report(res: Dict[str, Any]) -> str:
         if act
         else "Chưa chọn kho (dùng `kas vault add` để kết nối)"
     )
+
+    drv = res["drive"]
+    if drv["cli"]["available"]:
+        gdrive_cli_line = f"OK — {drv['cli']['bin']}"
+    elif drv["api"]["authenticated"]:
+        gdrive_cli_line = "Không cần (đang dùng Drive API OAuth trực tiếp trên máy cá nhân)"
+    elif drv["api"]["libs_installed"]:
+        gdrive_cli_line = "Không cần (chỉ dùng trên Cloud VM — máy cá nhân dùng Drive API OAuth)"
+    else:
+        gdrive_cli_line = "Không có (cài google-api-python-client để dùng OAuth 2.0 trên máy cá nhân)"
+
+    gh = res["github"]
+    if gh.get("cli_authenticated"):
+        gh_line = f"Đã đăng nhập gh CLI ({gh['path']})"
+    elif gh.get("pat_connected") and gh.get("available"):
+        gh_line = f"Đã kết nối PAT (@{gh.get('pat_login')}) | gh CLI có sẵn ({gh['path']})"
+    elif gh.get("pat_connected"):
+        gh_line = f"Đã kết nối qua PAT (@{gh.get('pat_login')}) | gh CLI: Chưa cài"
+    elif gh.get("available"):
+        gh_line = f"Có CLI ({gh['path']}) nhưng chưa đăng nhập"
+    else:
+        gh_line = "Chưa cài (chạy `kas setup` để cài tự động)"
+
+    ocr = res["ocr"]
+    if ocr["vietnamese_ready"]:
+        ocr_vie_text = "Sẵn sàng"
+    elif ocr.get("vie_traineddata_downloaded"):
+        ocr_vie_text = "Đã tải vie.traineddata (cần cài tesseract để kích hoạt)"
+    else:
+        ocr_vie_text = "Thiếu vie.traineddata (chạy `kas setup` để tải tự động)"
+
     lines = [
         "==========================================================================",
         f"🩺 KARIUS ACADEMIC SYSTEM (KAS) v{res['version']} — CHẨN ĐOÁN HỆ THỐNG (DOCTOR)",
@@ -148,12 +211,12 @@ def format_doctor_report(res: Dict[str, Any]) -> str:
         f"• Python / Hệ điều hành : {res['python']} ({res['platform']})",
         f"• Kho đang hoạt động    : {vault_line} | Tổng kho: {vi.get('total_vaults', 0)}",
         f"• Thư mục dữ liệu       : {res['data_dir']}",
-        f"• Trình điều khiển kho  : backend={res['drive']['selected']} (ưu tiên={res['drive']['preference']})",
+        f"• Trình điều khiển kho  : backend={drv['selected']} (ưu tiên={drv['preference']})",
         "   ├─ Local FS          : Sẵn sàng (100% ngoại tuyến)",
-        f"   ├─ CLI `gdrive`      : {'OK — ' + res['drive']['cli']['bin'] if res['drive']['cli']['available'] else 'Không có'}",
-        f"   └─ Drive API OAuth   : libs={'OK' if res['drive']['api']['libs_installed'] else 'Chưa cài'} | token={'Đã đăng nhập' if res['drive']['api']['authenticated'] else 'Chưa đăng nhập'}",
-        f"• GitHub CLI (`gh`)     : {'Đã đăng nhập' if res['github']['authenticated'] else ('Có CLI nhưng chưa đăng nhập' if res['github']['available'] else 'Chưa cài')}",
-        f"• OCR Tesseract         : {res['ocr']['lang'] or 'Chưa cài'} | Tiếng Việt: {'Sẵn sàng' if res['ocr']['vietnamese_ready'] else 'Thiếu vie.traineddata'}",
+        f"   ├─ CLI `gdrive`      : {gdrive_cli_line}",
+        f"   └─ Drive API OAuth   : libs={'OK' if drv['api']['libs_installed'] else 'Chưa cài'} | token={'Đã đăng nhập' if drv['api']['authenticated'] else 'Chưa đăng nhập'}",
+        f"• GitHub (`gh` / PAT)   : {gh_line}",
+        f"• OCR Tesseract         : {ocr['lang'] or 'Chưa cài'} | Tiếng Việt: {ocr_vie_text}",
         f"• Font Unicode          : {'OK' if res['fonts']['ok'] else 'Chưa tìm thấy DejaVu/Arial'}",
     ]
     st = res["storage_db"]
@@ -167,14 +230,30 @@ def format_doctor_report(res: Dict[str, Any]) -> str:
 
     lines.append("\n📦 Thư viện Python:")
     for p in res["python_packages"]:
-        mark = "✓" if p["ok"] else ("✗" if p["required"] else "○")
-        tag = "(bắt buộc)" if p["required"] else "(tùy chọn)"
-        lines.append(f"  {mark} {p['name']:26s} {p['version'] or 'chưa cài':14s} {tag}")
+        if p["ok"]:
+            mark = "✓"
+            ver_txt = p["version"]
+        elif p.get("blocked_by_sac"):
+            mark = "⚠"
+            ver_txt = "bị SAC chặn"
+        else:
+            mark = "✗" if p["required"] else "○"
+            ver_txt = "chưa cài"
+        if p["name"] == "pywebview" and not p["ok"] and os.name == "nt":
+            tag = "(không bắt buộc — dùng Edge App)"
+        else:
+            tag = "(bắt buộc)" if p["required"] else "(tùy chọn)"
+        lines.append(f"  {mark} {p['name']:26s} {ver_txt:14s} {tag}")
 
     lines.append("\n🛠️  Công cụ hệ thống:")
     for t in res["cli_tools"]:
         mark = "✓" if t["ok"] else "○"
         lines.append(f"  {mark} {t['name']:12s} {t['purpose']:34s} {t['path'] or 'chưa cài'}")
+
+    plan = res.get("setup_plan") or {}
+    if plan.get("needs_setup"):
+        lines.append("\n💡 Gợi ý cài tự động 1 lệnh:")
+        lines.append("   Chạy `kas setup` (hoặc mở tab Chẩn đoán → bấm 'Tự động cài công cụ & thư viện thiếu').")
 
     lines.append("==========================================================================")
     lines.append(f"Trạng thái tổng thể: {'SẴN SÀNG ✅' if res['overall_ok'] else 'CẦN BỔ SUNG CẤU HÌNH ⚠️'}")
@@ -182,7 +261,7 @@ def format_doctor_report(res: Dict[str, Any]) -> str:
 
 
 def main(argv: List[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Chẩn đoán môi trường Karius Academic System (KAS) v1.0.")
+    ap = argparse.ArgumentParser(description=f"Chẩn đoán môi trường Karius Academic System (KAS) v{__version__}.")
     ap.add_argument("--json", action="store_true", dest="as_json", help="Xuất kết quả dạng JSON")
     args = ap.parse_args(argv)
     res = run_doctor()

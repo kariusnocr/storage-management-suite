@@ -926,14 +926,56 @@
       </div>
     </section>
 
-    <!-- TAB: DOCTOR -->
+    <!-- TAB: DOCTOR & TỰ ĐỘNG CÀI ĐẶT -->
     <section id="tab-doctor" class="section">
-      <div class="card">
+      <div class="card" style="margin-bottom:16px;">
         <div class="row-actions" style="justify-content:space-between; margin-bottom:12px;">
-          <div class="card-title">Chẩn đoán Sức khỏe Hệ thống &amp; Đa Kho (KAS Doctor)</div>
-          <button class="btn secondary" onclick="loadDoctor()">Kiểm tra lại</button>
+          <div>
+            <div class="card-title" style="margin:0;">Chẩn đoán Môi trường &amp; Tự động Cài đặt Công cụ / Thư viện</div>
+            <p style="font-size:12px; color:var(--muted); margin-top:4px;">
+              Tự động cài thư viện Python (Pillow, numpy, fastapi, uvicorn), công cụ hệ thống (gh, git, 7z, ffmpeg, tesseract, poppler) qua winget/brew và tải dữ liệu OCR Tiếng Việt (<code>vie+eng</code>).
+            </p>
+          </div>
+          <div class="row-actions">
+            <button class="btn secondary sm" onclick="loadDoctor()">Kiểm tra lại</button>
+            <button class="btn sm" id="btnSetupAll" onclick="runAutoSetup('all')">Tự động cài tất cả công cụ &amp; thư viện thiếu</button>
+          </div>
         </div>
-        <pre class="console" id="doctorOut">Đang tải...</pre>
+        <div class="row-actions" style="margin-bottom:12px;">
+          <button class="btn secondary sm" onclick="runAutoSetup('python')">Chỉ cài thư viện Python</button>
+          <button class="btn secondary sm" onclick="runAutoSetup('tools')">Chỉ cài công cụ CLI (gh, git, 7z, ffmpeg, tesseract, poppler)</button>
+          <button class="btn secondary sm" onclick="runAutoSetup('ocr_data')">Chỉ tải dữ liệu OCR Tiếng Việt (vie+eng)</button>
+          <span id="setupStatusPill" class="pill" style="display:none;"></span>
+        </div>
+        <div class="kpi-grid" id="doctorKpis" style="margin-bottom:12px;"></div>
+        <div id="setupLogWrap" style="display:none; margin-top:10px;">
+          <div class="card-title" style="margin-bottom:6px;">Nhật kí tự động cài đặt (trực tiếp)</div>
+          <pre class="console" id="setupLogOut" style="max-height:260px;"></pre>
+        </div>
+      </div>
+
+      <div class="two-col" style="margin-bottom:16px;">
+        <div class="card">
+          <div class="card-title">Thư viện Python</div>
+          <table>
+            <thead><tr><th>Thư viện</th><th>Trạng thái</th><th>Phiên bản / Ghi chú</th></tr></thead>
+            <tbody id="docPyBody"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title">Công cụ Hệ thống (CLI)</div>
+          <table>
+            <thead><tr><th>Công cụ</th><th>Chức năng</th><th>Trạng thái / Đường dẫn</th></tr></thead>
+            <tbody id="docCliBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <details>
+          <summary style="cursor:pointer; font-weight:600; font-size:13px;">Xem báo cáo kỹ thuật đầy đủ (JSON)</summary>
+          <pre class="console" id="doctorOut" style="margin-top:10px; max-height:360px;">Đang tải...</pre>
+        </details>
       </div>
     </section>
   </main>
@@ -1897,7 +1939,89 @@
 
     async function loadDoctor() {
       const {ok, data: d} = await apiFetch('/api/doctor');
-      if (ok) document.getElementById('doctorOut').textContent = JSON.stringify(d, null, 2);
+      if (!ok) return;
+      document.getElementById('doctorOut').textContent = JSON.stringify(d, null, 2);
+
+      const drv = d.drive || {};
+      const apiOk = drv.api && drv.api.authenticated;
+      const gh = d.github || {};
+      const ocr = d.ocr || {};
+      const plan = d.setup_plan || {};
+      const pyOkCnt = (d.python_packages || []).filter(p => p.ok).length;
+      const pyTotCnt = (d.python_packages || []).length;
+      const cliOkCnt = (d.cli_tools || []).filter(t => t.ok).length;
+      const cliTotCnt = (d.cli_tools || []).length;
+
+      const kpis = [
+        ['Trình điều khiển kho', esc(drv.selected || 'local'), apiOk ? 'Google Drive OAuth: Đã đăng nhập' : (drv.cli && drv.cli.available ? 'Cloud gdrive CLI sẵn sàng' : 'Local FS sẵn sàng')],
+        ['GitHub (gh / PAT)', gh.authenticated ? 'Đã kết nối' : (gh.available ? 'Có gh CLI' : 'Chưa kết nối'), gh.pat_connected ? ('PAT: @' + esc(gh.pat_login)) : (gh.path || 'Chạy tự động cài')],
+        ['OCR Tiếng Việt', ocr.vietnamese_ready ? 'vie+eng Sẵn sàng' : (ocr.vie_traineddata_downloaded ? 'Đã tải vie.traineddata' : 'Chưa cài'), ocr.lang ? ('Đang dùng: ' + esc(ocr.lang)) : 'Cần tesseract + vie.traineddata'],
+        ['Thư viện Python', `${pyOkCnt} / ${pyTotCnt}`, (plan.missing_python || []).length ? `Thiếu ${plan.missing_python.length} thư viện khuyến nghị` : 'Đã đủ thư viện'],
+        ['Công cụ hệ thống', `${cliOkCnt} / ${cliTotCnt}`, (plan.missing_tools || []).length ? `Thiếu ${plan.missing_tools.length} nhóm công cụ` : 'Đã cài đầy đủ'],
+      ];
+      document.getElementById('doctorKpis').innerHTML = kpis.map(([t, v, s]) =>
+        `<div class="card"><div class="card-title">${t}</div><div class="card-val" style="font-size:18px;">${v}</div><div class="card-sub">${s}</div></div>`
+      ).join('');
+
+      document.getElementById('docPyBody').innerHTML = (d.python_packages || []).map(p => {
+        const badge = p.ok
+          ? '<span class="pill ok">✓ Đã cài</span>'
+          : (p.blocked_by_sac ? '<span class="pill warn">⚠ Bị SAC chặn</span>' : (p.required ? '<span class="pill err">✗ Thiếu</span>' : '<span class="pill warn">○ Chưa cài</span>'));
+        const info = p.ok ? esc(p.version) : (p.blocked_by_sac ? 'KAS tự dự phòng thuần Python' : (p.name === 'pywebview' ? 'Tùy chọn (Windows SAC dùng Edge App)' : (p.required ? 'Bắt buộc' : 'Tùy chọn')));
+        return `<tr><td><code>${esc(p.name)}</code></td><td>${badge}</td><td style="font-size:12px; color:var(--muted);">${info}</td></tr>`;
+      }).join('');
+
+      document.getElementById('docCliBody').innerHTML = (d.cli_tools || []).map(t => {
+        const badge = t.ok ? '<span class="pill ok">✓ Đã cài</span>' : '<span class="pill warn">○ Chưa cài</span>';
+        return `<tr><td><code>${esc(t.name)}</code></td><td style="font-size:12px;">${esc(t.purpose)}</td><td style="font-size:12px; color:var(--muted);">${badge} ${t.path ? `<code>${esc(t.path)}</code>` : ''}</td></tr>`;
+      }).join('');
+    }
+
+    async function runAutoSetup(scope) {
+      const btn = document.getElementById('btnSetupAll');
+      const wrap = document.getElementById('setupLogWrap');
+      const out = document.getElementById('setupLogOut');
+      const pill = document.getElementById('setupStatusPill');
+      wrap.style.display = 'block';
+      pill.style.display = 'inline-block';
+      pill.className = 'pill warn';
+      pill.textContent = 'Đang tự động cài đặt...';
+      out.textContent = 'Đang khởi chạy trình tự động cài đặt KAS...';
+      if (btn) btn.disabled = true;
+
+      const {ok, data: job} = await apiFetch('/api/setup/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({scope}),
+      });
+      if (!ok || !job.id) {
+        pill.className = 'pill err';
+        pill.textContent = 'Lỗi khởi chạy';
+        out.textContent = job.detail || 'Không thể khởi chạy tác vụ cài đặt.';
+        if (btn) btn.disabled = false;
+        return;
+      }
+
+      const poll = async () => {
+        const {ok: pok, data: cur} = await apiFetch('/api/setup/jobs/' + encodeURIComponent(job.id));
+        if (!pok) return;
+        out.textContent = (cur.logs || []).join('\n') || 'Đang xử lý...';
+        out.scrollTop = out.scrollHeight;
+        if (cur.status === 'running') {
+          setTimeout(poll, 700);
+          return;
+        }
+        if (btn) btn.disabled = false;
+        if (cur.status === 'done') {
+          pill.className = 'pill ok';
+          pill.textContent = 'Hoàn tất ✓';
+        } else {
+          pill.className = 'pill warn';
+          pill.textContent = 'Hoàn tất (có cảnh báo)';
+        }
+        await loadDoctor();
+      };
+      setTimeout(poll, 400);
     }
 
     async function refreshAll() {

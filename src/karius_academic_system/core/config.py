@@ -388,12 +388,17 @@ def runs_dir() -> Path:
 
 
 def tessdata_dir() -> Path:
+    env = os.environ.get("KAS_TESSDATA_DIR")
+    if env:
+        p = Path(env).expanduser()
+        p.mkdir(parents=True, exist_ok=True)
+        return p
     shared = Path.home() / ".local" / "share" / "kas" / "tessdata"
-    if shared.exists():
+    vault_td = data_dir() / "tessdata"
+    if (shared / "vie.traineddata").exists() or not (vault_td / "vie.traineddata").exists():
+        shared.mkdir(parents=True, exist_ok=True)
         return shared
-    p = data_dir() / "tessdata"
-    p.mkdir(parents=True, exist_ok=True)
-    return p
+    return vault_td
 
 
 def sheets_log_path() -> Path:

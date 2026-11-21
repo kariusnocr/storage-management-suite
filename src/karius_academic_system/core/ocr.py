@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from karius_academic_system.core.config import tessdata_dir
+from karius_academic_system.core.tools_env import find_cli_tool, shared_tessdata_dir
 from karius_academic_system.core.utils import nfc
 
 _TESSERACT_LANG_CACHE: Optional[Tuple[str, Optional[str]]] = None
@@ -22,24 +23,29 @@ def reset_ocr_cache() -> None:
 
 
 def resolve_tesseract_lang(force_refresh: bool = False) -> Tuple[str, Optional[str]]:
-    """Tự động phát hiện gói ngôn ngữ `vie+eng` (ưu tiên `~/storage_data/tessdata` rồi đến hệ thống)."""
+    """Tự động phát hiện gói ngôn ngữ `vie+eng` (ưu tiên `~/.local/share/kas/tessdata` rồi đến hệ thống)."""
     global _TESSERACT_LANG_CACHE
     if _TESSERACT_LANG_CACHE is not None and not force_refresh:
         return _TESSERACT_LANG_CACHE
 
-    if not shutil.which("tesseract"):
+    tess_bin = find_cli_tool("tesseract", refresh=force_refresh)
+    if not tess_bin:
         _TESSERACT_LANG_CACHE = ("", None)
         return _TESSERACT_LANG_CACHE
 
-    custom_td = tessdata_dir()
-    env_td: Optional[str] = (
-        str(custom_td) if (custom_td / "vie.traineddata").exists() else os.environ.get("TESSDATA_PREFIX")
-    )
+    env_td: Optional[str] = None
+    for candidate_td in (shared_tessdata_dir(), tessdata_dir()):
+        if (candidate_td / "vie.traineddata").exists():
+            env_td = str(candidate_td)
+            break
+    if not env_td:
+        env_td = os.environ.get("TESSDATA_PREFIX")
+
     env = os.environ.copy()
     if env_td:
         env["TESSDATA_PREFIX"] = env_td
     try:
-        proc = subprocess.run(["tesseract", "--list-langs"], capture_output=True, text=True, timeout=10, env=env)
+        proc = subprocess.run([tess_bin, "--list-langs"], capture_output=True, text=True, timeout=10, env=env)
         langs = {ln.strip() for ln in (proc.stdout + "\n" + proc.stderr).splitlines()[1:] if ln.strip()}
     except Exception:
         langs = {"eng"}
@@ -83,10 +89,11 @@ def ocr_pil_image(img, psm: int = 3, max_chars: int = 50_000, timeout: int = 35)
     env = os.environ.copy()
     if tess_prefix:
         env["TESSDATA_PREFIX"] = tess_prefix
+    tess_bin = find_cli_tool("tesseract") or "tesseract"
     try:
         gray.save(tmp_png, format="PNG")
         proc = subprocess.run(
-            ["tesseract", tmp_png, "stdout", "-l", lang, "--psm", str(psm)],
+            [tess_bin, tmp_png, "stdout", "-l", lang, "--psm", str(psm)],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -119,12 +126,13 @@ def ocr_image_file(path: Path, psm: int = 3, max_chars: int = 50_000, timeout: i
     except Exception:
         pass
 
+    tess_bin = find_cli_tool("tesseract") or "tesseract"
     env = os.environ.copy()
     if tess_prefix:
         env["TESSDATA_PREFIX"] = tess_prefix
     try:
         proc = subprocess.run(
-            ["tesseract", str(path), "stdout", "-l", lang, "--psm", str(psm)],
+            [tess_bin, str(path), "stdout", "-l", lang, "--psm", str(psm)],
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -140,7 +148,9 @@ def ocr_image_file(path: Path, psm: int = 3, max_chars: int = 50_000, timeout: i
 def ocr_pdf_pages(path: Path, max_ocr_pages: int = 5, dpi: int = 150) -> Tuple[str, str]:
     """Chuyển các trang đầu của PDF scan sang PNG bằng `pdftoppm` và OCR bằng `tesseract` (`vie+eng`)."""
     lang, tess_prefix = resolve_tesseract_lang()
-    if not lang or not shutil.which("pdftoppm"):
+    pdftoppm_bin = find_cli_tool("pdftoppm")
+    tess_bin = find_cli_tool("tesseract")
+    if not lang or not pdftoppm_bin or not tess_bin:
         return "", lang
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="kas_pdf_ocr_"))
@@ -150,7 +160,7 @@ def ocr_pdf_pages(path: Path, max_ocr_pages: int = 5, dpi: int = 150) -> Tuple[s
     try:
         prefix = tmp_dir / "page"
         subprocess.run(
-            ["pdftoppm", "-png", "-r", str(dpi), "-f", "1", "-l", str(max_ocr_pages), str(path), str(prefix)],
+            [pdftoppm_bin, "-png", "-r", str(dpi), "-f", "1", "-l", str(max_ocr_pages), str(path), str(prefix)],
             capture_output=True,
             timeout=90,
             check=False,
@@ -158,7 +168,7 @@ def ocr_pdf_pages(path: Path, max_ocr_pages: int = 5, dpi: int = 150) -> Tuple[s
         chunks: List[str] = []
         for img in sorted(tmp_dir.glob("page*.png")):
             proc = subprocess.run(
-                ["tesseract", str(img), "stdout", "-l", lang],
+                [tess_bin, str(img), "stdout", "-l", lang],
                 capture_output=True,
                 text=True,
                 timeout=45,

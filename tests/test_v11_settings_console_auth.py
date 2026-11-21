@@ -120,7 +120,7 @@ class TestKASv11SettingsConsoleAndAuth(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_app_settings_persistence_overrides_update_check_and_cli(self) -> None:
-        self.assertEqual(__version__, "1.1.0")
+        self.assertEqual(__version__, __version__)
         default_st = sc.load_app_settings()
         self.assertEqual(default_st.theme, "dark")
         self.assertEqual(default_st.drive_backend, "auto")
@@ -161,16 +161,16 @@ class TestKASv11SettingsConsoleAndAuth(unittest.TestCase):
 
         # Kiểm tra check_latest_release (mock HTTP)
         fake_release = {
-            "tag_name": "v1.2.0",
-            "name": "KAS v1.2.0",
-            "html_url": "https://github.com/kariusnocr/storage-management-suite/releases/tag/v1.2.0",
+            "tag_name": "v9.9.9",
+            "name": "KAS v9.9.9",
+            "html_url": "https://github.com/kariusnocr/storage-management-suite/releases/tag/v9.9.9",
             "published_at": "2026-11-22T00:00:00Z",
         }
         with mock.patch("urllib.request.urlopen", return_value=_FakeHTTPResponse(fake_release)):
             upd = sc.check_latest_release()
         self.assertTrue(upd["ok"])
         self.assertTrue(upd["update_available"])
-        self.assertEqual(upd["latest_version"], "1.2.0")
+        self.assertEqual(upd["latest_version"], "9.9.9")
 
         self.assertEqual(kas_cli(["settings", "reset"]), 0)
         self.assertEqual(sc.load_app_settings().theme, "dark")
@@ -201,7 +201,7 @@ class TestKASv11SettingsConsoleAndAuth(unittest.TestCase):
         res = run_console_command_sync("kas version")
         self.assertTrue(res["ok"])
         self.assertEqual(res["returncode"], 0)
-        self.assertIn("1.1.0", res["output"])
+        self.assertIn(__version__, res["output"])
         hist = load_command_history()
         self.assertEqual(len(hist), 1)
         self.assertEqual(hist[0]["command"], "kas version")
@@ -285,7 +285,7 @@ class TestKASv11SettingsConsoleAndAuth(unittest.TestCase):
             # 1. Trước khi bật khóa, /api/overview mở bình thường
             st, ov, _ = _http_req(f"{base}/api/overview")
             self.assertEqual(st, 200)
-            self.assertEqual(ov["version"], "1.1.0")
+            self.assertEqual(ov["version"], __version__)
 
             # 2. Đăng ký tài khoản kèm require_login=True -> nhận cookie phiên
             st, reg, hdrs = _http_req(

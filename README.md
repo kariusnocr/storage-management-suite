@@ -1,14 +1,19 @@
-# Karius Academic System (KAS) `v1.1.0`
+# Karius Academic System (KAS) `v1.2.0`
 
-**Karius Academic System (KAS)** là phần mềm quản trị tri thức, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
+**Karius Academic System (KAS)** là phần mềm quản trị tri thức, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
 
 - **Thư mục cục bộ trên máy tính / Ổ cứng rời / NAS / Thư mục đồng bộ OneDrive · iCloud · Google Drive for Desktop** (`LocalFSBackend` — chạy 100% ngoại tuyến, không cần đăng nhập).
 - **Mọi thư mục hoặc Shared Drive trên Google Drive** (`GoogleDriveAPIClient` OAuth 2.0 đăng nhập ngay trong giao diện phần mềm & `GDriveCLIClient` trên cloud VM).
 
 ---
 
-## 1. Tính năng Nổi bật (`v1.1.0`)
+## 1. Tính năng Nổi bật (`v1.2.0`)
 
+- **Tự Động Cài Đặt Công Cụ, Thư Viện & OCR Tiếng Việt (`kas setup` & Tab *Chẩn đoán*)**:
+  - Tự động cài các thư viện Python khuyến nghị (`Pillow`, `numpy`, `fastapi`, `uvicorn`) kèm cơ chế bảo vệ chống lỗi **Smart App Control** (bắt `OSError`, tự dự phòng thuần Python `--stdlib`).
+  - Tự động cài công cụ hệ thống còn thiếu qua `winget` (Windows) / `brew` (macOS): **GitHub CLI (`gh`)**, **Git (`git`)**, **7-Zip (`7z`)**, **FFmpeg / FFprobe**, **Tesseract OCR**, **Poppler (`pdftotext`, `pdfinfo`, `pdftoppm`)** và tự động làm mới + lưu vào `User PATH` Windows (không cần khởi động lại máy).
+  - Tự động tải dữ liệu **OCR Tiếng Việt + Tiếng Anh** (`vie.traineddata` & `eng.traineddata`) vào `~/.local/share/kas/tessdata` (không cần quyền Admin).
+  - `kas doctor` tự phân biệt rõ máy cá nhân (đang dùng **Google Drive API OAuth 2.0** nên không cần `gdrive` CLI của Cloud VM) và nhận diện cả **GitHub CLI** lẫn **GitHub PAT**.
 - **Cài Đặt Phần Mềm Toàn Diện (`kas settings` & Tab *Cài Đặt*)**:
   - Tùy chỉnh Giao diện (**Tối / Sáng**), Ngôn ngữ (**Tiếng Việt / English**), Tab mặc định khi mở app, Cổng/Host Web Server, Backend mặc định (`auto / api / cli / local`), số luồng quét (`1–64`), chế độ Danh mục V7 (`smart / full`), thư mục dữ liệu tùy chỉnh (`data_dir_override`), kiểm tra cập nhật GitHub Releases trực tuyến, xuất/nhập cấu hình JSON và tắt nhanh máy chủ cục bộ.
 - **Dòng Lệnh Tích Hợp (`>_ Lệnh · Ctrl+K` & Tab *Dòng Lệnh (Console)*)**:
@@ -33,13 +38,13 @@
 
 ### Windows 11 có Smart App Control (Khuyến nghị — 1 lệnh PowerShell hoặc 1 nhấp đúp)
 
-**Cách 1 — 1 lệnh PowerShell (nhanh nhất, tự cài mới hoặc nâng cấp lên `v1.1.0`):**
+**Cách 1 — 1 lệnh PowerShell (nhanh nhất, tự cài mới hoặc nâng cấp lên `v1.2.0` + tự cài toàn bộ công cụ & OCR Tiếng Việt):**
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
 
 **Cách 2 — Tải ZIP cài offline 1 nhấp đúp:**
-1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.1.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
+1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.2.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
 2. Giải nén và **nhấp đúp `Cai_Dat_KAS_Windows11.cmd`**.
 3. Nhấp đúp biểu tượng **Karius Academic System (KAS)** trên Desktop!
 

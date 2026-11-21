@@ -1,4 +1,4 @@
-# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.1.0`)
+# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.2.0`)
 
 ## 1. Chọn Phương thức Cài đặt & Cập nhật
 
@@ -7,21 +7,21 @@
 > [!IMPORTANT]
 > **Windows 11 Smart App Control (SAC)** chặn các tệp `.exe` chưa ký số thương mại và không có nút *Run anyway*. Bạn **KHÔNG cần tắt Smart App Control** — bộ cài KAS dùng Python chính chủ + máy chủ thuần chuẩn (`--stdlib`) + cửa sổ **Microsoft Edge (`--app`)** đã ký số bởi Microsoft.
 
-**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.1.0`):**
+**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.2.0`):**
 Mở **PowerShell** và dán 1 dòng duy nhất:
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
 
 **Cách A2 — Tải ZIP & Nhấp đúp (Hoạt động cả khi không có Internet):**
-1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.1.0`** hoặc từ Google Drive:
+1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.2.0`** hoặc từ Google Drive:
    `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-windows-sac-safe.zip`.
 2. Giải nén toàn bộ vào một thư mục (ví dụ: `Downloads\kas-windows-sac-safe`).
 3. **Nhấp đúp `Cai_Dat_KAS_Windows11.cmd`** ngay trong thư mục vừa giải nén.
 4. Sau khi xong, nhấp đúp biểu tượng **Karius Academic System (KAS)** trên Desktop!
 
 ### Cách B — Tải Binary Độc lập (macOS / Linux / Windows không bật SAC)
-1. Tải tệp từ **GitHub Releases `v1.1.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
+1. Tải tệp từ **GitHub Releases `v1.2.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
 2. Kiểm tra mã băm trong `SHA256SUMS.txt`.
 3. Chạy `kas doctor` hoặc `kas desktop`.
 

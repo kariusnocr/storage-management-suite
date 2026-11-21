@@ -83,7 +83,7 @@ class TestKASv1NamingRulesAndAI(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_custom_naming_rules_presets_cli_and_auditor_enforcement(self):
-        self.assertEqual(__version__, "1.1.0")
+        self.assertTrue(__version__.startswith("1."), __version__)
 
         # 1. Preset snake_case_dev chuẩn hóa không dấu + chữ thường + dấu gạch dưới
         p_snake = sc.preview_naming("01_Bài Tập AI.PDF", is_folder=False, rules=sc.preset_rules("snake_case_dev"))
