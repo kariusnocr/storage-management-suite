@@ -1,11 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec đóng gói Storage Management Suite v4.0 thành ứng dụng độc lập (Windows/macOS/Linux)."""
 
+import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = Path(SPECPATH).resolve().parent
 SRC = ROOT / "src"
+WIN_VERSION_FILE = ROOT / "packaging" / "windows_version_info.txt"
 
 hiddenimports = (
     collect_submodules("storage_suite")
@@ -49,7 +51,8 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     console=True,
+    version=str(WIN_VERSION_FILE) if sys.platform == "win32" and WIN_VERSION_FILE.exists() else None,
     disable_windowed_traceback=False,
 )

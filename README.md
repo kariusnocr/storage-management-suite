@@ -1,10 +1,10 @@
-# Storage Management Suite `v4.0.0` — Phần Mềm Quản Lý Kho Dữ Liệu `[A] STORAGE`
+# Storage Management Suite `v4.0.1` — Phần Mềm Quản Lý Kho Dữ Liệu `[A] STORAGE`
 
-Phần mềm quản trị toàn diện kho Google Drive **`[A] STORAGE`** theo **Chuẩn V6** & **Chuẩn Danh Mục V7** — tích hợp bộ 18 mô-đun vận hành/phân tích đa phương tiện, cơ sở dữ liệu **SQLite WAL + FTS5**, **2 backend Google Drive** (`gdrive` CLI & **Google Drive API v3 OAuth 2.0** độc lập), giao diện **Web Dashboard cục bộ (`astorage ui`)**, ứng dụng **Desktop (`astorage desktop`)**, đóng gói nhị phân đa nền tảng (**Windows/macOS/Linux**) và **Docker**.
+Phần mềm quản trị toàn diện kho Google Drive **`[A] STORAGE`** theo **Chuẩn V6** & **Chuẩn Danh Mục V7** — tích hợp bộ 18 mô-đun vận hành/phân tích đa phương tiện, cơ sở dữ liệu **SQLite WAL + FTS5**, **2 backend Google Drive** (`gdrive` CLI & **Google Drive API v3 OAuth 2.0** độc lập), giao diện **Web Dashboard cục bộ (`astorage ui`)** có chế độ thuần Python (`--stdlib`) an toàn với **Windows 11 Smart App Control**, ứng dụng **Desktop (`astorage desktop`)**, đóng gói nhị phân đa nền tảng (**Windows/macOS/Linux**) và **Docker**.
 
 ---
 
-## 1. Tính năng Nổi bật ở `v4.0.0`
+## 1. Tính năng Nổi bật ở `v4.0.x`
 
 - **Chuẩn Đặt Tên & Tinh Gọn Thông Minh Danh Mục V7**:
   - Duy nhất 1 dấu phân cách `" - "` (`USSH: Trường ĐH KHXH&NV`, `Tôn Giáo – Tín Ngưỡng`).
@@ -20,13 +20,19 @@ Phần mềm quản trị toàn diện kho Google Drive **`[A] STORAGE`** theo *
   - `GoogleDriveAPIClient` (**OAuth 2.0**): chạy độc lập trên Windows/macOS/Linux cá nhân không cần cài `gdrive` CLI (`astorage auth login`).
 - **Đóng gói Phần mềm Mức 3**:
   - CLI hợp nhất: `astorage` / `storage-suite`
-  - Web Dashboard cục bộ: `astorage ui` (`http://127.0.0.1:8765`)
-  - Desktop App: `astorage desktop` (cửa sổ gốc `pywebview`)
-  - Binary độc lập (`packaging/pyinstaller.spec`) & Container (`Dockerfile`, `docker-compose.yml`).
+  - Web Dashboard cục bộ: `astorage ui` (`http://127.0.0.1:8765`, tự dự phòng máy chủ HTTP thuần Python `--stdlib` không nạp DLL ngoài)
+  - Desktop App: `astorage desktop` (`pywebview` hoặc cửa sổ độc lập Microsoft Edge/Chrome đã ký số)
+  - Bộ cài Windows 11 an toàn Smart App Control (`astorage-windows-sac-safe.zip`), Binary độc lập (`packaging/pyinstaller.spec`) & Container (`Dockerfile`, `docker-compose.yml`).
 
 ---
 
 ## 2. Cài đặt Nhanh
+
+### Windows 11 bật Smart App Control (Khuyến nghị — không cần tắt bảo mật)
+```powershell
+irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
+```
+*(Chạy hoàn toàn trên `python.exe`/`pythonw.exe` chính thức đã ký số + cửa sổ Microsoft Edge `--app`, không bị Smart App Control chặn.)*
 
 ### Cài từ mã nguồn (Python 3.11+)
 ```bash

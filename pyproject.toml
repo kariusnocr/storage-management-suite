@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "storage-management-suite"
-version = "4.0.0"
+version = "4.0.1"
 description = "Phần mềm quản trị, chuẩn hóa Chuẩn V6/Danh Mục V7, đọc và phân tích đa phương tiện cho kho Google Drive [A] STORAGE"
 readme = "README.md"
 requires-python = ">=3.11"

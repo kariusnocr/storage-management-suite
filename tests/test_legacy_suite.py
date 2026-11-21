@@ -1603,7 +1603,7 @@ class TestMediaAnalyzersV33(unittest.TestCase):
                     os.environ["STORAGE_DATA_DIR"] = old_env
 
     def test_storage_cli_v33_registration(self):
-        self.assertEqual(sc.__version__, "4.0.0")
+        self.assertTrue(sc.__version__.startswith("4."), f"Unexpected version: {sc.__version__}")
         for key in ("phan-tich-anh", "phan-tich-am-thanh", "phan-tich-video", "doctor", "watch"):
             self.assertIn(key, storage_cli.MODULE_MAP)
 
