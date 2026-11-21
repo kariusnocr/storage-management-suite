@@ -6,6 +6,9 @@ on:
       - "v*.*.*"
   workflow_dispatch:
 
+env:
+  PYTHONUTF8: "1"
+
 permissions:
   contents: write
 
@@ -55,10 +58,11 @@ jobs:
       - name: Build CLI + Web UI standalone binary
         run: |
           python packaging/build_binary.py --mode cli
-      - name: Rename artifact with OS tag
+      - name: Rename and smoke-test artifact with OS tag
         shell: bash
         run: |
           mv "dist/astorage${{ matrix.ext }}" "dist/astorage-${{ matrix.os_label }}${{ matrix.ext }}"
+          ./dist/astorage-${{ matrix.os_label }}${{ matrix.ext }} version
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os_label }}

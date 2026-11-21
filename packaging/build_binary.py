@@ -23,6 +23,12 @@ def sha256_file(path: Path) -> str:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
     ap = argparse.ArgumentParser(description="Đóng gói nhị phân độc lập Storage Management Suite v4.0.")
     ap.add_argument("--mode", choices=["cli", "desktop"], default="cli", help="Chế độ đóng gói: cli hoặc desktop (pywebview)")
     args = ap.parse_args()
