@@ -1,14 +1,21 @@
 services:
-  astorage-ui:
+  kas:
     build: .
-    container_name: storage-management-suite
+    image: karius-academic-system:5.0.0
+    container_name: kas-server
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8765:8765"
     environment:
-      - STORAGE_DATA_DIR=/data
-      - ASTORAGE_CONFIG_DIR=/config
-      - STORAGE_DRIVE_BACKEND=api
+      KAS_DATA_DIR: /data
+      KAS_CONFIG_DIR: /config
+      KAS_BACKEND: auto
     volumes:
-      - ./runtime_data:/data
-      - ./runtime_config:/config
-    restart: unless-stopped
+      - kas_data:/data
+      - kas_config:/config
+      # Gắn thư mục cục bộ bất kỳ của bạn vào /vaults để quản lý trực tiếp trong KAS:
+      # - /duong/dan/kho/cua/ban:/vaults/tai-lieu
+
+volumes:
+  kas_data:
+  kas_config:

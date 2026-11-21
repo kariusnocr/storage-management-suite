@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karius Academic System (KAS) v5.0</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --surface: #111827;
+      --surface-2: #1e293b;
+      --border: #263348;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #6366f1;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --err: #ef4444;
+      --radius: 12px;
+    }
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #0284c7;
+      --accent-2: #4f46e5;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font-weight: 800;
+      padding: 7px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+    }
+    .brand h1 { font-size: 17px; font-weight: 700; }
+    .brand span { font-size: 12px; color: var(--muted); }
+    .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .vault-switcher {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 10px;
+    }
+    .vault-switcher label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .vault-switcher select {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13px;
+      padding: 4px 6px;
+      outline: none;
+      min-width: 190px;
+    }
+    nav {
+      display: flex;
+      gap: 6px;
+      padding: 10px 28px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .tab-btn:hover { background: var(--surface-2); color: var(--text); }
+    .tab-btn.active { background: var(--surface-2); color: var(--accent); border-color: var(--border); }
+    main { max-width: 1340px; margin: 0 auto; padding: 24px 28px 60px; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .vault-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card.vault-active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(56,189,248,0.25); }
+    .card-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .card-val { font-size: 26px; font-weight: 700; }
+    .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+    .btn.danger { background: var(--err); }
+    .btn.sm { padding: 5px 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+    input[type="text"], select {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .search-bar input[type="text"] { flex: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .pill.ok { background: rgba(34,197,94,.16); color: var(--ok); }
+    .pill.warn { background: rgba(245,158,11,.16); color: var(--warn); }
+    .pill.err { background: rgba(239,68,68,.16); color: var(--err); }
+    .pill.info { background: rgba(56,189,248,.16); color: var(--accent); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    pre.console {
+      background: #020617;
+      color: #cbd5e1;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+    }
+    .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+    .empty-banner {
+      border: 1px dashed var(--accent);
+      background: rgba(56,189,248,.07);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-badge">KAS</div>
+      <div>
+        <h1>Karius Academic System <span id="verTag" style="font-weight:500;">v5.0</span></h1>
+        <span id="rootSubtitle">Hệ thống Quản trị Tri thức &amp; Đa Kho Dữ Liệu</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="vault-switcher">
+        <label for="vaultSelect">Kho:</label>
+        <select id="vaultSelect" onchange="switchVault(this.value)"></select>
+      </div>
+      <button class="btn secondary" onclick="openTab('vaults')">+ Thêm Kho</button>
+      <button class="btn secondary" onclick="toggleTheme()">Sáng / Tối</button>
+      <button class="btn" onclick="refreshAll()">Làm mới</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="tab-btn active" data-tab="vaults">Kho Dữ Liệu (Vaults)</button>
+    <button class="tab-btn" data-tab="overview">Tổng quan</button>
+    <button class="tab-btn" data-tab="search">Tìm kiếm FTS5</button>
+    <button class="tab-btn" data-tab="catalog">Chuẩn Danh Mục V7</button>
+    <button class="tab-btn" data-tab="audit">Kiểm toán</button>
+    <button class="tab-btn" data-tab="undo">Hoàn tác (Undo)</button>
+    <button class="tab-btn" data-tab="doctor">Chẩn đoán (Doctor)</button>
+  </nav>
+
+  <main>
+    <!-- TAB: KHO DỮ LIỆU (MULTI-VAULT) -->
+    <section id="tab-vaults" class="section active">
+      <div id="noVaultBanner" class="empty-banner" style="display:none;">
+        <h3 style="margin-bottom:6px;">Chào mừng đến với Karius Academic System (KAS)</h3>
+        <p style="font-size:13px; color:var(--muted);">
+          KAS có thể quản lý <strong>mọi kho dữ liệu</strong> — từ thư mục cục bộ trên máy tính / ổ cứng rời / OneDrive / NAS đến bất kỳ thư mục Google Drive nào. Hãy kết nối kho đầu tiên của bạn bên dưới!
+        </p>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-title">Kết nối Kho Dữ Liệu Mới (Cục bộ hoặc Google Drive bất kỳ)</div>
+        <div class="form-grid">
+          <div class="form-field" style="grid-column: span 2;">
+            <label>Đường dẫn thư mục trên máy HOẶC URL / Folder ID Google Drive *</label>
+            <input type="text" id="vSource" placeholder="VD: D:\TaiLieuHocTap  hoặc  https://drive.google.com/drive/folders/194HC3C2..." />
+          </div>
+          <div class="form-field">
+            <label>Tên hiển thị (tùy chọn)</label>
+            <input type="text" id="vName" placeholder="VD: Kho Nghiên Cứu, [A] STORAGE..." />
+          </div>
+          <div class="form-field">
+            <label>Chế độ quy ước cấu trúc</label>
+            <select id="vMode">
+              <option value="auto">Tự nhận diện thông minh (Khuyến nghị)</option>
+              <option value="academic_v7">Chuẩn Học thuật KAS (V6 / V7)</option>
+              <option value="general">Kho thư mục thông thường (General)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row-actions" style="margin-top:14px;">
+          <button class="btn" onclick="addVault()">Kết nối &amp; Kích hoạt Kho</button>
+          <span id="vaultFormMsg" style="font-size:13px; color:var(--muted);"></span>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:12px; font-size:15px;">Danh sách kho đang quản lý (<span id="vaultCount">0</span>)</h3>
+      <div class="vault-grid" id="vaultCards"></div>
+      <div class="card" id="vaultTaskBox" style="display:none;">
+        <div class="card-title">Nhật kí tác vụ kho đang chạy</div>
+        <pre class="console" id="vaultTaskOut">Đang xử lý...</pre>
+      </div>
+    </section>
+
+    <!-- TAB: TỔNG QUAN -->
+    <section id="tab-overview" class="section">
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+          <div class="card-title" style="margin:0;">Phân bố nhánh cấp 1 của kho đang chọn</div>
+          <div class="row-actions">
+            <button class="btn secondary sm" onclick="runBackgroundTask('quet', [], 'overviewConsole')">Quét chỉ mục kho</button>
+            <button class="btn secondary sm" onclick="initVaultStructure()">Khởi tạo khung V7</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Nhánh dữ liệu</th><th>Thư mục</th><th>Tệp tin</th><th>Dung lượng</th></tr></thead>
+          <tbody id="branchTable"></tbody>
+        </table>
+        <pre class="console" id="overviewConsole" style="display:none;"></pre>
+      </div>
+    </section>
+
+    <!-- TAB: TÌM KIẾM FTS5 -->
+    <section id="tab-search" class="section">
+      <div class="card">
+        <div class="card-title">Tìm kiếm toàn văn SQLite FTS5 (&lt;20 ms — hỗ trợ có dấu &amp; không dấu)</div>
+        <div class="search-bar">
+          <input type="text" id="searchInput" placeholder="Nhập tên tệp, môn học, tác giả (vd: triet hoc, ielts, kinh te)..." onkeydown="if(event.key==='Enter') runSearch()" />
+          <button class="btn" onclick="runSearch()">Tìm kiếm</button>
+        </div>
+        <div id="searchMeta" style="font-size:12px; color:var(--muted); margin-bottom:8px;"></div>
+        <table>
+          <thead><tr><th>Tên mục</th><th>Thư mục</th><th>Dung lượng</th><th>Liên kết</th></tr></thead>
+          <tbody id="searchBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: CHUẨN DANH MỤC V7 -->
+    <section id="tab-catalog" class="section">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:12px;">
+          <div>
+            <div class="card-title">Chuẩn Đặt Tên &amp; Tinh Gọn Thông Minh Danh Mục V7</div>
+            <p style="font-size:13px; color:var(--muted);">Áp dụng linh hoạt cho kho có cây danh mục tập trung `[00] TỔNG QUAN/[01] DANH SÁCH` — chống trùng tên 100%, giữ nguyên ID, hoàn tác 1 lệnh.</p>
+          </div>
+          <div class="row-actions">
+            <select id="catMode" onchange="loadCatalogPlan()">
+              <option value="smart">Tinh gọn thông minh (Phương án 2)</option>
+              <option value="full">Đầy đủ toàn cây (Full)</option>
+            </select>
+            <button class="btn secondary" onclick="loadCatalogPlan()">Chạy thử kế hoạch</button>
+            <button class="btn" onclick="executeCatalogV7()">Thực thi chuẩn hóa V7</button>
+          </div>
+        </div>
+        <div class="kpi-grid" id="catKpis"></div>
+        <h3 style="margin:14px 0 6px; font-size:14px;">Danh sách đề xuất đổi tên V7 (tối đa 50 dòng)</h3>
+        <table>
+          <thead><tr><th>Tên hiện tại</th><th>Tên chuẩn V7 (Zero-Collision)</th><th>Đường dẫn</th></tr></thead>
+          <tbody id="catRenamesBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: KIỂM TOÁN -->
+    <section id="tab-audit" class="section">
+      <div class="card">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:12px;">
+          <div class="card-title" id="auditTitle">Kiểm toán quy ước &amp; chất lượng kho</div>
+          <button class="btn secondary" onclick="loadAudit()">Chạy kiểm toán chỉ mục</button>
+        </div>
+        <div id="auditSummary" class="row-actions" style="margin-bottom:12px;"></div>
+        <table>
+          <thead><tr><th>Mức độ</th><th>Mã lỗi</th><th>Tên mục</th><th>Mô tả</th><th>Đề xuất</th></tr></thead>
+          <tbody id="auditBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: HOÀN TÁC -->
+    <section id="tab-undo" class="section">
+      <div class="card">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:12px;">
+          <div class="card-title">Nhật kí Hoàn tác Thống nhất (Unified Undo Journal — riêng theo kho)</div>
+          <button class="btn secondary" onclick="loadUndo()">Tải lại</button>
+        </div>
+        <table>
+          <thead><tr><th>Mã lô</th><th>Loại</th><th>Số thao tác</th><th>Mô tả</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+          <tbody id="undoBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: DOCTOR -->
+    <section id="tab-doctor" class="section">
+      <div class="card">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:12px;">
+          <div class="card-title">Chẩn đoán Sức khỏe Hệ thống &amp; Đa Kho (KAS Doctor)</div>
+          <button class="btn secondary" onclick="loadDoctor()">Kiểm tra lại</button>
+        </div>
+        <pre class="console" id="doctorOut">Đang tải...</pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const fmt = (n) => Number(n || 0).toLocaleString('vi-VN');
+    const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    let _vaultsCache = [];
+
+    function openTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      const el = document.getElementById('tab-' + tabName);
+      if (el) el.classList.add('active');
+      if (tabName === 'vaults') loadVaults();
+      if (tabName === 'overview') loadOverview();
+      if (tabName === 'catalog') loadCatalogPlan();
+      if (tabName === 'audit') loadAudit();
+      if (tabName === 'undo') loadUndo();
+      if (tabName === 'doctor') loadDoctor();
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => openTab(btn.dataset.tab));
+    });
+
+    function toggleTheme() {
+      const h = document.documentElement;
+      h.setAttribute('data-theme', h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    }
+
+    async function loadVaults() {
+      const res = await fetch('/api/vaults').then(r => r.json());
+      _vaultsCache = res.vaults || [];
+      document.getElementById('vaultCount').textContent = _vaultsCache.length;
+      document.getElementById('noVaultBanner').style.display = _vaultsCache.length ? 'none' : 'block';
+
+      const sel = document.getElementById('vaultSelect');
+      if (!_vaultsCache.length) {
+        sel.innerHTML = '<option value="">(Chưa kết nối kho nào)</option>';
+      } else {
+        sel.innerHTML = _vaultsCache.map(v =>
+          `<option value="${esc(v.slug)}" ${v.slug === res.active_slug ? 'selected' : ''}>${esc(v.name)} (${v.source_kind === 'local' ? 'Cục bộ' : 'Drive'})</option>`
+        ).join('');
+      }
+
+      document.getElementById('vaultCards').innerHTML = _vaultsCache.map(v => {
+        const isAct = v.slug === res.active_slug;
+        const kindBadge = v.source_kind === 'local'
+          ? '<span class="pill ok">Local FS</span>'
+          : '<span class="pill info">Google Drive</span>';
+        const modeLabel = v.effective_mode === 'academic_v7' ? 'Chuẩn KAS V7' : 'Kho thường';
+        return `
+          <div class="card ${isAct ? 'vault-active' : ''}">
+            <div class="row-actions" style="justify-content:space-between; margin-bottom:8px;">
+              <strong>${esc(v.name)}</strong>
+              <div class="row-actions">${kindBadge}<span class="pill warn">${modeLabel}</span></div>
+            </div>
+            <div class="mono" style="color:var(--muted); margin-bottom:8px;">${esc(v.root)}</div>
+            <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">
+              Mã kho: <code>${esc(v.slug)}</code> · Quét cuối: ${esc(v.last_scan_utc || 'chưa quét')}
+            </div>
+            <div class="row-actions">
+              ${isAct
+                ? '<span class="pill ok">Đang hoạt động</span>'
+                : `<button class="btn sm" onclick="switchVault('${esc(v.slug)}')">Chọn kho</button>`}
+              <button class="btn secondary sm" onclick="scanVault('${esc(v.slug)}')">Quét chỉ mục</button>
+              <button class="btn secondary sm" onclick="removeVault('${esc(v.slug)}')">Gỡ</button>
+            </div>
+          </div>`;
+      }).join('') || '<div class="card" style="color:var(--muted);">Chưa có kho nào được đăng ký.</div>';
+      return res;
+    }
+
+    async function addVault() {
+      const source = document.getElementById('vSource').value.trim();
+      const name = document.getElementById('vName').value.trim();
+      const mode = document.getElementById('vMode').value;
+      const msg = document.getElementById('vaultFormMsg');
+      if (!source) { msg.textContent = 'Vui lòng nhập đường dẫn hoặc URL Google Drive.'; return; }
+      msg.textContent = 'Đang kết nối kho...';
+      const r = await fetch('/api/vaults/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({source, name: name || null, mode, activate: true}),
+      });
+      const data = await r.json();
+      if (!r.ok) { msg.textContent = 'Lỗi: ' + (data.detail || r.statusText); return; }
+      document.getElementById('vSource').value = '';
+      document.getElementById('vName').value = '';
+      msg.textContent = `Đã kết nối kho "${data.vault.name}" (${data.vault.slug}). Đang tải dữ liệu...`;
+      await refreshAll();
+    }
+
+    async function switchVault(slug) {
+      if (!slug) return;
+      await fetch('/api/vaults/activate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({slug, persist: true}),
+      });
+      await refreshAll();
+    }
+
+    async function removeVault(slug) {
+      if (!confirm(`Gỡ kho "${slug}" khỏi danh sách quản lý KAS? (Không xóa bất kỳ tệp gốc nào)`)) return;
+      await fetch('/api/vaults/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({slug}),
+      });
+      await refreshAll();
+    }
+
+    async function scanVault(slug) {
+      await switchVault(slug);
+      document.getElementById('vaultTaskBox').style.display = 'block';
+      await runBackgroundTask('quet', [], 'vaultTaskOut');
+    }
+
+    async function runBackgroundTask(command, args, outId) {
+      const outEl = document.getElementById(outId);
+      outEl.style.display = 'block';
+      outEl.textContent = `Đang chạy lệnh: kas ${command} ${args.join(' ')} ...`;
+      const r = await fetch('/api/tasks/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({command, args}),
+      });
+      const task = await r.json();
+      if (!r.ok) { outEl.textContent = 'Lỗi: ' + (task.detail || r.statusText); return; }
+      const poll = setInterval(async () => {
+        const st = await fetch('/api/tasks/' + encodeURIComponent(task.id)).then(x => x.json());
+        outEl.textContent = st.output || `Trạng thái: ${st.status}...`;
+        if (st.status !== 'running') {
+          clearInterval(poll);
+          await loadVaults();
+          await loadOverview();
+        }
+      }, 900);
+    }
+
+    async function initVaultStructure() {
+      if (!confirm('Khởi tạo khung thư mục Chuẩn KAS ([00] TỔNG QUAN, [01] DANH SÁCH, [07] KIỂM TRA) cho kho đang chọn?')) return;
+      const r = await fetch('/api/vaults/init-structure', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({confirm: true}),
+      });
+      const res = await r.json();
+      alert(r.ok ? `Đã khởi tạo khung Chuẩn KAS cho "${res.root_name}".` : `Lỗi: ${res.detail}`);
+      await refreshAll();
+    }
+
+    async function loadOverview() {
+      const d = await fetch('/api/overview').then(r => r.json());
+      document.getElementById('verTag').textContent = 'v' + d.version;
+      const modeText = d.vault_mode === 'academic_v7' ? 'Chuẩn KAS V7' : 'Kho thường';
+      document.getElementById('rootSubtitle').textContent = d.has_vault
+        ? `Kho đang chọn: ${d.root_name} · ${modeText} · backend=${d.drive_backend.selected}`
+        : 'Chưa chọn kho — vào tab "Kho Dữ Liệu" để kết nối thư mục máy hoặc Google Drive';
+
+      const cv7 = d.catalog_v7 || {};
+      const kpis = [
+        ['Tổng thư mục', fmt(d.stats.folders), `Cập nhật: ${d.stats.last_import_utc || 'chưa quét'}`],
+        ['Tổng tệp tin', fmt(d.stats.files), `SQLite DB: ${d.stats.db_size_human}`],
+        ['Tổng dung lượng', d.stats.size_human, `Chế độ kho: ${modeText}`],
+        ['Danh mục V7', `${fmt(cv7.existing_sheets || 0)} → ${fmt(cv7.target_eligible_catalogs || 0)}`, `Đổi tên: ${fmt(cv7.renames_count || 0)} | Tinh gọn: ${fmt(cv7.prunes_count || 0)}`],
+        ['Rác hệ thống', fmt(d.system_junk_count), 'MACOSX / .DS_Store / Thumbs.db'],
+      ];
+      document.getElementById('kpiGrid').innerHTML = kpis.map(([t, v, s]) =>
+        `<div class="card"><div class="card-title">${t}</div><div class="card-val">${v}</div><div class="card-sub">${s}</div></div>`
+      ).join('');
+      document.getElementById('branchTable').innerHTML = (d.branches || []).map(b =>
+        `<tr><td><strong>${esc(b.name)}</strong></td><td>${fmt(b.folders)}</td><td>${fmt(b.files)}</td><td>${esc(b.size_human)}</td></tr>`
+      ).join('') || '<tr><td colspan="4" style="color:var(--muted);">Chưa có chỉ mục — bấm "Quét chỉ mục kho" ở góc trên để lập chỉ mục ngay.</td></tr>';
+    }
+
+    async function runSearch() {
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) return;
+      const d = await fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json());
+      document.getElementById('searchMeta').textContent = `Tìm thấy ${fmt(d.count)} kết quả trong ${d.elapsed_ms} ms`;
+      document.getElementById('searchBody').innerHTML = (d.results || []).map(r =>
+        `<tr><td><strong>${esc(r.name)}</strong></td><td style="color:var(--muted)">${esc(r.parent_path)}</td><td>${esc(r.size_human)}</td><td><a href="${esc(r.url)}" target="_blank">Mở</a></td></tr>`
+      ).join('') || '<tr><td colspan="4" style="color:var(--muted);">Không có kết quả phù hợp.</td></tr>';
+    }
+
+    async function loadCatalogPlan() {
+      const mode = document.getElementById('catMode').value;
+      const d = await fetch('/api/catalog-v7/plan?mode=' + encodeURIComponent(mode)).then(r => r.json());
+      const s = d.summary || {};
+      const cards = [
+        ['Bảng hiện có', fmt(s.existing_sheets)],
+        ['Mục tiêu tinh gọn V7', fmt(s.target_eligible_catalogs)],
+        ['Đổi tên chuẩn V7', fmt(s.renames_count)],
+        ['Tinh gọn / Rác kỹ thuật', `${fmt(s.prunes_count)} (${fmt(s.prunes_junk_count)} rác)`],
+      ];
+      document.getElementById('catKpis').innerHTML = cards.map(([t, v]) =>
+        `<div class="card"><div class="card-title">${t}</div><div class="card-val">${v}</div></div>`
+      ).join('');
+      document.getElementById('catRenamesBody').innerHTML = (d.renames || []).slice(0, 50).map(r =>
+        `<tr><td>${esc(r.old_name)}</td><td><span class="pill ok">${esc(r.new_name)}</span></td><td style="color:var(--muted)">${esc(r.source_path)}</td></tr>`
+      ).join('') || '<tr><td colspan="3" style="color:var(--muted);">Không có bảng danh mục nào cần đổi tên.</td></tr>';
+    }
+
+    async function executeCatalogV7() {
+      const mode = document.getElementById('catMode').value;
+      if (!confirm('Xác nhận thực thi Chuẩn Danh Mục V7 trên kho đang chọn? Mọi thao tác đều lưu trong Unified Undo Journal.')) return;
+      const r = await fetch('/api/catalog-v7/execute', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mode, apply_prunes: true, confirm: true}),
+      }).then(x => x.json());
+      alert(`Hoàn tất: đổi tên ${r.renamed || 0}, tinh gọn ${r.pruned || 0}, lỗi ${(r.errors || []).length}. Mã hoàn tác: ${r.batch_id || '—'}`);
+      await refreshAll();
+    }
+
+    async function loadAudit() {
+      const d = await fetch('/api/audit?limit=100').then(r => r.json());
+      document.getElementById('auditTitle').textContent = `Kiểm toán kho (chế độ: ${d.vault_mode === 'academic_v7' ? 'Chuẩn KAS V7' : 'Kho thường'})`;
+      document.getElementById('auditSummary').innerHTML = (d.by_code || []).slice(0, 12).map(x => {
+        const cls = x.severity === 'LỖI' ? 'err' : (x.severity === 'CẢNH BÁO' ? 'warn' : 'ok');
+        return `<span class="pill ${cls}">${esc(x.code)}: ${fmt(x.count)}</span>`;
+      }).join('') || '<span class="pill ok">Không phát hiện vấn đề nào</span>';
+      document.getElementById('auditBody').innerHTML = (d.items || []).map(it => {
+        const cls = it.severity === 'LỖI' ? 'err' : (it.severity === 'CẢNH BÁO' ? 'warn' : 'ok');
+        return `<tr><td><span class="pill ${cls}">${esc(it.severity)}</span></td><td>${esc(it.code)}</td><td>${esc(it.name)}</td><td>${esc(it.description)}</td><td>${esc(it.suggestion)}</td></tr>`;
+      }).join('') || '<tr><td colspan="5" style="color:var(--muted);">Không có vi phạm.</td></tr>';
+    }
+
+    async function loadUndo() {
+      const d = await fetch('/api/undo/batches').then(r => r.json());
+      document.getElementById('undoBody').innerHTML = (d.batches || []).map(b =>
+        `<tr><td><code>${esc(b.batch_id)}</code></td><td>${esc(b.kind)}</td><td>${fmt(b.action_count)}</td><td>${esc(b.description)}</td><td>${b.undone_at ? '<span class="pill ok">Đã hoàn tác</span>' : '<span class="pill warn">Có thể hoàn tác</span>'}</td><td>${b.undone_at ? '' : `<button class="btn secondary sm" onclick="runUndo('${esc(b.batch_id)}')">Hoàn tác</button>`}</td></tr>`
+      ).join('') || '<tr><td colspan="6" style="color:var(--muted);">Chưa có lô thao tác nào trong kho này.</td></tr>';
+    }
+
+    async function runUndo(bid) {
+      if (!confirm(`Hoàn tác lô ${bid}?`)) return;
+      const r = await fetch(`/api/undo/${encodeURIComponent(bid)}?execute=true`, {method: 'POST'}).then(x => x.json());
+      alert(`Kết quả hoàn tác: ${r.reverted || 0}/${r.total || 0} (lỗi: ${(r.errors || []).length})`);
+      loadUndo();
+    }
+
+    async function loadDoctor() {
+      const d = await fetch('/api/doctor').then(r => r.json());
+      document.getElementById('doctorOut').textContent = JSON.stringify(d, null, 2);
+    }
+
+    async function refreshAll() {
+      const v = await loadVaults();
+      await loadOverview();
+      if (v.vaults && v.vaults.length > 0 && document.getElementById('tab-vaults').classList.contains('active') && !window._kasInitialized) {
+        openTab('overview');
+      }
+      window._kasInitialized = true;
+    }
+
+    refreshAll();
+  </script>
+</body>
+</html>

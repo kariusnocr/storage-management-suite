@@ -1,121 +1,86 @@
-# Storage Management Suite `v4.0.1` — Phần Mềm Quản Lý Kho Dữ Liệu `[A] STORAGE`
+# Karius Academic System (KAS) `v5.0.0`
 
-Phần mềm quản trị toàn diện kho Google Drive **`[A] STORAGE`** theo **Chuẩn V6** & **Chuẩn Danh Mục V7** — tích hợp bộ 18 mô-đun vận hành/phân tích đa phương tiện, cơ sở dữ liệu **SQLite WAL + FTS5**, **2 backend Google Drive** (`gdrive` CLI & **Google Drive API v3 OAuth 2.0** độc lập), giao diện **Web Dashboard cục bộ (`astorage ui`)** có chế độ thuần Python (`--stdlib`) an toàn với **Windows 11 Smart App Control**, ứng dụng **Desktop (`astorage desktop`)**, đóng gói nhị phân đa nền tảng (**Windows/macOS/Linux**) và **Docker**.
+**Karius Academic System (KAS)** là phần mềm quản trị tri thức và **đa kho dữ liệu (Multi-Vault)** tổng quát — mặc định hỗ trợ kết nối, lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
+
+- **Thư mục cục bộ trên máy tính / Ổ cứng rời / NAS / Thư mục đồng bộ OneDrive · iCloud · Google Drive for Desktop** (`LocalFSBackend` — chạy 100% ngoại tuyến, không cần đăng nhập).
+- **Mọi thư mục hoặc Shared Drive trên Google Drive** (`GoogleDriveAPIClient` OAuth 2.0 trên máy cá nhân & `GDriveCLIClient` trên cloud VM).
 
 ---
 
-## 1. Tính năng Nổi bật ở `v4.0.x`
+## 1. Tính năng Nổi bật ở `v5.0.0`
 
+- **Đa kho thực thụ (Universal Multi-Vault)**:
+  - Quản lý không giới hạn số lượng kho trong `~/.config/kas/vaults.toml` (`kas vault add|list|use|info|remove|init-structure`).
+  - Dữ liệu chỉ mục (`kas.db`), báo cáo và **Unified Undo Journal** được tách riêng tuyệt đối theo từng kho (`~/.local/share/kas/vaults/<slug>/`).
+  - **Tự nhận diện thông minh (Auto-Detect)**: tự phân biệt kho theo **Chuẩn Học thuật KAS (`academic_v7`)** (có `[00] TỔNG QUAN` / `[07] KIỂM TRA` / thư mục `[NN] ...`) với **kho thư mục thông thường (`general`)** — không áp đặt cấu trúc cứng lên kho thường.
+  - Chuyển đổi nóng (hot-switch) giữa các kho ngay trên thanh tiêu đề **Web & Desktop UI** hoặc bằng cờ toàn cục `kas --kho <slug> <lệnh>`.
 - **Chuẩn Đặt Tên & Tinh Gọn Thông Minh Danh Mục V7**:
-  - Duy nhất 1 dấu phân cách `" - "` (`USSH: Trường ĐH KHXH&NV`, `Tôn Giáo – Tín Ngưỡng`).
-  - **Chống trùng tên tuyệt đối (Zero-Collision)**: Tự động gắn `, <Ngữ Cảnh Cha>` cho tên chung/trùng tên (`Handout`, `Key`, `Slide`, `Cấu Phần Sách`...).
-  - **Tinh gọn thông minh (Phương án 2)**: Loại trừ `MACOSX`/rác kỹ thuật, lập bảng tối ưu cho gốc + cấp `1..4` + cấp `5` không rỗng + cấp `6` quy mô lớn (`≥ 15` mục), giảm từ `2.741` xuống `~493` bảng (`-82%`) và bảo toàn `100%` Drive File ID.
-  - Kiểm toán chuyên biệt 5 mã mới: `DANH_MUC_RAC_KY_THUAT`, `DANH_MUC_MO_COI`, `DANH_MUC_TRUNG_TEN`, `DANH_MUC_SAI_TEN`, `DANH_MUC_CO_THE_TINH_GON`.
-- **Kiến trúc Phần mềm Chuẩn (`src/storage_suite/`)**:
-  - Loại bỏ hoàn toàn mã khởi nạp lặp; gọi quy trình **in-process** chia sẻ ngữ cảnh.
-  - Tầng lưu trữ **SQLite (`storage.db`, WAL + FTS5)**: tìm kiếm toàn kho `<20 ms`, kèm **Unified Undo Journal** (`astorage undo`).
-  - Bộ OCR hợp nhất (`vie+eng`) dùng chung cho PDF scan, hình ảnh và slide video.
-- **Kết nối Google Drive Độc lập (Dual Backend)**:
-  - `GDriveCLIClient`: tốc độ cao trên cloud VM (`gdrive readonly stream`).
-  - `GoogleDriveAPIClient` (**OAuth 2.0**): chạy độc lập trên Windows/macOS/Linux cá nhân không cần cài `gdrive` CLI (`astorage auth login`).
-- **Đóng gói Phần mềm Mức 3**:
-  - CLI hợp nhất: `astorage` / `storage-suite`
-  - Web Dashboard cục bộ: `astorage ui` (`http://127.0.0.1:8765`, tự dự phòng máy chủ HTTP thuần Python `--stdlib` không nạp DLL ngoài)
-  - Desktop App: `astorage desktop` (`pywebview` hoặc cửa sổ độc lập Microsoft Edge/Chrome đã ký số)
-  - Bộ cài Windows 11 an toàn Smart App Control (`astorage-windows-sac-safe.zip`), Binary độc lập (`packaging/pyinstaller.spec`) & Container (`Dockerfile`, `docker-compose.yml`).
+  - Chống trùng tên tuyệt đối (Zero-Collision) với `, <Ngữ Cảnh Cha>`, duy nhất 1 dấu `" - "`, tinh gọn thông minh Phương án 2, bảo toàn 100% File ID và hoàn tác 1 lệnh qua `kas undo`.
+- **An toàn 100% với Windows 11 Smart App Control**:
+  - Máy chủ Web Dashboard có chế độ thuần Python (`--stdlib`, không nạp `.pyd`/`.dll` ngoài) và mở cửa sổ Desktop độc lập bằng **Microsoft Edge (`--app`)** đã ký số.
+  - Bộ cài `kas-windows-sac-safe.zip` chạy hoàn toàn qua `python.exe` / `pythonw.exe` chính thức đã ký số — **không cần tắt Smart App Control**.
 
 ---
 
 ## 2. Cài đặt Nhanh
 
-### Windows 11 bật Smart App Control (Khuyến nghị — không cần tắt bảo mật)
+### Windows 11 có Smart App Control (Khuyến nghị — không cần tắt bảo mật)
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
-*(Chạy hoàn toàn trên `python.exe`/`pythonw.exe` chính thức đã ký số + cửa sổ Microsoft Edge `--app`, không bị Smart App Control chặn.)*
+*(Tự động tạo lối tắt Desktop **Karius Academic System (KAS)** và lệnh `kas` trong PATH.)*
 
-### Cài từ mã nguồn (Python 3.11+)
+### Cài bằng Python (`pip`, Python 3.11+)
 ```bash
-# Cài bản đầy đủ (CLI + Media/OCR + Web UI + Google Drive API OAuth 2.0 + Desktop)
+# Cài trọn bộ (CLI + Google Drive OAuth 2.0 + Media/OCR + Web UI + Desktop)
 pip install -e ".[all]"
 
-# Hoặc cài riêng từng thành phần:
-pip install -e ".[media,web,drive-api]"
-```
-
-### Đăng nhập Google Drive API trên máy cá nhân (Windows/macOS/Linux)
-```bash
-astorage auth login --credentials /đường/dẫn/credentials.json
-astorage auth status
+# Hoặc cài gọn thuần Python (CLI + Web UI --stdlib + Google Drive OAuth 2.0):
+pip install -e ".[drive-api]"
 ```
 
 ### Chạy bằng Docker
 ```bash
 docker compose up --build -d
-# Mở trình duyệt tại http://127.0.0.1:8765
+# Truy cập Karius Academic System tại http://127.0.0.1:8765
 ```
 
 ---
 
-## 3. Hướng dẫn Sử dụng Nhanh (`astorage`)
+## 3. Bắt đầu Sử dụng trong 30 giây (`kas`)
 
 ```bash
-# 1. Chẩn đoán sức khỏe môi trường & công cụ
-astorage doctor
+# 1. Kết nối bất kỳ thư mục cục bộ nào (chạy 100% ngoại tuyến)
+kas vault add tai-lieu --nguon /duong/dan/thu/muc/cua/ban --ten "Kho Tài Liệu Cá Nhân"
 
-# 2. Chạy bộ kiểm thử tự động ngoại tuyến
-astorage kiem-thu
+# 2. Hoặc kết nối bất kỳ thư mục Google Drive nào (dán URL hoặc Folder ID)
+kas auth login --credentials /duong/dan/credentials.json
+kas vault add storage --nguon https://drive.google.com/drive/folders/<FOLDER_ID> --ten "[A] STORAGE"
 
-# 3. Quét chỉ mục kho (lưu tự động vào SQLite FTS5 + JSON snapshot)
-astorage quet --tang-cuong
+# 3. Xem danh sách kho & chuyển kho hoạt động
+kas vault list
+kas vault use tai-lieu
 
-# 4. Tra cứu toàn kho tức thì (<20 ms) bằng SQLite FTS5
-astorage db search "triet hoc"
+# 4. Quét chỉ mục SQLite FTS5 & tìm kiếm tức thời (<20 ms)
+kas quet
+kas db search "triet hoc"
 
-# 5. Kiểm toán Chuẩn V6 + Danh Mục V7
-astorage kiem-tra
+# 5. Thực thi lệnh trên một kho cụ thể bất kỳ bằng cờ `--kho`
+kas --kho storage danh-muc-chuan
+kas --kho tai-lieu trung-lap --don-rac-he-thong
 
-# 6. Lập kế hoạch (chạy thử) & thực thi Chuẩn Danh Mục V7 (Tinh gọn thông minh + Chống trùng tên)
-astorage danh-muc-chuan
-astorage danh-muc-chuan --thuc-thi --dong-y
-
-# 7. Quét trùng lặp + cách ly thư mục rác MACOSX (chạy thử mặc định)
-astorage trung-lap --don-rac-he-thong
-
-# 8. Hoàn tác 1 lệnh từ Unified Undo Journal
-astorage undo list
-astorage undo run <batch_id> --thuc-thi --dong-y
-
-# 9. Mở Giao diện Web Dashboard hoặc Ứng dụng Desktop
-astorage ui
-astorage desktop
-
-# 10. Xuất bản tài liệu + gói `.whl` lên Google Drive [00] TỔNG QUAN/[03] QUẢN LÝ
-astorage trien-khai phat-hanh-drive
+# 6. Mở ứng dụng Desktop / Web Dashboard (chuyển kho tức thì ngay trên giao diện)
+kas desktop --browser --stdlib
+# hoặc: kas ui --open --stdlib
 ```
 
 ---
 
-## 4. Cấu trúc Kho Mã Nguồn (`v4.0.0`)
+## 4. Kiến trúc Gói Mã nguồn (`src/karius_academic_system/`)
 
-| Thư mục / Tệp | Vai trò |
-| :--- | :--- |
-| `pyproject.toml` | Khai báo gói PEP 621, entry points `astorage`, `storage-suite`, `astorage-desktop` |
-| `src/storage_suite/core/` | Cấu hình đa hồ sơ (`profiles.toml`), Dual Drive (`cli` + `api` OAuth 2.0), Chuẩn V6, **Chuẩn Danh Mục V7**, OCR hợp nhất (`vie+eng`) |
-| `src/storage_suite/store/` | Cơ sở dữ liệu SQLite (`storage.db`, WAL + FTS5) & Unified Undo Journal |
-| `src/storage_suite/ops/` | Quét chỉ mục, kiểm toán V6/V7, chuẩn hóa tên, động cơ danh mục, rà soát trùng & `MACOSX`, thống kê, chuyển/nhập dữ liệu, tra cứu, `doctor`, `watch` |
-| `src/storage_suite/media/` | Bộ đọc đa định dạng (`PDF/Office/EPUB/MOBI/Archive`) & phân tích Nội dung, Hình ảnh, Âm thanh, Video |
-| `src/storage_suite/sync/` | Đồng bộ tài liệu & gói phát hành lên Drive `[03] QUẢN LÝ` và đồng bộ GitHub/CI |
-| `src/storage_suite/cli/` | Điểm vào CLI hợp nhất & bộ chạy quy trình in-process |
-| `src/storage_suite/web/` | FastAPI Dashboard cục bộ (`astorage ui`) & trình khởi chạy Desktop (`pywebview`) |
-| `packaging/` & `Dockerfile` | Cấu hình PyInstaller đa nền tảng (`.exe`/`.app`/Linux) và container Docker |
-| `docs/` | Tài liệu đặc tả Chuẩn Danh Mục V7, tổng quan hệ thống và hướng dẫn cài đặt |
-| `tests/` | Bộ kiểm thử mô-đun ngoại tuyến (`unittest` / `pytest`) |
-
----
-
-## 5. Nguyên tắc An toàn & Bảo mật
-
-1. **Mặc định Chạy thử (Dry-run)**: Mọi thao tác ghi lên Google Drive hoặc GitHub chỉ thực thi khi truyền `--thuc-thi` (hoặc xác nhận rõ trong Web UI).
-2. **Bảo toàn 100% Drive File ID & Không xóa vĩnh viễn**: Mọi bản cập nhật đều đổi tên/ghi đè tại chỗ; tệp dư, bảng tinh gọn và thư mục rác `MACOSX` chỉ di chuyển vào `[07] KIỂM TRA` kèm nhật kí hoàn tác trong **Unified Undo Journal**.
-3. **Tách biệt Mã nguồn & Dữ liệu vận hành**: Cơ sở dữ liệu `storage.db`, ảnh chụp, bộ đệm và token OAuth được lưu ngoài kho Git (`~/storage_data/` và `~/.config/astorage/`).
+- `core/`: `vaults.py` (Multi-Vault Registry), `local_fs.py` (`LocalFSBackend`), `config.py` (ngữ cảnh đa kho động), `drive_api.py` (OAuth 2.0), `drive_cli.py`, `drive_factory.py`, `naming.py` (Chuẩn V6), `catalog_spec.py` (Chuẩn V7), `ocr.py` (`vie+eng`).
+- `store/`: `sqlite_store.py` (SQLite WAL + FTS5 + Unified Undo Journal hỗ trợ cả Drive lẫn LocalFS).
+- `ops/`: `indexer.py`, `auditor.py`, `normalizer.py`, `catalog_engine.py`, `dedup.py`, `reporter.py`, `transfer.py`, `ingestor.py`, `inspector.py`, `doctor.py`, `watcher.py`.
+- `media/`: `file_reader.py`, `content_analyzer.py`, `image_analyzer.py`, `audio_analyzer.py`, `video_analyzer.py`.
+- `sync/`: `drive_deploy.py`, `github_sync.py`.
+- `cli/` & `web/`: `kas`, `kas-desktop`, Web Dashboard FastAPI + máy chủ thuần Python `--stdlib`.

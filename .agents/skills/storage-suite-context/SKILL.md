@@ -1,60 +1,58 @@
 ---
 name: storage-suite-context
-description: Reference context for Storage Management Suite v4.0.0 (`astorage`), the [A] STORAGE Google Drive archive, Chuẩn V6 / Chuẩn Danh Mục V7, and kariusnocr/storage-management-suite. Use when operating on [A] STORAGE, updating catalogs, running audits/analyzers, or syncing Drive and GitHub.
+description: Reference context for Karius Academic System (KAS) v5.0.0 (`kas`), multi-vault management (Local Folders + any Google Drive folder), Chuẩn V6 / Chuẩn Danh Mục V7, the [A] STORAGE vault, and kariusnocr/storage-management-suite. Use when operating on KAS vaults, updating catalogs, running audits/analyzers, or syncing Drive and GitHub.
 ---
 
-# `[A] STORAGE` & `storage-management-suite` Context (v4.0.0)
+# Karius Academic System (KAS `v5.0.0`) Context
 
-## 1. Key Identifiers & Locations
+## 1. Software Identity & Architecture
 
-- **GitHub Repository**: `kariusnocr/storage-management-suite` (`src/storage_suite/`, `tests/`, `docs/`, `packaging/`, `Dockerfile`)
-- **Unified Software CLI**: `astorage` (alias `storage-suite`), Desktop GUI: `astorage desktop` / `astorage ui`
-- **Google Drive Root**: `[A] STORAGE` (`194HC3C2WC1BSzfK3cn_0_uUJ4vfDuBsr`)
-- **Governance & Sync Folders**:
+- **Software Name**: **Karius Academic System (KAS)** (`v5.0.0`)
+- **Python Package**: `karius-academic-system` (`src/karius_academic_system/`, `tests/`, `docs/`, `packaging/`, `Dockerfile`)
+- **Unified CLI & Desktop**: `kas` and `kas-desktop` (`kas ui` / `kas desktop`)
+- **GitHub Repository**: `kariusnocr/storage-management-suite`
+- **Multi-Vault Registry**: `~/.config/kas/vaults.toml` (per-vault isolated data dirs `~/.local/share/kas/vaults/<slug>/`, SQLite DB `kas.db`).
+- **Zero Hardcoded Personal IDs**: `src/karius_academic_system/data/kas_config.json` ships completely generic (`root_id = ""`, `known_ids = {}`). Any local directory or Google Drive folder/Shared Drive can be added as a vault.
+
+## 2. Example Vault: `[A] STORAGE` (Optional Personal Vault)
+
+When operating specifically on the user's mounted `[A] STORAGE` Google Drive archive, register it via `kas vault add "[A] STORAGE" 194HC3C2WC1BSzfK3cn_0_uUJ4vfDuBsr --slug a-storage --backend cli`:
+- **Root**: `[A] STORAGE` (`194HC3C2WC1BSzfK3cn_0_uUJ4vfDuBsr`)
+- **System Folders (auto-discovered on scan)**:
   - `[00] TỔNG QUAN`: `1ZLU1RnH4PpJ--CXXPjrum7uxncbOttZU`
   - `[00] TỔNG QUAN/[01] DANH SÁCH`: `1GqdqbI1yVPD3e-HAenW6WioSQZpPaRYz`
   - `[00] TỔNG QUAN/[02] NHẬT KÍ`: `10FI7CMFvGgM9i1rj4IkUFRESv5-ito2Y`
-  - `[00] TỔNG QUAN/[03] QUẢN LÝ` (v4.0: docs + `.whl` release bundle): `1dU9BqIFxdLyhsFzxZxOiKWVNHI0vk7W3`
-  - `[07] KIỂM TRA` (quarantine & ingest staging): `1dpIWrMRwREX-bSt4k-PxSzVxbLrj3XLy`
-    - `[01] SHORTCUT LỖI 404`: `1_o38THe5uq1ZDaiSH9l1QdSJZ0ZMlsAr`
-    - `[02] SHORTCUT ĐÃ SAO CHÉP`: `1Mp-kCOZkl2MBSihpHBCdARGhVtA6DuxH`
-    - `[03] TỆP TRÙNG LẶP`: `1oT10jMXJuS_Av8y_bAzPC_PVZzuj5LXK`
-    - `[04] NHẬP DỮ LIỆU`: `1Xhgp46XpL3ng_l_d-_-wHb4S12DTuPri`
-    - `[06] RÁC HỆ THỐNG` & `[07] DANH MỤC ĐÃ TINH GỌN` (auto-created on execute)
-- **Master Catalog Spreadsheets**:
-  - `Danh Mục Hệ Thống - Storage`: `1BJoV-UtcoSEdjq1w5e0HmfibyTdvLEX8cy22jeKKnDc`
-  - `Danh Mục Hệ Thống - Storage, Bản Danh Sách`: `1Pakm-B2FZFFNOsxct_aRmFm2DDQxsQiVsiwB_l2xQt4`
+  - `[00] TỔNG QUAN/[03] QUẢN LÝ`: `1dU9BqIFxdLyhsFzxZxOiKWVNHI0vk7W3`
+  - `[07] KIỂM TRA`: `1dpIWrMRwREX-bSt4k-PxSzVxbLrj3XLy`
 
-## 2. Chuẩn V6 & Chuẩn Danh Mục V7
+## 3. Vault Modes (`auto` | `academic_v7` | `general`)
 
-- **Folders**: `[STT] TÊN IN HOA CÓ DẤU`
-- **Content Files**: `Tên Viết Hoa Đầu Mỗi Chữ Có Dấu - Thông Tin Bổ Sung.[đuôi]` (no `[STT]`, lowercase ext)
-- **Catalog Sheets (V7 — Zero-Collision & Smart Pruning)**:
-  - Format: `Danh Mục Hệ Thống - <Tên Chuẩn Hóa>[, <Ngữ Cảnh Cha>]`
-  - Only ONE `" - "` separator: `[USSH] TRƯỜNG ĐH` → `USSH: Trường ĐH`; internal ` - ` → en-dash `–`.
-  - Generic/colliding names automatically receive `, <Parent Context>` until 0 collisions across the tree.
-  - **Smart Pruning Policy (`mode="smart"`)**: root + depth `1..4` + non-empty depth `5` + depth `6` with `>= 15` items; excludes `MACOSX`, `__MACOSX`, `.obsidian`, `.git`, `__pycache__`, `tests` (reduces `2.741` → `~493` sheets).
+- **`academic_v7`**: Auto-detected when a vault has `[00] TỔNG QUAN` / `[07] KIỂM TRA` or `>= 50%` `[NN] ...` top-level folders. Enables full Chuẩn V6 naming + **Chuẩn Danh Mục V7** (zero-collision + smart pruning) rules.
+- **`general`**: Auto-detected for ordinary local/Drive vaults. Audits duplicate names, `MACOSX`/OS junk, and fatal filename issues without false `[STT]` structural spam.
+- Optional structure scaffold on any vault: `kas vault init-structure --thuc-thi`.
 
-## 3. Dual Drive Backends & SQLite Store
+## 4. Three Storage Backends (`KAS_BACKEND=auto|local|cli|api`)
 
-- **Drive Backends (`STORAGE_DRIVE_BACKEND=auto|cli|api`)**:
-  - `cli`: `GDriveCLIClient` (cloud VM `gdrive` binary with `stream_ls`).
-  - `api`: `GoogleDriveAPIClient` (standalone OAuth 2.0 Google Drive API v3 via `astorage auth login` for Windows/macOS/Linux).
-- **SQLite Store**: `~/storage_data/storage.db` (WAL + FTS5 full-text search + Unified Undo Journal).
+1. **`local`** (`LocalFSBackend`): Any local folder, external HDD, NAS, or OneDrive/iCloud/Google Drive Desktop synced folder (100% offline, `loc:` IDs).
+2. **`cli`** (`GDriveCLIClient`): Cloud VM `gdrive` CLI binary (`stream_ls`).
+3. **`api`** (`GoogleDriveAPIClient`): Standalone OAuth 2.0 Google Drive API v3 (`kas auth login`) for Windows/macOS/Linux.
 
-## 4. Key Commands
+## 5. Key Commands
 
 ```bash
-astorage doctor                          # Full environment & toolchain check
-astorage kiem-thu                        # Run offline test suite
-astorage quet --tang-cuong               # Incremental Drive scan -> SQLite + JSON
-astorage db search "triet hoc"           # Sub-20ms FTS5 search
-astorage kiem-tra                        # Chuẩn V6 + Catalog V7 audit
-astorage danh-muc-chuan                  # Dry-run Catalog V7 smart pruning & rename plan
-astorage trung-lap --don-rac-he-thong    # Dry-run dedup + MACOSX junk quarantine
-astorage undo list                       # Inspect Unified Undo Journal
-astorage ui                              # Start local Web Dashboard (127.0.0.1:8765)
-astorage desktop                         # Launch Desktop App (pywebview)
-astorage auth status                     # Check CLI + OAuth 2.0 Drive backends
-astorage trien-khai phat-hanh-drive      # Dry-run publish docs + .whl to Drive [03] QUẢN LÝ
+kas vault add "My Vault" ~/Documents/Study     # Connect any local folder
+kas vault add "Drive Vault" <URL_or_ID>        # Connect any Google Drive folder
+kas vault list                                 # List connected vaults
+kas vault use <slug>                           # Switch default vault
+kas --kho <slug> quet --tang-cuong             # Scan a specific vault -> kas.db (FTS5)
+kas doctor                                     # Full environment, vault & backend check
+kas kiem-thu                                   # Run offline test suite
+kas db search "triet hoc"                      # Sub-20ms FTS5 search
+kas kiem-tra                                   # Mode-aware audit (general or V6+V7)
+kas danh-muc-chuan                             # Dry-run Catalog V7 smart pruning & rename plan
+kas trung-lap --don-rac-he-thong               # Dry-run dedup + MACOSX junk quarantine
+kas undo list                                  # Inspect Unified Undo Journal
+kas desktop                                    # Launch Desktop App (SAC-safe Edge/Chrome --app or pywebview)
+kas ui --stdlib                                # Zero-DLL pure-Python Web Dashboard (127.0.0.1:8765)
+kas auth status                                # Check Local / CLI / OAuth 2.0 backends
 ```

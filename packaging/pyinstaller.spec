@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec đóng gói Storage Management Suite v4.0 thành ứng dụng độc lập (Windows/macOS/Linux)."""
+"""PyInstaller spec đóng gói Karius Academic System (KAS) v5.0 thành ứng dụng độc lập (Windows/macOS/Linux)."""
 
 import sys
 from pathlib import Path
@@ -10,7 +10,7 @@ SRC = ROOT / "src"
 WIN_VERSION_FILE = ROOT / "packaging" / "windows_version_info.txt"
 
 hiddenimports = (
-    collect_submodules("storage_suite")
+    collect_submodules("karius_academic_system")
     + [
         "uvicorn.logging",
         "uvicorn.loops.auto",
@@ -22,12 +22,12 @@ hiddenimports = (
 )
 
 datas = [
-    (str(SRC / "storage_suite" / "data" / "storage_config.json"), "storage_suite/data"),
-    (str(SRC / "storage_suite" / "web" / "static" / "index.html"), "storage_suite/web/static"),
+    (str(SRC / "karius_academic_system" / "data" / "kas_config.json"), "karius_academic_system/data"),
+    (str(SRC / "karius_academic_system" / "web" / "static" / "index.html"), "karius_academic_system/web/static"),
 ]
 
 a = Analysis(
-    [str(SRC / "storage_suite" / "__main__.py")],
+    [str(SRC / "karius_academic_system" / "__main__.py")],
     pathex=[str(SRC)],
     binaries=[],
     datas=datas,
@@ -47,7 +47,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="astorage",
+    name="kas",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
