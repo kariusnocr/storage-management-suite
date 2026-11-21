@@ -19,6 +19,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

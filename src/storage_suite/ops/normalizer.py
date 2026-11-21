@@ -389,7 +389,6 @@ CURATED_PHRASES = {
     "amnhac": "Âm Nhạc",
     "trichdan": "Trích Dẫn",
     "nhungnguoikhonkho": "Những Người Khốn Khổ",
-    "reviewsach": "Review Sách",
     # Sáng tác Thơ & Văn
     "anhthu": "Ánh Thu",
     "datruong": "Dã Tràng",
@@ -498,7 +497,6 @@ CURATED_PHRASES = {
     "nam": "Năm",
     "sau": "Sáu",
     "bay": "Bảy",
-    "tam": "Tám",
     "chin": "Chín",
     "muoi": "Mười",
     "nguoi": "Người",

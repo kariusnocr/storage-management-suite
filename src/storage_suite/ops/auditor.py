@@ -136,7 +136,7 @@ def build_report(issues, index, branch, min_sev):
         parts = i[2].split("/")
         by_root[parts[1] if len(parts) > 1 else "(gốc)"] += 1
 
-    lines = [f"# BÁO CÁO KIỂM TRA QUY ƯỚC ĐẶT TÊN — CHUẨN V6", "",
+    lines = ["# BÁO CÁO KIỂM TRA QUY ƯỚC ĐẶT TÊN — CHUẨN V6", "",
              f"- **Thời gian:** {sc.today_vn()}",
              f"- **Phạm vi:** `{branch or sc.ROOT_NAME}`" + ("" if branch else f" *(không tính vùng cách ly `{sc.QUARANTINE_FOLDER}`)*"),
              f"- **Tổng số mục đã rà soát:** `{sc.fmt_int(total_items)}`",
