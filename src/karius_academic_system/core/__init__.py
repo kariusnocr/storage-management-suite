@@ -177,6 +177,14 @@ from karius_academic_system.core.settings import (
     reset_app_settings,
     save_app_settings,
 )
+from karius_academic_system.core.tools_env import (
+    add_dirs_to_windows_user_path,
+    discover_standard_tool_dirs,
+    ensure_tools_on_path,
+    find_cli_tool,
+    refresh_system_path,
+    shared_tessdata_dir,
+)
 from karius_academic_system.core.utils import (
     _TZ_VN,
     confirm,

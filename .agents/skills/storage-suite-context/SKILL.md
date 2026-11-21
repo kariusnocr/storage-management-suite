@@ -1,22 +1,24 @@
 ---
 name: storage-suite-context
-description: Reference context for Karius Academic System (KAS) v1.1.0 (`kas`), multi-vault management (Local Folders + any Google Drive folder), app settings (`kas settings`), in-app command console, local account/app-lock & 3rd-party integrations (`kas account`), customizable naming rules (`kas rules`), AI Chatbot & MCP Agent (`kas ai`, `kas mcp`), Chuẩn V6 / Danh Mục V7, and kariusnocr/storage-management-suite.
+description: Reference context for Karius Academic System (KAS) v1.2.0 (`kas`), multi-vault management (Local Folders + any Google Drive folder), auto-setup of tools/libraries/Vietnamese OCR (`kas setup`), app settings (`kas settings`), in-app command console, local account/app-lock & 3rd-party integrations (`kas account`), customizable naming rules (`kas rules`), AI Chatbot & MCP Agent (`kas ai`, `kas mcp`), Chuẩn V6 / Danh Mục V7, and kariusnocr/storage-management-suite.
 ---
 
-# Karius Academic System (KAS `v1.1.0`) Context
+# Karius Academic System (KAS `v1.2.0`) Context
 
 ## 1. Software Identity & Architecture
 
-- **Software Name**: **Karius Academic System (KAS)** (`v1.1.0`)
+- **Software Name**: **Karius Academic System (KAS)** (`v1.2.0`)
 - **Python Package**: `karius-academic-system` (`src/karius_academic_system/`, `tests/`, `docs/`, `packaging/`, `Dockerfile`)
 - **Unified CLI & Desktop**: `kas` and `kas-desktop` (`kas ui` / `kas desktop`)
-- **GitHub Repository**: `kariusnocr/storage-management-suite` (**PUBLIC** repo — 1-line PowerShell install `irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex` and offline `kas-windows-sac-safe.zip` + `Cai_Dat_KAS_Windows11.cmd` both work!)
+- **GitHub Repository**: `kariusnocr/storage-management-suite` (**PUBLIC** repo — 1-line PowerShell install `irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex` and offline `kas-windows-sac-safe.zip` + `Cai_Dat_KAS_Windows11.cmd` both work and automatically run `kas setup`!)
 - **Windows Encoding Rule (CRITICAL)**: All `.ps1` and `.cmd` scripts in `packaging/windows/` MUST be **100% pure 7-bit ASCII + CRLF** (never Unicode em-dash or diacritics or `chcp 65001` in `.cmd`).
 - **Multi-Vault Registry**: `~/.config/kas/vaults.toml` (per-vault isolated data dirs `~/.local/share/kas/vaults/<slug>/`, SQLite DB `kas.db`).
 - **Zero Hardcoded Personal IDs**: `src/karius_academic_system/data/kas_config.json` ships completely generic (`root_id = ""`, `known_ids = {}`).
 
 ## 2. Key Subsystems
 
+- **Auto-Setup & Cross-Platform PATH Self-Healing (`core/tools_env.py`, `ops/setup_tools.py`, `kas setup`, Tab *Chẩn đoán*)**:
+  - Automatically installs recommended Python packages (`Pillow`, `numpy`, `fastapi`, `uvicorn`) with Windows Smart App Control `OSError` protection, installs missing system tools via `winget`/`brew` (`gh`, `git`, `7z`, `ffmpeg`/`ffprobe`, `tesseract`, `poppler`), downloads Vietnamese + English OCR data (`vie.traineddata`, `eng.traineddata`) into `~/.local/share/kas/tessdata`, and refreshes/persists Windows User PATH automatically.
 - **App Settings (`core/settings.py` & `kas settings`)**:
   - Persisted at `~/.config/kas/app_settings.json` (theme, language, default tab, UI host/port, default backend, scan workers, catalog mode, custom data dir override, GitHub update check, backup export/import JSON).
 - **In-App Command Console (`cli/console.py` & `Ctrl+K` / Console Tab)**:
@@ -34,6 +36,7 @@ description: Reference context for Karius Academic System (KAS) v1.1.0 (`kas`), 
 ## 3. Key Commands
 
 ```bash
+kas setup                                      # Auto-install Python libs, CLI tools (gh, tesseract, ffmpeg, 7z, poppler) & Vietnamese OCR
 kas vault add "My Vault" "E:\SÁCH"             # Connect any local folder
 kas vault add "Drive Vault" <URL_or_ID>        # Connect any Google Drive folder
 kas settings show | kas settings check-update  # App settings & release check

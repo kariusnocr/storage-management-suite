@@ -1,29 +1,31 @@
 <#
 .SYNOPSIS
-    Cai dat Karius Academic System (KAS) v1.1.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
+    Cai dat Karius Academic System (KAS) v1.2.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
 .DESCRIPTION
     100% pure 7-bit ASCII (tuong thich tuyet doi Windows PowerShell 5.1 & PowerShell 7 khong loi ma hoa).
     Khong dung tep .exe chua ky so hay pip.exe. Chay truc tiep qua trinh thong dich Python chinh thuc
-    da ky so, ho tro cai offline tu goi ZIP (khong bi 404 khi repo GitHub la Private) hoac qua gh / token.
+    da ky so, tu dong cai thu vien Python, cong cu he thong (gh, git, 7z, ffmpeg, tesseract, poppler)
+    va tai du lieu OCR Tieng Viet (vie.traineddata + eng.traineddata).
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.1.0",
+    [string]$Version = "1.2.0",
     [string]$WheelPath = "",
     [string]$GitHubToken = "",
     [string]$Repo = "kariusnocr/storage-management-suite",
-    [switch]$WithExtras,
+    [switch]$SkipExtras,
+    [switch]$SkipTools,
     [switch]$NoLaunch
 )
 
 $ErrorActionPreference = "Stop"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.ServicePointManager]::SecurityProtocol } catch {}
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13 } catch { try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {} }
 
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Cyan
 Write-Host "  KARIUS ACADEMIC SYSTEM (KAS) v$Version - CAI DAT WINDOWS 11" -ForegroundColor Cyan
-Write-Host "  (Tuong thich 100% Smart App Control - khong can tat bao mat)" -ForegroundColor Cyan
+Write-Host "  (Tu dong cai thu vien, cong cu & OCR Tieng Viet - an toan SAC)" -ForegroundColor Cyan
 Write-Host "==================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -121,14 +123,12 @@ function Download-ReleaseWheel {
         if (Test-Path $destWhl) { return $destWhl }
     } catch {
         Write-Host ""
-        Write-Host "[!] KHONG TAI DUOC GOI CAI DAT TU GITHUB (loi 404 / kho dang o che do Private)." -ForegroundColor Red
-        Write-Host "    Cach cai nhanh nhat (KHONG can token, KHONG bao gio bi 404):" -ForegroundColor Yellow
+        Write-Host "[!] KHONG TAI DUOC GOI CAI DAT TU GITHUB." -ForegroundColor Red
+        Write-Host "    Cach cai thay the (offline 100%):" -ForegroundColor Yellow
         Write-Host "    1. Tai tep 'kas-windows-sac-safe.zip' tu GitHub Releases v$TagVer" -ForegroundColor White
         Write-Host "       hoac tu Google Drive: [A] STORAGE / [00] TONG QUAN / [03] QUAN LY / [02] GOI PHAT HANH" -ForegroundColor White
         Write-Host "    2. Giai nen tep ZIP ra mot thu muc (vd: Downloads\kas-windows-sac-safe)." -ForegroundColor White
         Write-Host "    3. Nhap dup 'Cai_Dat_KAS_Windows11.cmd' ngay trong thu muc vua giai nen!" -ForegroundColor Green
-        Write-Host ""
-        Write-Host "    (Hoac neu dung PowerShell voi repo Private, hay dang nhap 'gh auth login' hoac dat `$env:GITHUB_TOKEN='ghp_...' roi chay lai.)" -ForegroundColor DarkGray
         exit 1
     }
     return $null
@@ -136,7 +136,7 @@ function Download-ReleaseWheel {
 
 $pythonExe = Find-SignedPython
 if (-not $pythonExe) {
-    Write-Host "[1/4] Chua tim thay Python 3.11+ chinh thuc (co chu ky so)." -ForegroundColor Yellow
+    Write-Host "[1/5] Chua tim thay Python 3.11+ chinh thuc (co chu ky so)." -ForegroundColor Yellow
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if ($winget) {
         Write-Host "      Dang cai Python 3.12 chinh thuc tu Python Software Foundation qua winget..." -ForegroundColor Cyan
@@ -158,7 +158,7 @@ $pythonwExe = Join-Path $pythonDir "pythonw.exe"
 if (-not (Test-Path $pythonwExe)) { $pythonwExe = $pythonExe }
 
 $pyVer = (& $pythonExe --version 2>&1).ToString().Trim()
-Write-Host "[1/4] Trinh thong dich Python da ky so: $pythonExe ($pyVer)" -ForegroundColor Green
+Write-Host "[1/5] Trinh thong dich Python da ky so: $pythonExe ($pyVer)" -ForegroundColor Green
 
 try {
     & $pythonExe -m pip --version 2>$null | Out-Null
@@ -176,19 +176,34 @@ if (-not $WheelPath -or -not (Test-Path $WheelPath)) {
     }
 }
 
-Write-Host "[2/4] Dang cai dat Karius Academic System (KAS) v$Version va thu vien thuan Python..." -ForegroundColor Cyan
+Write-Host "[2/5] Dang cai dat Karius Academic System (KAS) v$Version va thu vien Python..." -ForegroundColor Cyan
 Write-Host "      Nguon: $WheelPath" -ForegroundColor DarkGray
 
 & $pythonExe -m pip install --user --upgrade --force-reinstall --no-warn-script-location $WheelPath
 if ($LASTEXITCODE -ne 0) { throw "Cai dat goi KAS that bai (ma loi pip: $LASTEXITCODE)" }
 & $pythonExe -m pip install --user --upgrade --no-warn-script-location openpyxl google-api-python-client google-auth-oauthlib google-auth-httplib2
 
-if ($WithExtras) {
-    Write-Host "      Dang cai them tuy chon [media,web]..." -ForegroundColor Cyan
-    & $pythonExe -m pip install --user --upgrade --no-warn-script-location fastapi uvicorn pillow numpy
+Write-Host "[3/5] Dang tu dong cai thu vien mo rong, cong cu he thong (gh, git, 7z, ffmpeg, tesseract, poppler) va OCR Tieng Viet..." -ForegroundColor Cyan
+$env:PYTHONUTF8 = "1"
+$setupArgs = @("-m", "karius_academic_system", "setup")
+if ($SkipExtras -and $SkipTools) {
+    $setupArgs += "--ocr-data"
+} elseif ($SkipExtras) {
+    $setupArgs += @("--tools", "--ocr-data")
+} elseif ($SkipTools) {
+    $setupArgs += @("--python", "--ocr-data")
+}
+try {
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    & $pythonExe @setupArgs
+    $ErrorActionPreference = $prevEap
+} catch {
+    $ErrorActionPreference = "Stop"
+    Write-Host "      [!] Mot so cong cu tuy chon chua cai xong (ban co the chay lai 'kas setup' sau): $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
-Write-Host "[3/4] Dang tao lenh CLI 'kas.cmd' (khong dung .exe chua ky) va them vao PATH..." -ForegroundColor Cyan
+Write-Host "[4/5] Dang tao lenh CLI 'kas.cmd' (khong dung .exe chua ky) va cap nhat PATH..." -ForegroundColor Cyan
 $binDir = Join-Path $env:LOCALAPPDATA "kas\bin"
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
@@ -204,10 +219,10 @@ $parts = $userPath -split ";" | Where-Object { $_ -ne "" }
 if ($parts -notcontains $binDir) {
     $newPath = ($parts + $binDir) -join ";"
     [System.Environment]::SetEnvironmentVariable("Path", $newPath, "User")
-    $env:Path = "$binDir;$env:Path"
 }
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
-Write-Host "[4/4] Dang tao loi tat Desktop & Start Menu (pythonw.exe da ky so + Edge App Window)..." -ForegroundColor Cyan
+Write-Host "[5/5] Dang tao loi tat Desktop & Start Menu (pythonw.exe da ky so + Edge App Window)..." -ForegroundColor Cyan
 try {
     $wsh = New-Object -ComObject WScript.Shell
     $desktopDir = [Environment]::GetFolderPath("Desktop")
@@ -239,11 +254,8 @@ $env:PYTHONUTF8 = "1"
 
 Write-Host ""
 Write-Host "HOAN TAT! Ban co the:" -ForegroundColor Green
-Write-Host "  1. Nhap dup 'Karius Academic System (KAS)' tren Desktop de ket noi kho cuc bo, Google Drive, Quy tac dat ten va Tro ly AI." -ForegroundColor White
-Write-Host "  2. Mo PowerShell moi va go:" -ForegroundColor White
-Write-Host '       kas vault add "Tai Lieu" "D:\TaiLieu"' -ForegroundColor Cyan
-Write-Host '       kas vault add "[A] STORAGE" "https://drive.google.com/drive/folders/<FOLDER_ID>"' -ForegroundColor Cyan
-Write-Host "       kas rules presets  |  kas ai chat  |  kas mcp config" -ForegroundColor Cyan
+Write-Host "  1. Nhap dup 'Karius Academic System (KAS)' tren Desktop (hoac mo tab Chan doan de kiem tra / cai them)." -ForegroundColor White
+Write-Host "  2. Mo PowerShell moi va go: kas doctor  |  kas setup  |  kas vault list" -ForegroundColor Cyan
 Write-Host ""
 
 if (-not $NoLaunch) {
