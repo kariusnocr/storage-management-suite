@@ -21,10 +21,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Build sdist & wheel
+      - name: Build sdist, wheel & Windows SAC-safe bundle
         run: |
           python3 -m pip install --upgrade pip build
           python3 -m build
+          python3 packaging/build_sac_bundle.py --dist-dir dist --out dist/astorage-windows-sac-safe.zip
       - uses: actions/upload-artifact@v4
         with:
           name: python-dist

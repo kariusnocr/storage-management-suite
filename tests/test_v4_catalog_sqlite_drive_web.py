@@ -434,6 +434,66 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
                 else:
                     os.environ["STORAGE_DATA_DIR"] = old_env
 
+    def test_stdlib_http_dashboard_and_sac_bundle(self):
+        import importlib.util
+        import zipfile
+        from storage_suite.web.app import start_embedded_server
+
+        with tempfile.TemporaryDirectory() as td:
+            old_env = os.environ.get("STORAGE_DATA_DIR")
+            os.environ["STORAGE_DATA_DIR"] = td
+            try:
+                sample_idx = {
+                    "[A] STORAGE": {"id": "r0", "depth": 0, "items": [_it("d1", "[01] HỌC THUẬT", sc.FOLDER_MIME)]},
+                    "[A] STORAGE/[01] HỌC THUẬT": {"id": "d1", "depth": 1, "items": [_it("f1", "Kinh Tế Chính Trị - PEC1008.pdf", size=4096)]},
+                }
+                sc.save_index(sample_idx)
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(("127.0.0.1", 0))
+                    port = s.getsockname()[1]
+
+                th, stop_fn, engine = start_embedded_server(host="127.0.0.1", port=port, prefer_stdlib=True)
+                self.assertEqual(engine, "stdlib-http")
+                base = f"http://127.0.0.1:{port}"
+                try:
+                    with urllib.request.urlopen(f"{base}/") as resp:
+                        self.assertIn("Storage Management Suite", resp.read().decode("utf-8"))
+                    with urllib.request.urlopen(f"{base}/api/health") as resp:
+                        self.assertEqual(json.loads(resp.read())["version"], __version__)
+                    with urllib.request.urlopen(f"{base}/api/overview") as resp:
+                        self.assertEqual(json.loads(resp.read())["stats"]["files"], 1)
+                    with urllib.request.urlopen(f"{base}/api/search?q=kinh+te") as resp:
+                        self.assertEqual(json.loads(resp.read())["count"], 1)
+                    with urllib.request.urlopen(f"{base}/api/catalog-v7/plan?mode=smart") as resp:
+                        self.assertIn("summary", json.loads(resp.read()))
+                    with urllib.request.urlopen(f"{base}/api/doctor") as resp:
+                        self.assertEqual(json.loads(resp.read())["version"], __version__)
+                finally:
+                    stop_fn()
+                    th.join(timeout=3)
+
+                # Kiểm chứng đóng gói ZIP an toàn Smart App Control
+                dist_dir = Path(td) / "dist"
+                dist_dir.mkdir()
+                (dist_dir / f"storage_management_suite-{__version__}-py3-none-any.whl").write_bytes(b"whl")
+                mod_path = Path(__file__).resolve().parent.parent / "packaging" / "build_sac_bundle.py"
+                spec = importlib.util.spec_from_file_location("build_sac_bundle", mod_path)
+                assert spec and spec.loader
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                out_zip = mod.build_sac_bundle(dist_dir, dist_dir / "astorage-windows-sac-safe.zip")
+                self.assertTrue(out_zip.exists())
+                with zipfile.ZipFile(out_zip) as zf:
+                    names = set(zf.namelist())
+                    self.assertIn("install_windows_sac_safe.ps1", names)
+                    self.assertIn("Chay_Ung_Dung_Desktop.cmd", names)
+                    self.assertIn("README_WINDOWS_SAC.txt", names)
+            finally:
+                if old_env is None:
+                    os.environ.pop("STORAGE_DATA_DIR", None)
+                else:
+                    os.environ["STORAGE_DATA_DIR"] = old_env
+
 
 if __name__ == "__main__":
     unittest.main()
