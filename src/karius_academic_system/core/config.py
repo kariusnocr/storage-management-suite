@@ -325,17 +325,29 @@ def sync_known_ids_from_index(index: Dict[str, Any]) -> Dict[str, str]:
     return discovered
 
 
+def _read_app_settings_raw() -> Dict[str, Any]:
+    p = user_config_dir() / "app_settings.json"
+    if not p.exists():
+        return {}
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {}
+    except Exception:
+        return {}
+
+
 def data_dir() -> Path:
     """
     Thư mục dữ liệu cục bộ (SQLite DB, chỉ mục, cache, báo cáo) tách biệt riêng cho từng kho.
-    Thứ tự ưu tiên: `KAS_DATA_DIR` > `~/.local/share/kas/vaults/<slug>` > `~/.local/share/kas/default`.
+    Thứ tự ưu tiên: `KAS_DATA_DIR` > `app_settings.data_dir_override` > `~/.local/share/kas/vaults/<slug>` > `~/.local/share/kas/default`.
     """
     env = os.environ.get("KAS_DATA_DIR")
     if env:
         p = Path(env).expanduser()
         p.mkdir(parents=True, exist_ok=True)
         return p
-    base = Path.home() / ".local" / "share" / "kas"
+    override_root = str(_read_app_settings_raw().get("data_dir_override") or "").strip()
+    base = Path(override_root).expanduser() if override_root else (Path.home() / ".local" / "share" / "kas")
     if VAULT_SLUG:
         p = base / "vaults" / VAULT_SLUG
     else:
@@ -449,7 +461,13 @@ def oauth_token_path() -> Path:
 
 
 def drive_backend_preference() -> str:
-    return os.environ.get("KAS_BACKEND", CONFIG.get("drive_backend", "auto")).strip().lower()
+    env = os.environ.get("KAS_BACKEND")
+    if env:
+        return env.strip().lower()
+    pref = str(_read_app_settings_raw().get("drive_backend") or "").strip().lower()
+    if pref and pref != "auto":
+        return pref
+    return str(CONFIG.get("drive_backend", "auto")).strip().lower()
 
 
 def catalog_policy() -> Dict[str, Any]:

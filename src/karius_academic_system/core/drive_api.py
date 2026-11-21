@@ -76,7 +76,7 @@ def _require_google_api() -> Tuple[Any, Any, Any, Any, Any]:
     except ImportError as exc:
         raise DriveError(
             "Thiếu thư viện Google Drive API OAuth 2.0. Cài đặt bằng:\n"
-            '  pip install "storage-management-suite[drive-api]"'
+            '  pip install "karius-academic-system[drive-api]"'
         ) from exc
     return Credentials, Request, InstalledAppFlow, build, (MediaFileUpload, MediaIoBaseDownload)
 

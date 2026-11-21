@@ -447,6 +447,97 @@ def _cmd_undo(argv: List[str]) -> int:
     return 1
 
 
+def _cmd_settings(argv: List[str]) -> int:
+    ap = argparse.ArgumentParser(prog="kas settings", description="Quản lý Cài đặt ứng dụng Karius Academic System (KAS).")
+    sub = ap.add_subparsers(dest="action", required=True)
+    p_show = sub.add_parser("show", help="Xem toàn bộ cài đặt phần mềm hiện tại")
+    p_show.add_argument("--json", action="store_true", dest="as_json", help="Xuất JSON")
+    p_set = sub.add_parser("set", help="Cập nhật một mục cài đặt (vd: theme light, drive_backend api)")
+    p_set.add_argument("key", help="Tên mục cài đặt")
+    p_set.add_argument("value", help="Giá trị mới")
+    sub.add_parser("reset", help="Khôi phục toàn bộ cài đặt về mặc định")
+    sub.add_parser("check-update", help="Kiểm tra phiên bản KAS mới nhất trên GitHub Releases")
+    args = ap.parse_args(argv)
+
+    if args.action == "show":
+        st = sc.load_app_settings()
+        if args.as_json:
+            print(json.dumps({"settings": st.to_dict(), "paths": sc.get_system_paths_info()}, ensure_ascii=False, indent=2))
+            return 0
+        sc.log(f"Cài đặt phần mềm ({sc.app_settings_path()}):")
+        for k, v in st.to_dict().items():
+            sc.log(f"  - {k:26s}: {v}")
+        return 0
+    if args.action == "set":
+        st = sc.load_app_settings()
+        d = st.to_dict()
+        if args.key not in d:
+            sc.log(f"Mục cài đặt không hợp lệ: `{args.key}`. Hợp lệ: {', '.join(sorted(d))}")
+            return 1
+        d[args.key] = _parse_rule_value(args.key, args.value, d[args.key])
+        new_st = sc.AppSettings.from_dict(d)
+        saved = sc.save_app_settings(new_st)
+        sc.log(f"Đã lưu cài đặt `{args.key}` = {new_st.to_dict()[args.key]!r} tại {saved}.")
+        return 0
+    if args.action == "reset":
+        sc.reset_app_settings()
+        sc.log("Đã khôi phục toàn bộ cài đặt KAS về mặc định.")
+        return 0
+    if args.action == "check-update":
+        res = sc.check_latest_release(github_token=sc.get_saved_github_token())
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 0 if res.get("ok") else 1
+    return 1
+
+
+def _cmd_account(argv: List[str]) -> int:
+    ap = argparse.ArgumentParser(prog="kas account", description="Quản lý Tài khoản đăng nhập KAS & Kết nối dịch vụ bên thứ 3.")
+    sub = ap.add_subparsers(dest="action", required=True)
+    p_st = sub.add_parser("status", help="Xem trạng thái tài khoản KAS và kết nối bên thứ 3")
+    p_st.add_argument("--json", action="store_true", dest="as_json")
+    p_reg = sub.add_parser("register", help="Tạo tài khoản KAS cục bộ")
+    p_reg.add_argument("username", help="Tên đăng nhập")
+    p_reg.add_argument("--password", required=True, help="Mật khẩu (tối thiểu 4 ký tự)")
+    p_reg.add_argument("--name", default="", help="Tên hiển thị")
+    p_reg.add_argument("--email", default="", help="Email (tùy chọn)")
+    p_reg.add_argument("--require-login", action="store_true", help="Bật khóa đăng nhập khi mở giao diện KAS")
+    p_lk = sub.add_parser("lock", help="Bật/tắt yêu cầu đăng nhập khi mở ứng dụng")
+    p_lk.add_argument("mode", choices=["on", "off"])
+    p_gh = sub.add_parser("connect-github", help="Kết nối tài khoản GitHub bằng Personal Access Token")
+    p_gh.add_argument("--token", required=True, help="GitHub PAT")
+    p_gh.add_argument("--no-verify", action="store_true", help="Lưu không kiểm chứng trực tuyến")
+    args = ap.parse_args(argv)
+
+    if args.action == "status":
+        payload = {"account": sc.account_status(), "integrations": sc.get_all_integrations_summary()}
+        if args.as_json:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0
+        acc = payload["account"]
+        sc.log(f"Tài khoản KAS: {'Đã tạo (' + acc['account']['username'] + ')' if acc['has_account'] else 'Chưa tạo'} | Khóa mở app: {'BẬT' if acc['require_login'] else 'TẮT'}")
+        gd = payload["integrations"]["google_drive"]["auth"]
+        gh = payload["integrations"]["github"]
+        sc.log(f"  • Google Drive : {'Đã đăng nhập' if gd['authenticated'] else 'Chưa đăng nhập'} (credentials={'có' if gd['credentials_exists'] else 'chưa có'})")
+        sc.log(f"  • GitHub       : {'Đã kết nối (' + gh['login'] + ')' if gh['connected'] else 'Chưa kết nối'}")
+        sc.log(f"  • AI Provider  : {payload['integrations']['ai_provider']['provider']} ({payload['integrations']['ai_provider']['model']})")
+        return 0
+    if args.action == "register":
+        profile, _ = sc.register_account(
+            args.username, args.password, display_name=args.name, email=args.email, require_login=args.require_login
+        )
+        sc.log(f"Đã tạo tài khoản KAS `{profile['username']}` (khóa mở app={'BẬT' if profile['require_login'] else 'TẮT'}).")
+        return 0
+    if args.action == "lock":
+        prof = sc.update_account_profile(require_login=(args.mode == "on"))
+        sc.log(f"Đã {'BẬT' if prof['require_login'] else 'TẮT'} khóa đăng nhập cho tài khoản `{prof['username']}`.")
+        return 0
+    if args.action == "connect-github":
+        st = sc.connect_github_token(args.token, verify=not args.no_verify)
+        sc.log(f"Đã kết nối GitHub: {st.get('login') or '(token đã lưu)'}.")
+        return 0
+    return 1
+
+
 def _cmd_tests() -> int:
     from karius_academic_system.sync.github_sync import default_repo_root
 
@@ -486,6 +577,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "rules",
         "ai",
         "mcp",
+        "settings",
+        "account",
         *MODULE_MAP.keys(),
         "danh-muc-chuan",
         "auth",
@@ -525,6 +618,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _cmd_vault(rest)
     if cmd == "rules":
         return _cmd_rules(rest)
+    if cmd == "settings":
+        return _cmd_settings(rest)
+    if cmd == "account":
+        return _cmd_account(rest)
     if cmd == "ai":
         from karius_academic_system.ai.bridge import main as ai_main
 

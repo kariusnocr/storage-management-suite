@@ -77,13 +77,14 @@ def launch_standalone_window(url: str) -> Optional[subprocess.Popen]:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    st = sc.load_app_settings()
     ap = argparse.ArgumentParser(prog="kas desktop", description=f"Khởi chạy ứng dụng Desktop {APP_NAME} ({APP_SHORT}).")
-    ap.add_argument("--port", type=int, default=8765, help="Cổng nội bộ (mặc định 8765; truyền 0 để tự chọn cổng trống)")
+    ap.add_argument("--port", type=int, default=st.ui_port, help=f"Cổng nội bộ (mặc định {st.ui_port}; truyền 0 để tự chọn cổng trống)")
     ap.add_argument("--browser", action="store_true", help="Mở bằng cửa sổ ứng dụng Edge/Chrome (an toàn với Smart App Control)")
     ap.add_argument("--stdlib", action="store_true", help="Dùng máy chủ HTTP thuần Python (không nạp .pyd/.dll ngoài)")
     args = ap.parse_args(argv)
 
-    host = "127.0.0.1"
+    host = st.ui_host or "127.0.0.1"
     port = args.port if args.port > 0 else _find_free_port(host)
     url = f"http://{host}:{port}"
 

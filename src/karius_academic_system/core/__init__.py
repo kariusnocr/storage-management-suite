@@ -4,6 +4,33 @@ from __future__ import annotations
 
 from karius_academic_system import APP_NAME, APP_SHORT, __version__
 from karius_academic_system.core import config as _cfg
+from karius_academic_system.core.accounts import (
+    account_path,
+    account_status,
+    add_custom_connector,
+    authenticate_account,
+    change_account_password,
+    connect_github_token,
+    create_session,
+    delete_account,
+    destroy_all_sessions,
+    destroy_session,
+    disconnect_github,
+    disconnect_google_drive,
+    get_all_integrations_summary,
+    get_github_integration_status,
+    get_google_oauth_login_state,
+    get_saved_github_token,
+    integrations_path,
+    is_app_lock_enabled,
+    list_custom_connectors,
+    register_account,
+    remove_custom_connector,
+    save_google_credentials_json,
+    start_google_oauth_login_async,
+    update_account_profile,
+    verify_session,
+)
 from karius_academic_system.core.catalog_spec import (
     SHEET_PREFIX,
     TONG_QUAN_PREFIX,
@@ -141,6 +168,15 @@ from karius_academic_system.core.naming_rules import (
     vault_naming_rules_path,
 )
 from karius_academic_system.core.ocr import ocr_image_file, ocr_pdf_pages, ocr_pil_image, reset_ocr_cache, resolve_tesseract_lang
+from karius_academic_system.core.settings import (
+    AppSettings,
+    app_settings_path,
+    check_latest_release,
+    get_system_paths_info,
+    load_app_settings,
+    reset_app_settings,
+    save_app_settings,
+)
 from karius_academic_system.core.utils import (
     _TZ_VN,
     confirm,
