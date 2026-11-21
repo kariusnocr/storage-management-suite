@@ -149,6 +149,12 @@ def _cmd_tests() -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
     all_cmds = [
         *MODULE_MAP.keys(),
         "danh-muc-chuan",
