@@ -1,6 +1,6 @@
-# QUY ƯỚC ĐẶT TÊN & TINH GỌN DANH MỤC HỆ THỐNG — CHUẨN V7 (`v4.0.0`)
+# QUY ƯỚC ĐẶT TÊN & TINH GỌN DANH MỤC HỆ THỐNG — CHUẨN V7 (KAS `v5.0.0`)
 
-Tài liệu này bổ sung và chuẩn hóa chính thức hệ thống bảng Google Sheets **`Danh Mục Hệ Thống`** tập trung tại **`[A] STORAGE / [00] TỔNG QUAN / [01] DANH SÁCH`** (`1GqdqbI1yVPD3e-HAenW6WioSQZpPaRYz`).
+Tài liệu này chuẩn hóa hệ thống bảng **`Danh Mục Hệ Thống`** tập trung tại **`<Kho Dữ Liệu> / [00] TỔNG QUAN / [01] DANH SÁCH`** dành cho mọi kho sử dụng chế độ **KAS Academic V7 (`academic_v7`)** trong **Karius Academic System (KAS)**.
 
 ---
 
@@ -12,8 +12,8 @@ Danh Mục Hệ Thống - <Tên Chuẩn Hóa>[, <Ngữ Cảnh Phân Biệt>]
 ```
 
 - **Bảng gốc toàn kho**:
-  - Tại `[00] TỔNG QUAN`: `Danh Mục Hệ Thống - Storage`
-  - Tại `[00] TỔNG QUAN / [01] DANH SÁCH`: `Danh Mục Hệ Thống - Storage, Bản Danh Sách`
+  - Tại `[00] TỔNG QUAN`: `Danh Mục Hệ Thống - <Tên Kho Gốc>` *(ví dụ với `[A] STORAGE` là `Danh Mục Hệ Thống - Storage`)*
+  - Tại `[00] TỔNG QUAN / [01] DANH SÁCH`: `Danh Mục Hệ Thống - <Tên Kho Gốc>, Bản Danh Sách`
 - **Duy nhất một dấu phân cách `" - "`**:
   1. Bỏ tiền tố `[STT]` ở đầu tên thư mục (`[01] HỌC THUẬT` → `Học Thuật`).
   2. Khối mã định danh trong ngoặc vuông `[MÃ] TÊN` → chuyển thành **`MÃ: Tên`** (ví dụ: `[USSH] TRƯỜNG ĐH KHXH&NV` → `Danh Mục Hệ Thống - USSH: Trường ĐH KHXH&NV`, không tạo dấu `" - "` thứ hai).
@@ -29,22 +29,22 @@ Danh Mục Hệ Thống - <Tên Chuẩn Hóa>[, <Ngữ Cảnh Phân Biệt>]
 
 ## 2. Chính sách Tinh gọn Thông minh (Phương án 2)
 
-Cấu hình mặc định tại `catalog_policy` trong `storage_config.json`:
+Cấu hình mặc định tại `catalog_policy` trong `kas_config.json`:
 
 | Cấp độ thư mục (`depth`) | Điều kiện lập bảng `Danh Mục Hệ Thống` riêng | Mục đích |
 | :--- | :--- | :--- |
-| **Cấp 0** (`[A] STORAGE`) | Luôn lập bảng | Toàn cảnh tổng kho |
-| **Cấp 1–4** | Luôn lập bảng (trừ vùng loại trừ) | Bảo phủ 100% nhánh lớn, trường/khoa, học phần và tủ sách chính |
+| **Cấp 0** (`<Thư Mục Gốc Kho>`) | Luôn lập bảng | Toàn cảnh tổng kho |
+| **Cấp 1–4** | Luôn lập bảng (trừ vùng loại trừ) | Bao phủ 100% nhánh lớn, trường/khoa, học phần và tủ sách chính |
 | **Cấp 5** | Lập bảng khi thư mục không rỗng (`≥ 1` mục con ngoài `[00] TỔNG QUAN`) | Tránh sinh bảng cho thư mục lá rỗng |
 | **Cấp 6** | Thăng hạng lập bảng riêng khi có **`≥ 15` mục trực tiếp** | Bảo toàn các kho tài liệu lớn nằm ở tầng sâu |
-| **Cấp 7+** | Không tách bảng riêng (hiển thị đầy đủ trong bảng cấp cha gần nhất) | Loại bỏ hơn `2.100` bảng lá vụn vặt, tăng tốc đồng bộ `5×` |
+| **Cấp 7+** | Không tách bảng riêng (hiển thị đầy đủ trong bảng cấp cha gần nhất) | Loại bỏ hàng nghìn bảng lá vụn vặt, tăng tốc đồng bộ `5×` |
 | **Danh sách cấm tuyệt đối** | `__MACOSX`, `MACOSX`, `.obsidian`, `.git`, `__pycache__`, `node_modules`, `tests` | Không bao giờ lập danh mục cho thư mục rác/kỹ thuật |
 
-> Trên chỉ mục thực tế `[A] STORAGE` (`21-11-2026`), chính sách này tinh gọn từ **`2.739` bảng** xuống còn **`493` bảng chuẩn xác (`-82%`)** với **`0` trùng tên**.
+> Kiểm chứng thực tế trên kho học thuật lớn (`21-11-2026`): chính sách này tinh gọn từ **`2.739` bảng** xuống còn **`493` bảng chuẩn xác (`-82%`)** với **`0` trùng tên**.
 
 ---
 
-## 3. Năm Mã Kiểm toán Danh Mục Tự động (`astorage kiem-tra`)
+## 3. Năm Mã Kiểm toán Danh Mục Tự động (`kas kiem-tra`)
 
 | Mức độ | Mã kiểm toán | Ý nghĩa |
 | :--- | :--- | :--- |
@@ -59,16 +59,16 @@ Cấu hình mặc định tại `catalog_policy` trong `storage_config.json`:
 ## 4. Lộ trình Chuyển đổi An toàn (Bảo toàn 100% ID & Có Hoàn tác)
 
 ```bash
-# Bước 1: Xem trước kế hoạch chi tiết (chỉ đọc — lưu JSON trong ~/storage_data/reports/)
-astorage danh-muc-chuan
+# Bước 1: Xem trước kế hoạch chi tiết (chỉ đọc — lưu JSON trong thư mục dữ liệu kho)
+kas danh-muc-chuan
 
 # Bước 2a: Chỉ đổi tên chuẩn V7 tại chỗ (giữ nguyên File ID, chưa di chuyển bảng tinh gọn)
-astorage danh-muc-chuan --chi-doi-ten --thuc-thi --dong-y
+kas danh-muc-chuan --chi-doi-ten --thuc-thi --dong-y
 
 # Bước 2b: Hoặc áp dụng trọn gói (đổi tên tại chỗ + chuyển bảng tinh gọn/rác về [07] KIỂM TRA)
-astorage danh-muc-chuan --thuc-thi --dong-y
+kas danh-muc-chuan --thuc-thi --dong-y
 
 # Bước 3: Hoàn tác toàn bộ lô chỉ bằng 1 lệnh nếu cần
-astorage undo list
-astorage undo run <batch_id> --thuc-thi --dong-y
+kas undo list
+kas undo run <batch_id> --thuc-thi --dong-y
 ```

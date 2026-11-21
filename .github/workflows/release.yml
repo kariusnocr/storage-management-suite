@@ -1,4 +1,4 @@
-name: Release Software Packages
+name: Release KAS Software Packages
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-wheel:
-    name: Build Python Wheel & Source Dist
+    name: Build Python Wheel, Source Dist & Windows SAC-safe ZIP
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip build
           python3 -m build
-          python3 packaging/build_sac_bundle.py --dist-dir dist --out dist/astorage-windows-sac-safe.zip
+          python3 packaging/build_sac_bundle.py --dist-dir dist --out dist/kas-windows-sac-safe.zip
       - uses: actions/upload-artifact@v4
         with:
           name: python-dist
@@ -62,12 +62,12 @@ jobs:
       - name: Rename and smoke-test artifact with OS tag
         shell: bash
         run: |
-          mv "dist/astorage${{ matrix.ext }}" "dist/astorage-${{ matrix.os_label }}${{ matrix.ext }}"
-          ./dist/astorage-${{ matrix.os_label }}${{ matrix.ext }} version
+          mv "dist/kas${{ matrix.ext }}" "dist/kas-${{ matrix.os_label }}${{ matrix.ext }}"
+          ./dist/kas-${{ matrix.os_label }}${{ matrix.ext }} version
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os_label }}
-          path: dist/astorage-${{ matrix.os_label }}${{ matrix.ext }}
+          path: dist/kas-${{ matrix.os_label }}${{ matrix.ext }}
 
   publish-release:
     name: Publish GitHub Release

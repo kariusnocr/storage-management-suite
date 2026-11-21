@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Kịch bản trợ giúp đóng gói binary độc lập (CLI + Web UI + Desktop) qua PyInstaller."""
+"""Kịch bản đóng gói binary độc lập Karius Academic System (KAS) v5.0 qua PyInstaller."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def main() -> int:
                 stream.reconfigure(encoding="utf-8", errors="replace")
             except Exception:
                 pass
-    ap = argparse.ArgumentParser(description="Đóng gói nhị phân độc lập Storage Management Suite v4.0.")
+    ap = argparse.ArgumentParser(description="Đóng gói nhị phân độc lập Karius Academic System (KAS) v5.0.")
     ap.add_argument("--mode", choices=["cli", "desktop"], default="cli", help="Chế độ đóng gói: cli hoặc desktop (pywebview)")
     args = ap.parse_args()
 
@@ -43,7 +43,7 @@ def main() -> int:
 
     cmd = ["pyinstaller", "--clean", "--noconfirm", str(spec)]
     if args.mode == "desktop":
-        entry = ROOT / "src" / "storage_suite" / "web" / "desktop.py"
+        entry = ROOT / "src" / "karius_academic_system" / "web" / "desktop.py"
         sep = ";" if platform.system() == "Windows" else ":"
         cmd = [
             "pyinstaller",
@@ -51,11 +51,11 @@ def main() -> int:
             "--noconfirm",
             "--onefile",
             "--windowed",
-            "--name", "astorage-desktop",
+            "--name", "kas-desktop",
             "--paths", str(ROOT / "src"),
-            "--add-data", f"{ROOT / 'src/storage_suite/data/storage_config.json'}{sep}storage_suite/data",
-            "--add-data", f"{ROOT / 'src/storage_suite/web/static/index.html'}{sep}storage_suite/web/static",
-            "--collect-submodules", "storage_suite",
+            "--add-data", f"{ROOT / 'src/karius_academic_system/data/kas_config.json'}{sep}karius_academic_system/data",
+            "--add-data", f"{ROOT / 'src/karius_academic_system/web/static/index.html'}{sep}karius_academic_system/web/static",
+            "--collect-submodules", "karius_academic_system",
             str(entry),
         ]
 
@@ -65,7 +65,7 @@ def main() -> int:
         return proc.returncode
 
     sys_tag = f"{platform.system().lower()}-{platform.machine().lower()}"
-    for art in sorted(dist_dir.glob("astorage*")):
+    for art in sorted(dist_dir.glob("kas*")):
         if art.is_file() and not art.name.endswith(".sha256"):
             digest = sha256_file(art)
             print(f"Đã tạo ({sys_tag}): {art.name} | SHA-256={digest}")

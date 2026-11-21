@@ -1,1 +1,1 @@
-"""Bộ kiểm thử tự động Storage Management Suite v4.0."""
+"""Bộ kiểm thử tự động Karius Academic System (KAS) v5.0."""

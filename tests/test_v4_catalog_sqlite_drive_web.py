@@ -3,7 +3,7 @@
 - SQLite Store (WAL + FTS5 + Unified Undo Journal)
 - Dual Drive Backends (GoogleDriveAPIClient OAuth 2.0 giả lập + drive_factory)
 - Rác hệ thống MACOSX, Doctor, Watcher, Release Bundle Staging
-- CLI hợp nhất (`astorage`) & Web Dashboard FastAPI (`astorage ui`)
+- CLI hợp nhất (`kas`) & Web Dashboard FastAPI (`kas ui`)
 """
 
 from __future__ import annotations
@@ -19,12 +19,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, List
 
-from storage_suite import __version__
-from storage_suite import core as sc
-from storage_suite.cli import main as cli_main
-from storage_suite.cli import pipelines
-from storage_suite.ops import dedup, doctor, watcher
-from storage_suite.sync import drive_deploy
+from karius_academic_system import __version__
+from karius_academic_system import core as sc
+from karius_academic_system.cli import main as cli_main
+from karius_academic_system.cli import pipelines
+from karius_academic_system.ops import dedup, doctor, watcher
+from karius_academic_system.sync import drive_deploy
 
 
 def _it(fid: str, name: str, mime: str = "application/pdf", size: int = 1024, mod: str = "2026-11-20T06:00:00Z") -> dict:
@@ -72,6 +72,29 @@ class _MockDrive:
             _it("ch_1", "Đề cương môn Đạo Đức Học - PHI3186.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", mod="2026-11-21T05:00:00Z"),
             _it("ch_2", "Giáo Trình Chuẩn - PHI1007.pdf", "application/pdf", mod="2026-11-21T05:01:00Z"),
         ]
+
+
+
+
+_ORIG_V4_ENV = {}
+
+
+def setUpModule():
+    for k in ("KAS_ROOT_NAME", "KAS_ROOT_ID", "KAS_VAULT", "KAS_CONFIG_DIR"):
+        _ORIG_V4_ENV[k] = os.environ.get(k)
+    os.environ["KAS_ROOT_NAME"] = "[A] STORAGE"
+    os.environ["KAS_ROOT_ID"] = "test_academic_root_id"
+    os.environ.pop("KAS_VAULT", None)
+    sc.reload_config()
+
+
+def tearDownModule():
+    for k, v in _ORIG_V4_ENV.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    sc.reload_config()
 
 
 class TestCatalogV7Spec(unittest.TestCase):
@@ -320,8 +343,8 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
 
         # Kiểm chứng execute_moves với system_junk đi đúng [06] RÁC HỆ THỐNG và cập nhật index
         with tempfile.TemporaryDirectory() as td_q:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td_q
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td_q
             try:
                 mdrive = _MockDrive()
                 mdrive.capabilities = lambda fid, fields="": {"canMoveItemOutOfDrive": True, "canEdit": True}  # type: ignore[attr-defined]
@@ -332,9 +355,9 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
                 self.assertEqual(len(idx["[A] STORAGE/[01] HỌC THUẬT"]["items"]), 1)
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
         # Kiểm chứng lưu trữ thư mục mã cũ [01]–[18] không đụng tới [01] TÀI LIỆU HỆ THỐNG
         mdrive2 = _MockDrive()
@@ -344,7 +367,15 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
             _it("new1", "[01] TÀI LIỆU HỆ THỐNG", sc.FOLDER_MIME),
             _it("new2", "[02] GÓI PHÁT HÀNH", sc.FOLDER_MIME),
         ]
-        arc = drive_deploy.archive_legacy_module_folders(mdrive2, dry_run=False)
+        old_ql = os.environ.get("KAS_QUAN_LY_ID")
+        os.environ["KAS_QUAN_LY_ID"] = "test_quan_ly_id"
+        try:
+            arc = drive_deploy.archive_legacy_module_folders(mdrive2, dry_run=False)
+        finally:
+            if old_ql is None:
+                os.environ.pop("KAS_QUAN_LY_ID", None)
+            else:
+                os.environ["KAS_QUAN_LY_ID"] = old_ql
         self.assertEqual(arc["found"], 2)
         self.assertEqual(arc["moved"], 2)
         self.assertEqual([fid for fid, _ in mdrive2.moved], ["leg1", "leg2"])
@@ -365,11 +396,11 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
             (repo / "docs" / "Tổng Quan Hệ Thống - Quản Lý.md").write_text("# Master", encoding="utf-8")
             (repo / "docs" / "Quy Ước.md").write_text("# Spec", encoding="utf-8")
             (repo / "README.md").write_text("# README", encoding="utf-8")
-            (repo / "dist" / "storage_management_suite-4.0.0-py3-none-any.whl").write_bytes(b"wheel")
+            (repo / "dist" / "karius_academic_system-4.0.0-py3-none-any.whl").write_bytes(b"wheel")
             staged = drive_deploy.stage_release_bundle(repo, Path(td) / "staged")
             self.assertTrue((staged / "Tổng Quan Hệ Thống - Quản Lý.md").exists())
             self.assertTrue((staged / "[01] TÀI LIỆU HỆ THỐNG" / "Giới Thiệu Phần Mềm - Storage.md").exists())
-            self.assertTrue((staged / "[02] GÓI PHÁT HÀNH" / "storage_management_suite-4.0.0-py3-none-any.whl").exists())
+            self.assertTrue((staged / "[02] GÓI PHÁT HÀNH" / "karius_academic_system-4.0.0-py3-none-any.whl").exists())
 
     def test_cli_pipelines_and_fastapi_web_ui(self):
         q_steps = pipelines.build_quick_steps(False, False, False, None, False)
@@ -382,13 +413,14 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
         # Kiểm chứng FastAPI Web Dashboard thật trên cổng nội bộ tạm (không cần httpx)
         try:
             import uvicorn
-            from storage_suite.web.app import create_app
+
+            from karius_academic_system.web.app import create_app
         except ImportError:
             self.skipTest("fastapi/uvicorn chưa cài")
 
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 sample_idx = {
                     "[A] STORAGE": {"id": "r0", "depth": 0, "items": [_it("d1", "[01] HỌC THUẬT", sc.FOLDER_MIME)]},
@@ -410,7 +442,7 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
                 base = f"http://127.0.0.1:{port}"
                 with urllib.request.urlopen(f"{base}/") as resp:
                     html = resp.read().decode("utf-8")
-                    self.assertIn("Storage Management Suite", html)
+                    self.assertIn("Karius Academic System", html)
                 with urllib.request.urlopen(f"{base}/api/health") as resp:
                     self.assertEqual(json.loads(resp.read())["version"], __version__)
                 with urllib.request.urlopen(f"{base}/api/overview") as resp:
@@ -430,18 +462,19 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
                 th.join(timeout=3)
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_stdlib_http_dashboard_and_sac_bundle(self):
         import importlib.util
         import zipfile
-        from storage_suite.web.app import start_embedded_server
+
+        from karius_academic_system.web.app import start_embedded_server
 
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 sample_idx = {
                     "[A] STORAGE": {"id": "r0", "depth": 0, "items": [_it("d1", "[01] HỌC THUẬT", sc.FOLDER_MIME)]},
@@ -457,7 +490,7 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
                 base = f"http://127.0.0.1:{port}"
                 try:
                     with urllib.request.urlopen(f"{base}/") as resp:
-                        self.assertIn("Storage Management Suite", resp.read().decode("utf-8"))
+                        self.assertIn("Karius Academic System", resp.read().decode("utf-8"))
                     with urllib.request.urlopen(f"{base}/api/health") as resp:
                         self.assertEqual(json.loads(resp.read())["version"], __version__)
                     with urllib.request.urlopen(f"{base}/api/overview") as resp:
@@ -475,24 +508,24 @@ class TestOpsDoctorWatcherDeployAndWebUI(unittest.TestCase):
                 # Kiểm chứng đóng gói ZIP an toàn Smart App Control
                 dist_dir = Path(td) / "dist"
                 dist_dir.mkdir()
-                (dist_dir / f"storage_management_suite-{__version__}-py3-none-any.whl").write_bytes(b"whl")
+                (dist_dir / f"karius_academic_system-{__version__}-py3-none-any.whl").write_bytes(b"whl")
                 mod_path = Path(__file__).resolve().parent.parent / "packaging" / "build_sac_bundle.py"
                 spec = importlib.util.spec_from_file_location("build_sac_bundle", mod_path)
                 assert spec and spec.loader
                 mod = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(mod)
-                out_zip = mod.build_sac_bundle(dist_dir, dist_dir / "astorage-windows-sac-safe.zip")
+                out_zip = mod.build_sac_bundle(dist_dir, dist_dir / "kas-windows-sac-safe.zip")
                 self.assertTrue(out_zip.exists())
                 with zipfile.ZipFile(out_zip) as zf:
                     names = set(zf.namelist())
                     self.assertIn("install_windows_sac_safe.ps1", names)
-                    self.assertIn("Chay_Ung_Dung_Desktop.cmd", names)
+                    self.assertIn("Chay_Karius_Academic_System.cmd", names)
                     self.assertIn("README_WINDOWS_SAC.txt", names)
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
 
 if __name__ == "__main__":

@@ -23,28 +23,46 @@ from typing import Optional
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-from storage_suite import core as sc
-from storage_suite.cli import pipelines as storage_cli
-from storage_suite.media import (
+from karius_academic_system import core as sc
+from karius_academic_system.cli import pipelines as storage_cli
+from karius_academic_system.media import (
     audio_analyzer,
     content_analyzer,
     file_reader,
     image_analyzer,
     video_analyzer,
 )
-from storage_suite.ops import (
+from karius_academic_system.ops import (
     auditor as naming_auditor,
+)
+from karius_academic_system.ops import (
     catalog_engine as sheet_engine,
+)
+from karius_academic_system.ops import (
     dedup as dedup_scanner,
+)
+from karius_academic_system.ops import (
     indexer as storage_indexer,
+)
+from karius_academic_system.ops import (
     ingestor as data_ingestor,
+)
+from karius_academic_system.ops import (
     inspector as storage_inspector,
+)
+from karius_academic_system.ops import (
     normalizer as storage_toolkit,
+)
+from karius_academic_system.ops import (
     reporter as stats_reporter,
+)
+from karius_academic_system.ops import (
     transfer as transfer_manager,
 )
-from storage_suite.sync import (
+from karius_academic_system.sync import (
     drive_deploy as deploy_sync,
+)
+from karius_academic_system.sync import (
     github_sync,
 )
 
@@ -161,6 +179,29 @@ class FakeDrive:
         for fid, nm in items:
             self.rename(fid, nm)
         return [(fid, True, "") for fid, _ in items]
+
+
+
+
+_ORIG_LEGACY_ENV = {}
+
+
+def setUpModule():
+    for k in ("KAS_ROOT_NAME", "KAS_ROOT_ID", "KAS_VAULT", "KAS_CONFIG_DIR"):
+        _ORIG_LEGACY_ENV[k] = os.environ.get(k)
+    os.environ["KAS_ROOT_NAME"] = "[A] STORAGE"
+    os.environ["KAS_ROOT_ID"] = "test_academic_root_id"
+    os.environ.pop("KAS_VAULT", None)
+    sc.reload_config()
+
+
+def tearDownModule():
+    for k, v in _ORIG_LEGACY_ENV.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+    sc.reload_config()
 
 
 class TestStorageCoreRules(unittest.TestCase):
@@ -415,8 +456,8 @@ class TestDedupScannerRules(unittest.TestCase):
         self.assertEqual(len(rej), 1)
 
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 fake_exec = FakeDrive(caps={"tq_b": {"canMoveItemOutOfDrive": True}})
                 moves = dedup_scanner.quarantine_moves([], dup_tongquan=dup_tq)
@@ -426,16 +467,16 @@ class TestDedupScannerRules(unittest.TestCase):
                 self.assertEqual([it["id"] for it in sc.load_index()[tq_p]["items"]], ["tq_a"])
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
 
 class TestSheetEngineStatsAndDeploy(unittest.TestCase):
     def test_sheet_engine_tabs_and_incremental_signature(self):
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 p = "[A] STORAGE/[01] HỌC THUẬT"
                 index = {
@@ -467,9 +508,9 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
                 self.assertEqual(fixes[0]["new_name"], "Danh Mục Hệ Thống - Học Thuật")
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_v3_helpers_trailing_hyphen_id_and_centralized_catalog_audit(self):
         self.assertEqual(
@@ -543,8 +584,8 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
 
     def test_stats_reporter_health_score_and_unbounded_csv(self):
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 p = "[A] STORAGE/[01] HỌC THUẬT"
                 items_a = [_it(f"id_{i}", f"Tài Liệu {i:03d} - Toán.pdf", size=1000) for i in range(350)]
@@ -566,14 +607,16 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
                 self.assertIn("ĐỔI TÊN", csv_rows[0])
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_deploy_sync_conflict_skip_and_legacy_rename(self):
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = Path(td, "data").__str__()
+            old_env = os.environ.get("KAS_DATA_DIR")
+            old_ql = os.environ.get("KAS_QUAN_LY_ID")
+            os.environ["KAS_DATA_DIR"] = Path(td, "data").__str__()
+            os.environ["KAS_QUAN_LY_ID"] = "test_quan_ly_id"
             try:
                 src = Path(td) / "src"
                 sub2 = src / "[02] QUÉT CHỈ MỤC"
@@ -582,7 +625,7 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
                 f_idx.write_text("print('indexer v2')", encoding="utf-8")
 
                 tree = {
-                    deploy_sync.QUAN_LY_ID: [_it("fld2", "[02] QUÉT CHỈ MỤC", sc.FOLDER_MIME)],
+                    "test_quan_ly_id": [_it("fld2", "[02] QUÉT CHỈ MỤC", sc.FOLDER_MIME)],
                     "fld2": [_it("old_idx_id", "Mã Nguồn Quét Chỉ Mục Toàn Kho - Storage.py", "text/x-python", mod="2026-11-17T06:00:00Z")],
                 }
                 fake = FakeDrive(tree_by_id=tree)
@@ -606,9 +649,13 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
                 self.assertEqual(fake.updated, [])
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
+                if old_ql is None:
+                    os.environ.pop("KAS_QUAN_LY_ID", None)
+                else:
+                    os.environ["KAS_QUAN_LY_ID"] = old_ql
 
     def test_indexer_incremental_crawl(self):
         old_index = {
@@ -674,8 +721,8 @@ class TestSheetEngineStatsAndDeploy(unittest.TestCase):
 class TestNewModulesV3(unittest.TestCase):
     def test_transfer_manager_move_copy_and_undo(self):
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 src_p = "[A] STORAGE/[05] SƯU TẦM/[01] SÁCH"
                 dst_p = "[A] STORAGE/[02] NGHIÊN CỨU"
@@ -756,14 +803,14 @@ class TestNewModulesV3(unittest.TestCase):
                 self.assertEqual(reverted, len(res["executed"]))
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_data_ingestor_staging_shortcut_and_dedup(self):
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 dest_p = "[A] STORAGE/[05] SƯU TẦM/[01] SÁCH/[14] SỨC KHOẺ - Y HỌC"
                 index = {
@@ -818,14 +865,14 @@ class TestNewModulesV3(unittest.TestCase):
                 self.assertEqual(len(fake.copied), 1)
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_storage_inspector_search_tongquan_heal_and_empty_folders(self):
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 p_sach = "[A] STORAGE/[05] SƯU TẦM/[01] SÁCH/[01] TRIẾT HỌC"
                 p_empty = "[A] STORAGE/[05] SƯU TẦM/[01] SÁCH/[02] NHÁNH RỖNG"
@@ -856,9 +903,9 @@ class TestNewModulesV3(unittest.TestCase):
                 self.assertEqual([e["path"] for e in empties], [p_empty])
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     @staticmethod
     def _build_sample_docx_bytes(title: str, author: str, heading: str, body: str) -> bytes:
@@ -1076,8 +1123,8 @@ class TestNewModulesV3(unittest.TestCase):
 
     def test_content_analyzer_lang_tfidf_topic_simhash_rename_and_search(self):
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 vi_body = (
                     "Giải phẫu học và sinh lý học hệ thần kinh trung ương trong y học lâm sàng giúp bác sĩ "
@@ -1190,9 +1237,9 @@ class TestNewModulesV3(unittest.TestCase):
                 self.assertTrue(csv_p.exists())
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_github_sync_security_audit_and_dry_run(self):
         # 1. Kiểm tra deploy_sync bỏ qua các tệp cấu hình riêng của Git/GitHub khi đẩy lên Drive
@@ -1254,8 +1301,8 @@ class TestMediaAnalyzersV33(unittest.TestCase):
         from PIL import Image, ImageDraw, ImageFilter  # type: ignore
 
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 td_p = Path(td)
                 # 1. Tạo ảnh slide sắc nét 1280x720 có văn bản lớn, khối màu & EXIF/GPS
@@ -1346,9 +1393,9 @@ class TestMediaAnalyzersV33(unittest.TestCase):
                 self.assertTrue(csv_p.exists())
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_audio_analyzer_tags_loudness_silence_sequence_and_fingerprint(self):
         import math
@@ -1361,8 +1408,8 @@ class TestMediaAnalyzersV33(unittest.TestCase):
             self.skipTest("Yêu cầu ffmpeg để chạy kiểm thử audio")
 
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 td_p = Path(td)
                 sr = 16000
@@ -1476,9 +1523,9 @@ class TestMediaAnalyzersV33(unittest.TestCase):
                 self.assertTrue(csv_p.exists())
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_video_analyzer_streams_keyframes_duplicates_and_course_audit(self):
         import shutil
@@ -1488,8 +1535,8 @@ class TestMediaAnalyzersV33(unittest.TestCase):
             self.skipTest("Yêu cầu ffmpeg để chạy kiểm thử video")
 
         with tempfile.TemporaryDirectory() as td:
-            old_env = os.environ.get("STORAGE_DATA_DIR")
-            os.environ["STORAGE_DATA_DIR"] = td
+            old_env = os.environ.get("KAS_DATA_DIR")
+            os.environ["KAS_DATA_DIR"] = td
             try:
                 td_p = Path(td)
                 vid_hd = td_p / "Bài 1 Vid 2026111801.mp4"
@@ -1598,12 +1645,12 @@ class TestMediaAnalyzersV33(unittest.TestCase):
                 self.assertTrue(csv_p.exists())
             finally:
                 if old_env is None:
-                    os.environ.pop("STORAGE_DATA_DIR", None)
+                    os.environ.pop("KAS_DATA_DIR", None)
                 else:
-                    os.environ["STORAGE_DATA_DIR"] = old_env
+                    os.environ["KAS_DATA_DIR"] = old_env
 
     def test_storage_cli_v33_registration(self):
-        self.assertTrue(sc.__version__.startswith("4."), f"Unexpected version: {sc.__version__}")
+        self.assertTrue(sc.__version__.startswith("5."), f"Unexpected version: {sc.__version__}")
         for key in ("phan-tich-anh", "phan-tich-am-thanh", "phan-tich-video", "doctor", "watch"):
             self.assertIn(key, storage_cli.MODULE_MAP)
 

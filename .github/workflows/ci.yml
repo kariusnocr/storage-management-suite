@@ -1,15 +1,14 @@
-name: Storage Suite CI
+name: Karius Academic System CI
 
 on:
   push:
-    branches: [ main, "sync/**", "feat/**" ]
+    branches: ["main", "feat/**", "fix/**", "chore/**"]
   pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+    branches: ["main"]
 
 jobs:
-  test-suite:
-    name: Kiểm thử & Đóng gói (Python ${{ matrix.python-version }})
+  test-and-build:
+    name: Kiểm thử & Đóng gói KAS (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -24,39 +23,39 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
 
       - name: Cài đặt công cụ đa phương tiện (ffmpeg, tesseract-ocr, vie, poppler, 7z, fonts)
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg tesseract-ocr tesseract-ocr-vie poppler-utils p7zip-full fonts-dejavu-core
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg \
+            tesseract-ocr \
+            tesseract-ocr-vie \
+            poppler-utils \
+            p7zip-full \
+            fonts-dejavu-core
 
-      - name: Cài đặt gói phần mềm và phụ thuộc phát triển
+      - name: Cài đặt gói Karius Academic System (KAS) và phụ thuộc phát triển
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -e ".[media,web,drive-api,dev]"
 
-      - name: Kiểm tra cú pháp tĩnh toàn bộ mã nguồn Python
+      - name: Kiểm tra cú pháp (py_compile) & Lint (ruff)
         run: |
-          python3 -c '
-          import pathlib, py_compile
-          files = sorted(pathlib.Path("src").rglob("*.py")) + sorted(pathlib.Path("tests").rglob("*.py"))
-          for f in files:
-              py_compile.compile(str(f), doraise=True)
-          print(f"Đã kiểm tra cú pháp thành công {len(files)} tệp Python.")
-          '
+          python3 -m py_compile $(find src tests packaging -name '*.py')
+          ruff check src tests
 
-      - name: Kiểm tra chất lượng mã với Ruff
-        run: ruff check src tests
-
-      - name: Kiểm toán bảo mật kho mã nguồn
-        run: astorage github kiem-tra-bao-mat
+      - name: Quét bảo mật rò rỉ khóa/token
+        run: kas github kiem-tra-bao-mat
 
       - name: Chạy bộ kiểm thử tự động ngoại tuyến (pytest)
-        run: pytest -v --cov=storage_suite --cov-report=term-missing
+        run: pytest -v --cov=karius_academic_system --cov-report=term-missing
 
-      - name: Kiểm chứng đóng gói Wheel & Sdist
+      - name: Kiểm chứng đóng gói Wheel, Sdist & Windows SAC-safe ZIP
         run: |
           python3 -m build
+          python3 packaging/build_sac_bundle.py --dist-dir dist --out dist/kas-windows-sac-safe.zip
           ls -lh dist/
-          astorage version
-          astorage doctor || true
+          kas version
+          kas doctor || true
