@@ -516,6 +516,234 @@ def _api_mcp_rpc_data(body: Dict[str, Any]) -> Tuple[int, Any]:
     return 200, resp
 
 
+# ==================== CÀI ĐẶT PHẦN MỀM ====================
+
+
+def _api_settings_get_data() -> Dict[str, Any]:
+    return {
+        "settings": sc.load_app_settings().to_dict(),
+        "paths": sc.get_system_paths_info(),
+    }
+
+
+def _api_settings_save_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    raw = body.get("settings") if isinstance(body.get("settings"), dict) else body
+    cur = sc.load_app_settings().to_dict()
+    cur.update({k: v for k, v in raw.items() if k in cur})
+    st = sc.AppSettings.from_dict(cur)
+    saved = sc.save_app_settings(st)
+    return 200, {"ok": True, "saved_path": str(saved), "settings": st.to_dict(), "paths": sc.get_system_paths_info()}
+
+
+def _api_settings_reset_data() -> Dict[str, Any]:
+    st = sc.reset_app_settings()
+    return {"ok": True, "settings": st.to_dict(), "paths": sc.get_system_paths_info()}
+
+
+def _api_settings_check_update_data() -> Dict[str, Any]:
+    return sc.check_latest_release(github_token=sc.get_saved_github_token())
+
+
+def _api_settings_export_data() -> Dict[str, Any]:
+    rules, _ = sc.get_active_naming_rules()
+    return {
+        "exported_utc": sc.now_utc_iso(),
+        "version": __version__,
+        "settings": sc.load_app_settings().to_dict(),
+        "naming_rules": rules.to_dict(),
+        "vaults": _api_vaults_list_data().get("vaults", []),
+    }
+
+
+def _api_settings_import_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    imported: List[str] = []
+    if isinstance(body.get("settings"), dict):
+        sc.save_app_settings(sc.AppSettings.from_dict(body["settings"]))
+        imported.append("settings")
+    if isinstance(body.get("naming_rules"), dict):
+        sc.save_naming_rules(sc.NamingRuleSet.from_dict(body["naming_rules"]), scope="vault")
+        imported.append("naming_rules")
+    if not imported:
+        return 400, {"detail": "Tệp JSON nhập vào không chứa mục `settings` hoặc `naming_rules` hợp lệ."}
+    return 200, {"ok": True, "imported": imported, "data": _api_settings_get_data()}
+
+
+# ==================== DÒNG LỆNH TÍCH HỢP (CONSOLE) ====================
+
+
+def _api_console_history_data() -> Dict[str, Any]:
+    from karius_academic_system.cli.console import QUICK_COMMANDS, load_command_history
+
+    return {
+        "history": list(reversed(load_command_history(limit=50))),
+        "quick_commands": QUICK_COMMANDS,
+    }
+
+
+def _api_console_run_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.cli.console import run_console_command_sync, start_console_job
+
+    raw_cmd = str(body.get("command") or "").strip()
+    if not raw_cmd:
+        return 400, {"detail": "Vui lòng nhập lệnh KAS cần chạy."}
+    if bool(body.get("sync", False)):
+        res = run_console_command_sync(raw_cmd)
+        return (200 if res.get("returncode") != 2 else 400), res
+    return start_console_job(raw_cmd)
+
+
+def _api_console_job_data(job_id: str) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.cli.console import get_console_job
+
+    job = get_console_job(job_id)
+    if not job:
+        return 404, {"detail": "Không tìm thấy phiên chạy lệnh."}
+    return 200, job
+
+
+def _api_console_clear_history_data() -> Dict[str, Any]:
+    from karius_academic_system.cli.console import clear_command_history
+
+    clear_command_history()
+    return {"ok": True}
+
+
+# ==================== TÀI KHOẢN & KẾT NỐI BÊN THỨ 3 ====================
+
+_PUBLIC_API_PATHS = {
+    "/api/health",
+    "/api/account/status",
+    "/api/account/login",
+    "/api/account/register",
+}
+
+
+def _extract_session_token(cookie_header: str = "", header_token: str = "") -> str:
+    if header_token:
+        return header_token.strip()
+    for part in (cookie_header or "").split(";"):
+        if "=" in part:
+            k, v = part.split("=", 1)
+            if k.strip() == "kas_session":
+                return v.strip()
+    return ""
+
+
+def _is_request_locked(path: str, session_token: str) -> bool:
+    if not path.startswith("/api/") or path in _PUBLIC_API_PATHS:
+        return False
+    if not sc.is_app_lock_enabled():
+        return False
+    return sc.verify_session(session_token) is None
+
+
+def _session_cookie_header(token: Optional[str]) -> str:
+    if token:
+        return f"kas_session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800"
+    return "kas_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+
+
+def _api_account_register_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any], Optional[str]]:
+    try:
+        prof, token = sc.register_account(
+            username=str(body.get("username") or ""),
+            password=str(body.get("password") or ""),
+            display_name=str(body.get("display_name") or ""),
+            email=str(body.get("email") or ""),
+            require_login=bool(body.get("require_login", False)),
+        )
+        return 200, {"ok": True, "account": prof, "status": sc.account_status(token)}, token
+    except ValueError as exc:
+        return 400, {"detail": str(exc)}, None
+
+
+def _api_account_login_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any], Optional[str]]:
+    ok, msg, token = sc.authenticate_account(
+        username=str(body.get("username") or ""),
+        password=str(body.get("password") or ""),
+    )
+    if not ok or not token:
+        return 401, {"ok": False, "detail": msg}, None
+    return 200, {"ok": True, "message": msg, "status": sc.account_status(token)}, token
+
+
+def _api_account_logout_data(session_token: str) -> Tuple[int, Dict[str, Any]]:
+    sc.destroy_session(session_token)
+    return 200, {"ok": True, "status": sc.account_status(None)}
+
+
+def _api_account_update_data(body: Dict[str, Any], session_token: str) -> Tuple[int, Dict[str, Any]]:
+    try:
+        prof = sc.update_account_profile(
+            display_name=body.get("display_name") if "display_name" in body else None,
+            email=body.get("email") if "email" in body else None,
+            require_login=body.get("require_login") if "require_login" in body else None,
+        )
+        return 200, {"ok": True, "account": prof, "status": sc.account_status(session_token)}
+    except ValueError as exc:
+        return 400, {"detail": str(exc)}
+
+
+def _api_account_password_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    try:
+        sc.change_account_password(
+            old_password=str(body.get("old_password") or ""),
+            new_password=str(body.get("new_password") or ""),
+        )
+        return 200, {"ok": True, "message": "Đã đổi mật khẩu tài khoản KAS thành công."}
+    except ValueError as exc:
+        return 400, {"detail": str(exc)}
+
+
+def _api_account_delete_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    try:
+        removed = sc.delete_account(password=str(body.get("password") or ""))
+        return 200, {"ok": True, "removed": removed, "status": sc.account_status(None)}
+    except ValueError as exc:
+        return 400, {"detail": str(exc)}
+
+
+def _api_integrations_google_creds_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    try:
+        res = sc.save_google_credentials_json(str(body.get("credentials_json") or body.get("path") or ""))
+        res["integrations"] = sc.get_all_integrations_summary()
+        return 200, res
+    except ValueError as exc:
+        return 400, {"detail": str(exc)}
+
+
+def _api_integrations_google_login_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    res = sc.start_google_oauth_login_async(open_browser=bool(body.get("open_browser", True)))
+    return (200 if res.get("ok") else 400), res
+
+
+def _api_integrations_github_connect_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    try:
+        gh = sc.connect_github_token(str(body.get("token") or ""), verify=bool(body.get("verify", True)))
+        return 200, {"ok": True, "github": gh, "integrations": sc.get_all_integrations_summary()}
+    except ValueError as exc:
+        return 400, {"detail": str(exc)}
+
+
+def _api_integrations_connector_add_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    try:
+        items = sc.add_custom_connector(
+            name=str(body.get("name") or ""),
+            kind=str(body.get("kind") or "webhook"),
+            endpoint_url=str(body.get("endpoint_url") or ""),
+            api_key=str(body.get("api_key") or ""),
+            notes=str(body.get("notes") or ""),
+        )
+        return 200, {"ok": True, "connectors": items}
+    except ValueError as exc:
+        return 400, {"detail": str(exc)}
+
+
+def _api_integrations_connector_remove_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    items = sc.remove_custom_connector(str(body.get("name") or ""))
+    return 200, {"ok": True, "connectors": items}
+
+
 def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.server.ThreadingHTTPServer:
     """
     Khởi tạo máy chủ HTTP thuần thư viện chuẩn Python (`http.server.ThreadingHTTPServer`).
@@ -528,23 +756,42 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
             return
 
-        def _send_bytes(self, status: int, body: bytes, content_type: str) -> None:
+        def _session_token(self) -> str:
+            return _extract_session_token(
+                cookie_header=str(self.headers.get("Cookie") or ""),
+                header_token=str(self.headers.get("X-KAS-Session") or ""),
+            )
+
+        def _send_bytes(
+            self,
+            status: int,
+            body: bytes,
+            content_type: str,
+            extra_headers: Optional[List[Tuple[str, str]]] = None,
+        ) -> None:
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
+            for hk, hv in extra_headers or []:
+                self.send_header(hk, hv)
             self.end_headers()
             self.wfile.write(body)
 
-        def _send_json(self, status: int, payload: Any) -> None:
+        def _send_json(
+            self,
+            status: int,
+            payload: Any,
+            extra_headers: Optional[List[Tuple[str, str]]] = None,
+        ) -> None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-            self._send_bytes(status, data, "application/json; charset=utf-8")
+            self._send_bytes(status, data, "application/json; charset=utf-8", extra_headers=extra_headers)
 
         def _read_json_body(self) -> Dict[str, Any]:
             raw_len = int(self.headers.get("Content-Length") or "0")
             if raw_len <= 0:
                 return {}
-            raw = self.rfile.read(min(raw_len, 2 * 1024 * 1024))
+            raw = self.rfile.read(min(raw_len, 4 * 1024 * 1024))
             try:
                 parsed = json.loads(raw.decode("utf-8"))
                 return parsed if isinstance(parsed, dict) else {}
@@ -555,6 +802,7 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
             parsed = urllib.parse.urlparse(self.path)
             path = parsed.path
             qs = urllib.parse.parse_qs(parsed.query)
+            sess_tok = self._session_token()
 
             def _q1(key: str, default: Optional[str] = None) -> Optional[str]:
                 vals = qs.get(key)
@@ -566,6 +814,35 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     return
                 if path == "/api/health":
                     self._send_json(200, _api_health_data())
+                    return
+                if path == "/api/account/status":
+                    self._send_json(200, sc.account_status(sess_tok))
+                    return
+                if _is_request_locked(path, sess_tok):
+                    self._send_json(401, {"detail": "Phiên làm việc đang bị khóa. Vui lòng đăng nhập tài khoản KAS.", "locked": True})
+                    return
+                if path == "/api/settings":
+                    self._send_json(200, _api_settings_get_data())
+                    return
+                if path == "/api/settings/check-update":
+                    self._send_json(200, _api_settings_check_update_data())
+                    return
+                if path == "/api/settings/export":
+                    self._send_json(200, _api_settings_export_data())
+                    return
+                if path == "/api/console/history":
+                    self._send_json(200, _api_console_history_data())
+                    return
+                if path.startswith("/api/console/jobs/"):
+                    jid = urllib.parse.unquote(path[len("/api/console/jobs/"):])
+                    code, data = _api_console_job_data(jid)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/integrations":
+                    self._send_json(200, sc.get_all_integrations_summary())
+                    return
+                if path == "/api/integrations/google/login-status":
+                    self._send_json(200, sc.get_google_oauth_login_state())
                     return
                 if path == "/api/vaults":
                     self._send_json(200, _api_vaults_list_data())
@@ -625,7 +902,81 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
             path = parsed.path
             qs = urllib.parse.parse_qs(parsed.query)
             body = self._read_json_body()
+            sess_tok = self._session_token()
             try:
+                if path == "/api/account/register":
+                    code, data, new_tok = _api_account_register_data(body)
+                    hdrs = [("Set-Cookie", _session_cookie_header(new_tok))] if new_tok else None
+                    self._send_json(code, data, extra_headers=hdrs)
+                    return
+                if path == "/api/account/login":
+                    code, data, new_tok = _api_account_login_data(body)
+                    hdrs = [("Set-Cookie", _session_cookie_header(new_tok))] if new_tok else None
+                    self._send_json(code, data, extra_headers=hdrs)
+                    return
+                if _is_request_locked(path, sess_tok):
+                    self._send_json(401, {"detail": "Phiên làm việc đang bị khóa. Vui lòng đăng nhập tài khoản KAS.", "locked": True})
+                    return
+                if path == "/api/account/logout":
+                    code, data = _api_account_logout_data(sess_tok)
+                    self._send_json(code, data, extra_headers=[("Set-Cookie", _session_cookie_header(None))])
+                    return
+                if path == "/api/account/update":
+                    code, data = _api_account_update_data(body, sess_tok)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/account/password":
+                    code, data = _api_account_password_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/account/delete":
+                    code, data = _api_account_delete_data(body)
+                    self._send_json(code, data, extra_headers=[("Set-Cookie", _session_cookie_header(None))])
+                    return
+                if path == "/api/integrations/google/credentials":
+                    code, data = _api_integrations_google_creds_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/integrations/google/login":
+                    code, data = _api_integrations_google_login_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/integrations/google/logout":
+                    self._send_json(200, sc.disconnect_google_drive())
+                    return
+                if path == "/api/integrations/github/connect":
+                    code, data = _api_integrations_github_connect_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/integrations/github/disconnect":
+                    self._send_json(200, {"ok": True, "github": sc.disconnect_github()})
+                    return
+                if path == "/api/integrations/connectors/add":
+                    code, data = _api_integrations_connector_add_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/integrations/connectors/remove":
+                    code, data = _api_integrations_connector_remove_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/settings":
+                    code, data = _api_settings_save_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/settings/reset":
+                    self._send_json(200, _api_settings_reset_data())
+                    return
+                if path == "/api/settings/import":
+                    code, data = _api_settings_import_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/console/run":
+                    code, data = _api_console_run_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/console/history/clear":
+                    self._send_json(200, _api_console_clear_history_data())
+                    return
                 if path == "/api/vaults/add":
                     code, data = _api_vault_add_data(body)
                     self._send_json(code, data)
@@ -704,7 +1055,7 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
 def create_app():
     """Khởi tạo ứng dụng FastAPI phục vụ giao diện quản trị cục bộ `kas ui`."""
     try:
-        from fastapi import Body, FastAPI, HTTPException, Query
+        from fastapi import Body, FastAPI, HTTPException, Query, Request
         from fastapi.responses import HTMLResponse, JSONResponse
         from pydantic import BaseModel
     except (ImportError, OSError) as exc:
@@ -715,8 +1066,21 @@ def create_app():
     app = FastAPI(
         title=f"{APP_NAME} ({APP_SHORT})",
         version=__version__,
-        description="Hệ thống quản trị tri thức, đa kho dữ liệu, tùy chỉnh quy tắc đặt tên & kết nối AI/MCP Agent.",
+        description="Hệ thống quản trị tri thức, đa kho dữ liệu, cài đặt, dòng lệnh, tài khoản, kết nối bên thứ 3 & AI/MCP Agent.",
     )
+
+    @app.middleware("http")
+    async def kas_auth_guard(request: Request, call_next):
+        tok = _extract_session_token(
+            cookie_header=request.headers.get("cookie", ""),
+            header_token=request.headers.get("x-kas-session", ""),
+        )
+        if _is_request_locked(request.url.path, tok):
+            return JSONResponse(
+                {"detail": "Phiên làm việc đang bị khóa. Vui lòng đăng nhập tài khoản KAS.", "locked": True},
+                status_code=401,
+            )
+        return await call_next(request)
 
     class VaultAddRequest(BaseModel):
         source: str
@@ -743,6 +1107,12 @@ def create_app():
         command: str
         args: List[str] = []
 
+    def _req_tok(request: Request) -> str:
+        return _extract_session_token(
+            cookie_header=request.headers.get("cookie", ""),
+            header_token=request.headers.get("x-kas-session", ""),
+        )
+
     @app.get("/", response_class=HTMLResponse)
     def index_page():
         return HTMLResponse(_render_index_html())
@@ -751,6 +1121,163 @@ def create_app():
     def api_health() -> Dict[str, Any]:
         return _api_health_data()
 
+    # --- Account & 3rd-Party Integrations ---
+    @app.get("/api/account/status")
+    def api_account_status(request: Request) -> Dict[str, Any]:
+        return sc.account_status(_req_tok(request))
+
+    @app.post("/api/account/register")
+    def api_account_register(body: Dict[str, Any] = Body(...)):
+        code, data, new_tok = _api_account_register_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi đăng ký"))
+        resp = JSONResponse(data)
+        if new_tok:
+            resp.headers["Set-Cookie"] = _session_cookie_header(new_tok)
+        return resp
+
+    @app.post("/api/account/login")
+    def api_account_login(body: Dict[str, Any] = Body(...)):
+        code, data, new_tok = _api_account_login_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi đăng nhập"))
+        resp = JSONResponse(data)
+        if new_tok:
+            resp.headers["Set-Cookie"] = _session_cookie_header(new_tok)
+        return resp
+
+    @app.post("/api/account/logout")
+    def api_account_logout(request: Request):
+        _, data = _api_account_logout_data(_req_tok(request))
+        resp = JSONResponse(data)
+        resp.headers["Set-Cookie"] = _session_cookie_header(None)
+        return resp
+
+    @app.post("/api/account/update")
+    def api_account_update(request: Request, body: Dict[str, Any] = Body(...)):
+        code, data = _api_account_update_data(body, _req_tok(request))
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi cập nhật tài khoản"))
+        return JSONResponse(data)
+
+    @app.post("/api/account/password")
+    def api_account_password(body: Dict[str, Any] = Body(...)):
+        code, data = _api_account_password_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi đổi mật khẩu"))
+        return JSONResponse(data)
+
+    @app.post("/api/account/delete")
+    def api_account_delete(body: Dict[str, Any] = Body(default={})):
+        code, data = _api_account_delete_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi xóa tài khoản"))
+        resp = JSONResponse(data)
+        resp.headers["Set-Cookie"] = _session_cookie_header(None)
+        return resp
+
+    @app.get("/api/integrations")
+    def api_integrations_get() -> Dict[str, Any]:
+        return sc.get_all_integrations_summary()
+
+    @app.post("/api/integrations/google/credentials")
+    def api_integrations_google_creds(body: Dict[str, Any] = Body(...)):
+        code, data = _api_integrations_google_creds_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi lưu credentials"))
+        return JSONResponse(data)
+
+    @app.post("/api/integrations/google/login")
+    def api_integrations_google_login(body: Dict[str, Any] = Body(default={})):
+        code, data = _api_integrations_google_login_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("message", "Lỗi khởi chạy OAuth"))
+        return JSONResponse(data)
+
+    @app.get("/api/integrations/google/login-status")
+    def api_integrations_google_status() -> Dict[str, Any]:
+        return sc.get_google_oauth_login_state()
+
+    @app.post("/api/integrations/google/logout")
+    def api_integrations_google_logout() -> Dict[str, Any]:
+        return sc.disconnect_google_drive()
+
+    @app.post("/api/integrations/github/connect")
+    def api_integrations_github_connect(body: Dict[str, Any] = Body(...)):
+        code, data = _api_integrations_github_connect_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi kết nối GitHub"))
+        return JSONResponse(data)
+
+    @app.post("/api/integrations/github/disconnect")
+    def api_integrations_github_disconnect() -> Dict[str, Any]:
+        return {"ok": True, "github": sc.disconnect_github()}
+
+    @app.post("/api/integrations/connectors/add")
+    def api_integrations_connector_add(body: Dict[str, Any] = Body(...)):
+        code, data = _api_integrations_connector_add_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi thêm kết nối"))
+        return JSONResponse(data)
+
+    @app.post("/api/integrations/connectors/remove")
+    def api_integrations_connector_remove(body: Dict[str, Any] = Body(...)):
+        _, data = _api_integrations_connector_remove_data(body)
+        return JSONResponse(data)
+
+    # --- Settings ---
+    @app.get("/api/settings")
+    def api_settings_get() -> Dict[str, Any]:
+        return _api_settings_get_data()
+
+    @app.post("/api/settings")
+    def api_settings_save(body: Dict[str, Any] = Body(...)):
+        code, data = _api_settings_save_data(body)
+        return JSONResponse(data, status_code=code)
+
+    @app.post("/api/settings/reset")
+    def api_settings_reset() -> Dict[str, Any]:
+        return _api_settings_reset_data()
+
+    @app.get("/api/settings/check-update")
+    def api_settings_check_update() -> Dict[str, Any]:
+        return _api_settings_check_update_data()
+
+    @app.get("/api/settings/export")
+    def api_settings_export() -> Dict[str, Any]:
+        return _api_settings_export_data()
+
+    @app.post("/api/settings/import")
+    def api_settings_import(body: Dict[str, Any] = Body(...)):
+        code, data = _api_settings_import_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi nhập cấu hình"))
+        return JSONResponse(data)
+
+    # --- Command Console ---
+    @app.get("/api/console/history")
+    def api_console_history() -> Dict[str, Any]:
+        return _api_console_history_data()
+
+    @app.post("/api/console/run")
+    def api_console_run(body: Dict[str, Any] = Body(...)):
+        code, data = _api_console_run_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lệnh không hợp lệ"))
+        return JSONResponse(data)
+
+    @app.get("/api/console/jobs/{job_id}")
+    def api_console_job(job_id: str):
+        code, data = _api_console_job_data(job_id)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Không tìm thấy lệnh"))
+        return JSONResponse(data)
+
+    @app.post("/api/console/history/clear")
+    def api_console_clear_history() -> Dict[str, Any]:
+        return _api_console_clear_history_data()
+
+    # --- Vaults / Rules / AI / MCP / Core Ops ---
     @app.get("/api/vaults")
     def api_vaults() -> Dict[str, Any]:
         return _api_vaults_list_data()
@@ -906,6 +1433,13 @@ def create_app():
             raise HTTPException(status_code=code, detail=data.get("detail", "Không tìm thấy tác vụ"))
         return data
 
+    @app.post("/api/shutdown")
+    def api_shutdown() -> Dict[str, Any]:
+        stop_cb = getattr(app.state, "stop_callback", None)
+        if callable(stop_cb):
+            threading.Thread(target=stop_cb, daemon=True).start()
+        return {"ok": True, "message": "Đang tắt máy chủ cục bộ..."}
+
     return app
 
 
@@ -922,6 +1456,7 @@ def start_embedded_server(
             app = create_app()
             config = uvicorn.Config(app, host=host, port=port, log_level="warning")
             server = uvicorn.Server(config)
+            app.state.stop_callback = lambda: setattr(server, "should_exit", True)
             th = threading.Thread(target=server.run, daemon=True)
             th.start()
             deadline = time.monotonic() + 5.0
@@ -947,9 +1482,10 @@ def start_embedded_server(
 
 
 def run_web_server(argv: Optional[List[str]] = None) -> int:
+    st = sc.load_app_settings()
     ap = argparse.ArgumentParser(prog="kas ui", description=f"Khởi chạy giao diện Web Dashboard {APP_NAME} ({APP_SHORT}).")
-    ap.add_argument("--host", default="127.0.0.1", help="Địa chỉ lắng nghe (mặc định 127.0.0.1)")
-    ap.add_argument("--port", type=int, default=8765, help="Cổng HTTP (mặc định 8765)")
+    ap.add_argument("--host", default=st.ui_host, help=f"Địa chỉ lắng nghe (mặc định {st.ui_host})")
+    ap.add_argument("--port", type=int, default=st.ui_port, help=f"Cổng HTTP (mặc định {st.ui_port})")
     ap.add_argument("--open", action="store_true", dest="open_browser", help="Tự mở trình duyệt sau khi khởi chạy")
     ap.add_argument("--stdlib", action="store_true", help="Dùng máy chủ HTTP thuần Python (không nạp .pyd/.dll ngoài)")
     args = ap.parse_args(argv)

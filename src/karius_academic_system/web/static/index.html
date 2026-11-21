@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Karius Academic System (KAS) v1.0</title>
+  <title>Karius Academic System (KAS) v1.1.0</title>
   <style>
     :root {
       --bg: #0b1120;
@@ -41,8 +41,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 16px;
-      padding: 14px 28px;
+      gap: 14px;
+      padding: 13px 26px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       position: sticky;
@@ -62,7 +62,7 @@
     }
     .brand h1 { font-size: 17px; font-weight: 700; }
     .brand span { font-size: 12px; color: var(--muted); }
-    .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .vault-switcher {
       display: flex;
       align-items: center;
@@ -81,12 +81,12 @@
       font-size: 13px;
       padding: 4px 6px;
       outline: none;
-      min-width: 190px;
+      min-width: 180px;
     }
     nav {
       display: flex;
       gap: 6px;
-      padding: 10px 28px;
+      padding: 10px 26px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
@@ -95,7 +95,7 @@
       background: transparent;
       border: 1px solid transparent;
       color: var(--muted);
-      padding: 8px 14px;
+      padding: 8px 13px;
       border-radius: 8px;
       cursor: pointer;
       font-size: 13px;
@@ -103,19 +103,19 @@
     }
     .tab-btn:hover { background: var(--surface-2); color: var(--text); }
     .tab-btn.active { background: var(--surface-2); color: var(--accent); border-color: var(--border); }
-    main { max-width: 1360px; margin: 0 auto; padding: 24px 28px 60px; }
+    main { max-width: 1380px; margin: 0 auto; padding: 22px 26px 64px; }
     .section { display: none; }
     .section.active { display: block; }
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .vault-grid, .preset-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 14px;
+      margin-bottom: 22px;
+    }
+    .vault-grid, .preset-grid, .two-col {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
       margin-bottom: 20px;
     }
     .card {
@@ -125,7 +125,7 @@
       padding: 18px 20px;
     }
     .card.vault-active, .card.preset-active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(56,189,248,0.28); }
-    .card-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+    .card-title { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; font-weight: 700; }
     .card-val { font-size: 26px; font-weight: 700; }
     .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
     .btn {
@@ -139,7 +139,8 @@
       font-weight: 600;
     }
     .btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
-    .btn.danger { background: var(--err); }
+    .btn.danger { background: var(--err); color: #fff; }
+    .btn.ok { background: var(--ok); color: #fff; }
     .btn.sm { padding: 5px 10px; font-size: 12px; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
@@ -147,8 +148,8 @@
     .form-field label { font-size: 12px; color: var(--muted); font-weight: 600; }
     .toggle-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; }
     .toggle-row input { accent-color: var(--accent); width: 16px; height: 16px; }
-    .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
-    input[type="text"], input[type="password"], input[type="number"], select, textarea {
+    .search-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+    input[type="text"], input[type="password"], input[type="number"], input[type="email"], select, textarea {
       background: var(--surface-2);
       border: 1px solid var(--border);
       color: var(--text);
@@ -157,12 +158,12 @@
       font-size: 13px;
       font-family: inherit;
     }
-    textarea { resize: vertical; min-height: 70px; }
+    textarea { resize: vertical; min-height: 76px; }
     .search-bar input[type="text"] { flex: 1; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 10px; }
+    th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
     .pill.ok { background: rgba(34,197,94,.16); color: var(--ok); }
     .pill.warn { background: rgba(245,158,11,.16); color: var(--warn); }
     .pill.err { background: rgba(239,68,68,.16); color: var(--err); }
@@ -175,11 +176,12 @@
       padding: 14px;
       border-radius: 8px;
       font-size: 12px;
-      max-height: 300px;
+      max-height: 360px;
       overflow: auto;
       white-space: pre-wrap;
       margin-top: 10px;
       border: 1px solid var(--border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
     .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
@@ -187,9 +189,11 @@
       border: 1px dashed var(--accent);
       background: rgba(56,189,248,.07);
       border-radius: var(--radius);
-      padding: 20px;
-      margin-bottom: 20px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
     }
+    .chip { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
     /* Chat AI layout */
     .ai-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr); gap: 18px; align-items: start; }
     @media (max-width: 960px) { .ai-layout { grid-template-columns: 1fr; } }
@@ -209,16 +213,80 @@
     .chat-msg.user { align-self: flex-end; background: var(--accent-2); color: #fff; }
     .chat-msg.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
     .chat-tools { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
-    .chip { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
-    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    /* Command Console */
+    .cmd-prompt-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 10px;
+    }
+    .cmd-prefix { color: var(--accent); font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 700; font-size: 14px; }
+    .cmd-prompt-bar input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #f8fafc;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 14px;
+      outline: none;
+      padding: 6px 4px;
+    }
+    /* Lock / Login Overlay */
+    .lock-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.92);
+      backdrop-filter: blur(8px);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .lock-overlay.open { display: flex; }
+    .lock-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+    }
   </style>
 </head>
 <body>
+  <!-- MÀN HÌNH KHÓA / ĐĂNG NHẬP KAS -->
+  <div id="lockOverlay" class="lock-overlay">
+    <div class="lock-card">
+      <div class="row-actions" style="margin-bottom:14px;">
+        <div class="brand-badge">KAS</div>
+        <div>
+          <h2 style="font-size:18px;">Đăng nhập Karius Academic System</h2>
+          <div style="font-size:12px; color:var(--muted);">Bảo vệ phiên làm việc cục bộ của bạn</div>
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom:10px;">
+        <label>Tên đăng nhập</label>
+        <input type="text" id="lockUser" placeholder="Nhập tên đăng nhập..." />
+      </div>
+      <div class="form-field" style="margin-bottom:14px;">
+        <label>Mật khẩu</label>
+        <input type="password" id="lockPass" placeholder="Nhập mật khẩu..." onkeydown="if(event.key==='Enter') submitLockLogin()" />
+      </div>
+      <div id="lockErr" style="font-size:12px; color:var(--err); margin-bottom:10px;"></div>
+      <button class="btn" style="width:100%;" onclick="submitLockLogin()">Mở khóa &amp; Đăng nhập</button>
+    </div>
+  </div>
+
   <header>
     <div class="brand">
       <div class="brand-badge">KAS</div>
       <div>
-        <h1>Karius Academic System <span id="verTag" style="font-weight:500;">v1.0</span></h1>
+        <h1>Karius Academic System <span id="verTag" style="font-weight:500;">v1.1.0</span></h1>
         <span id="rootSubtitle">Hệ thống Quản trị Tri thức, Đa Kho Dữ Liệu &amp; Kết nối AI / Agent</span>
       </div>
     </div>
@@ -227,21 +295,26 @@
         <label for="vaultSelect">Kho:</label>
         <select id="vaultSelect" onchange="switchVault(this.value)"></select>
       </div>
-      <button class="btn secondary" onclick="openTab('vaults')">+ Thêm Kho</button>
-      <button class="btn secondary" onclick="toggleTheme()">Sáng / Tối</button>
-      <button class="btn" onclick="refreshAll()">Làm mới</button>
+      <button class="btn secondary sm" onclick="openConsolePrompt()" title="Phím tắt Ctrl+K">&gt;_ Lệnh (Ctrl+K)</button>
+      <button class="btn secondary sm" id="headerAccountBtn" onclick="openTab('account')">Đăng nhập / Kết nối</button>
+      <button class="btn secondary sm" onclick="openTab('settings')">Cài đặt</button>
+      <button class="btn secondary sm" onclick="toggleTheme()">Sáng / Tối</button>
+      <button class="btn sm" onclick="refreshAll()">Làm mới</button>
     </div>
   </header>
 
   <nav>
-    <button class="tab-btn active" data-tab="vaults">Kho Dữ Liệu (Vaults)</button>
+    <button class="tab-btn active" data-tab="vaults">Kho Dữ Liệu</button>
     <button class="tab-btn" data-tab="overview">Tổng quan</button>
     <button class="tab-btn" data-tab="search">Tìm kiếm FTS5</button>
+    <button class="tab-btn" data-tab="console">Dòng Lệnh (Console)</button>
     <button class="tab-btn" data-tab="rules">Quy Tắc Đặt Tên</button>
     <button class="tab-btn" data-tab="ai">Trợ Lý AI &amp; Agent</button>
-    <button class="tab-btn" data-tab="catalog">Chuẩn Danh Mục V7</button>
+    <button class="tab-btn" data-tab="account">Tài Khoản &amp; Kết Nối</button>
+    <button class="tab-btn" data-tab="settings">Cài Đặt</button>
+    <button class="tab-btn" data-tab="catalog">Danh Mục V7</button>
     <button class="tab-btn" data-tab="audit">Kiểm toán</button>
-    <button class="tab-btn" data-tab="undo">Hoàn tác (Undo)</button>
+    <button class="tab-btn" data-tab="undo">Hoàn tác</button>
     <button class="tab-btn" data-tab="doctor">Chẩn đoán</button>
   </nav>
 
@@ -249,7 +322,7 @@
     <!-- TAB: KHO DỮ LIỆU (MULTI-VAULT) -->
     <section id="tab-vaults" class="section active">
       <div id="noVaultBanner" class="empty-banner" style="display:none;">
-        <h3 style="margin-bottom:6px;">Chào mừng đến với Karius Academic System (KAS v1.0)</h3>
+        <h3 style="margin-bottom:6px;">Chào mừng đến với Karius Academic System (KAS)</h3>
         <p style="font-size:13px; color:var(--muted);">
           KAS có thể quản lý <strong>mọi kho dữ liệu</strong> — từ thư mục cục bộ trên máy tính / ổ cứng rời / OneDrive / NAS đến bất kỳ thư mục Google Drive nào. Hãy kết nối kho đầu tiên của bạn bên dưới!
         </p>
@@ -260,7 +333,7 @@
         <div class="form-grid">
           <div class="form-field" style="grid-column: span 2;">
             <label>Đường dẫn thư mục trên máy HOẶC URL / Folder ID Google Drive *</label>
-            <input type="text" id="vSource" placeholder="VD: D:\TaiLieuHocTap  hoặc  https://drive.google.com/drive/folders/194HC3C2..." />
+            <input type="text" id="vSource" placeholder="VD: E:\SÁCH  hoặc  https://drive.google.com/drive/folders/194HC3C2..." />
           </div>
           <div class="form-field">
             <label>Tên hiển thị (tùy chọn)</label>
@@ -277,6 +350,7 @@
         </div>
         <div class="row-actions" style="margin-top:14px;">
           <button class="btn" onclick="addVault()">Kết nối &amp; Kích hoạt Kho</button>
+          <button class="btn secondary" onclick="openTab('account')">Đăng nhập Google Drive OAuth 2.0</button>
           <span id="vaultFormMsg" style="font-size:13px; color:var(--muted);"></span>
         </div>
       </div>
@@ -320,6 +394,39 @@
         <table>
           <thead><tr><th>Tên mục</th><th>Thư mục</th><th>Dung lượng</th><th>Liên kết</th></tr></thead>
           <tbody id="searchBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB: DÒNG LỆNH TÍCH HỢP (CONSOLE) -->
+    <section id="tab-console" class="section">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <div class="card-title" style="margin:0;">Trình Nhập Lệnh KAS Tích Hợp (Command Console)</div>
+            <div style="font-size:12px; color:var(--muted);">Nhập trực tiếp mọi lệnh <code>kas</code> ngay trong phần mềm (không cần mở PowerShell). Hỗ trợ phím <strong>↑ / ↓</strong> duyệt lịch sử lệnh và <strong>Ctrl+K</strong> mở nhanh.</div>
+          </div>
+          <span id="consoleStatusBadge" class="pill info">Sẵn sàng</span>
+        </div>
+
+        <div class="cmd-prompt-bar">
+          <span class="cmd-prefix">kas &gt;</span>
+          <input type="text" id="consoleInput" placeholder="VD: quet --tang-cuong | auth status | vault list | rules test &quot;01_bai_tap.PDF&quot; | db search &quot;triet&quot;" onkeydown="onConsoleKey(event)" />
+          <button class="btn sm" id="consoleRunBtn" onclick="runConsoleCmd()">Chạy lệnh</button>
+        </div>
+
+        <div class="row-actions" id="consoleQuickChips" style="margin-top:12px;"></div>
+        <pre class="console" id="consoleOutput" style="min-height:220px;">Chào mừng đến với KAS Command Console! Hãy bấm một lệnh mẫu phía trên hoặc gõ lệnh bất kỳ (vd: `doctor`, `vault list`, `quet`, `auth status`).</pre>
+      </div>
+
+      <div class="card">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:8px;">
+          <div class="card-title" style="margin:0;">Lịch sử lệnh gần đây</div>
+          <button class="btn secondary sm" onclick="clearConsoleHistory()">Xóa lịch sử</button>
+        </div>
+        <table>
+          <thead><tr><th>Lệnh đã chạy</th><th>Mã thoát</th><th>Thời gian</th><th>Thời điểm</th><th>Thao tác</th></tr></thead>
+          <tbody id="consoleHistoryBody"></tbody>
         </table>
       </div>
     </section>
@@ -516,6 +623,254 @@
       </div>
     </section>
 
+    <!-- TAB: TÀI KHOẢN & KẾT NỐI BÊN THỨ 3 -->
+    <section id="tab-account" class="section">
+      <div class="two-col">
+        <!-- CỘT 1: ĐĂNG NHẬP PHẦN MỀM KAS -->
+        <div class="card">
+          <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">Tài Khoản &amp; Bảo Mật Phần Mềm KAS</div>
+            <span id="accBadge" class="pill warn">Chưa tạo tài khoản</span>
+          </div>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:12px;">
+            Tạo tài khoản cục bộ (băm mật khẩu PBKDF2-SHA256 200.000 vòng) để cá nhân hóa hồ sơ và tùy chọn <strong>Khóa bảo vệ khi mở KAS</strong>.
+          </p>
+
+          <!-- Form Đăng ký (khi chưa có tài khoản) -->
+          <div id="accRegisterBox">
+            <div class="form-field" style="margin-bottom:8px;">
+              <label>Tên đăng nhập *</label>
+              <input type="text" id="regUser" placeholder="VD: karius" />
+            </div>
+            <div class="form-field" style="margin-bottom:8px;">
+              <label>Tên hiển thị</label>
+              <input type="text" id="regName" placeholder="VD: Karius Admin" />
+            </div>
+            <div class="form-field" style="margin-bottom:8px;">
+              <label>Email (tùy chọn)</label>
+              <input type="email" id="regEmail" placeholder="you@example.com" />
+            </div>
+            <div class="form-field" style="margin-bottom:10px;">
+              <label>Mật khẩu (tối thiểu 4 ký tự) *</label>
+              <input type="password" id="regPass" placeholder="Nhập mật khẩu bảo vệ..." />
+            </div>
+            <label class="toggle-row" style="margin-bottom:12px;">
+              <input type="checkbox" id="regReqLogin" /> Bật khóa yêu cầu đăng nhập mỗi khi mở ứng dụng
+            </label>
+            <button class="btn" onclick="registerAccount()">Tạo tài khoản KAS</button>
+          </div>
+
+          <!-- Hồ sơ & Quản lý (khi đã có tài khoản) -->
+          <div id="accProfileBox" style="display:none;">
+            <div class="form-field" style="margin-bottom:8px;">
+              <label>Tên đăng nhập</label>
+              <input type="text" id="profUser" disabled />
+            </div>
+            <div class="form-field" style="margin-bottom:8px;">
+              <label>Tên hiển thị</label>
+              <input type="text" id="profName" />
+            </div>
+            <div class="form-field" style="margin-bottom:8px;">
+              <label>Email</label>
+              <input type="email" id="profEmail" />
+            </div>
+            <label class="toggle-row" style="margin-bottom:12px;">
+              <input type="checkbox" id="profReqLogin" /> Yêu cầu đăng nhập khi mở ứng dụng (App Lock)
+            </label>
+            <div class="row-actions" style="margin-bottom:14px;">
+              <button class="btn sm" onclick="updateAccountProfile()">Lưu hồ sơ</button>
+              <button class="btn secondary sm" onclick="logoutAccount()">Đăng xuất / Khóa ngay</button>
+            </div>
+            <div style="border-top:1px solid var(--border); padding-top:12px; margin-top:8px;">
+              <div class="card-title">Đổi mật khẩu</div>
+              <div class="form-grid" style="margin-top:6px;">
+                <input type="password" id="oldPass" placeholder="Mật khẩu hiện tại" />
+                <input type="password" id="newPass" placeholder="Mật khẩu mới" />
+              </div>
+              <div class="row-actions" style="margin-top:8px;">
+                <button class="btn secondary sm" onclick="changePassword()">Cập nhật mật khẩu</button>
+              </div>
+            </div>
+          </div>
+          <div id="accMsg" style="font-size:12px; color:var(--ok); margin-top:10px;"></div>
+        </div>
+
+        <!-- CỘT 2: ĐĂNG NHẬP GOOGLE DRIVE OAUTH 2.0 -->
+        <div class="card">
+          <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">Kết nối Google Drive (OAuth 2.0)</div>
+            <span id="gdBadge" class="pill warn">Chưa đăng nhập</span>
+          </div>
+          <div id="gdMeta" style="font-size:12px; color:var(--muted); margin-bottom:10px;">Đang kiểm tra...</div>
+
+          <div class="form-field" style="margin-bottom:8px;">
+            <label>Bước 1: Nạp tệp <code>credentials.json</code> (chọn tệp từ máy hoặc dán JSON)</label>
+            <input type="file" id="gdCredsFile" accept=".json,application/json" onchange="readCredsFile(event)" style="font-size:12px;" />
+            <textarea id="gdCredsJson" placeholder='Dán nội dung tệp credentials.json ({ "installed": { "client_id": ... } }) hoặc đường dẫn tệp...'></textarea>
+          </div>
+          <div class="row-actions" style="margin-bottom:12px;">
+            <button class="btn secondary sm" onclick="saveGoogleCreds()">Lưu credentials.json</button>
+            <button class="btn sm" id="gdLoginBtn" onclick="startGoogleLogin()">Bước 2: Đăng nhập Google Drive (Mở trình duyệt)</button>
+            <button class="btn danger sm" onclick="logoutGoogleDrive()">Đăng xuất Drive</button>
+          </div>
+          <div id="gdMsg" style="font-size:12px; color:var(--accent);"></div>
+          <details style="margin-top:10px; font-size:12px; color:var(--muted);">
+            <summary style="cursor:pointer; color:var(--text); font-weight:600;">Hướng dẫn lấy credentials.json miễn phí (4 bước)</summary>
+            <ol style="padding-left:18px; margin-top:6px; line-height:1.7;">
+              <li>Mở Google Cloud Console → Tạo dự án mới → vào <strong>APIs &amp; Services → Library</strong> → bật <strong>Google Drive API</strong>.</li>
+              <li>Vào <strong>OAuth consent screen</strong> → chọn External → thêm Gmail của bạn vào danh sách <em>Test users</em>.</li>
+              <li>Vào <strong>Credentials → Create Credentials → OAuth client ID</strong> → chọn <strong>Desktop app</strong> → tải tệp JSON.</li>
+              <li>Chọn tệp JSON ở ô trên → bấm <strong>Lưu credentials.json</strong> → bấm <strong>Đăng nhập Google Drive</strong>.</li>
+            </ol>
+          </details>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- GITHUB INTEGRATION -->
+        <div class="card">
+          <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">Kết nối GitHub (PAT / CLI)</div>
+            <span id="ghBadge" class="pill warn">Chưa kết nối</span>
+          </div>
+          <div id="ghMeta" style="font-size:12px; color:var(--muted); margin-bottom:10px;">Đang kiểm tra...</div>
+          <div class="form-field" style="margin-bottom:10px;">
+            <label>GitHub Personal Access Token (PAT)</label>
+            <input type="password" id="ghTokenInput" placeholder="ghp_... hoặc github_pat_..." />
+          </div>
+          <div class="row-actions">
+            <button class="btn sm" onclick="connectGithub()">Kết nối &amp; Xác thực GitHub</button>
+            <button class="btn secondary sm" onclick="disconnectGithub()">Ngắt kết nối</button>
+            <span id="ghMsg" style="font-size:12px; color:var(--ok);"></span>
+          </div>
+        </div>
+
+        <!-- AI & CUSTOM 3RD-PARTY CONNECTORS -->
+        <div class="card">
+          <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+            <div class="card-title" style="margin:0;">Dịch vụ Bên thứ 3 khác (Webhook / n8n / Nextcloud / AI)</div>
+            <button class="btn secondary sm" onclick="openTab('ai')">Mở cấu hình AI &amp; MCP</button>
+          </div>
+          <div id="aiSummaryLine" style="font-size:12px; color:var(--muted); margin-bottom:10px;"></div>
+          <div class="form-grid" style="margin-bottom:8px;">
+            <input type="text" id="connName" placeholder="Tên kết nối (vd: n8n Sync)" />
+            <select id="connKind">
+              <option value="webhook">Webhook / n8n / Make</option>
+              <option value="webdav">Nextcloud / WebDAV</option>
+              <option value="s3">S3 / Cloudflare R2</option>
+              <option value="custom_api">REST API bên thứ 3</option>
+            </select>
+            <input type="text" id="connUrl" placeholder="https://..." />
+            <input type="password" id="connKey" placeholder="API Key / Token (tùy chọn)" />
+          </div>
+          <button class="btn sm" onclick="addConnector()">+ Thêm kết nối</button>
+          <table>
+            <thead><tr><th>Tên</th><th>Loại</th><th>Endpoint</th><th>Key</th><th></th></tr></thead>
+            <tbody id="connectorsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB: CÀI ĐẶT PHẦN MỀM -->
+    <section id="tab-settings" class="section">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Cài đặt Giao diện &amp; Khởi động</div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Chủ đề giao diện (Theme)</label>
+              <select id="sTheme">
+                <option value="dark">Tối (Dark Mode)</option>
+                <option value="light">Sáng (Light Mode)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Ngôn ngữ ưu tiên</label>
+              <select id="sLang">
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Màn hình mặc định khi mở KAS</label>
+              <select id="sDefaultTab">
+                <option value="vaults">Kho Dữ Liệu</option>
+                <option value="overview">Tổng quan</option>
+                <option value="search">Tìm kiếm FTS5</option>
+                <option value="console">Dòng Lệnh (Console)</option>
+                <option value="ai">Trợ Lý AI &amp; Agent</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Cổng máy chủ cục bộ (mặc định 8765)</label>
+              <input type="number" id="sUiPort" min="1024" max="65535" value="8765" />
+            </div>
+          </div>
+          <div class="form-grid" style="margin-top:10px;">
+            <label class="toggle-row"><input type="checkbox" id="sOpenBrowser" /> Tự mở cửa sổ giao diện khi khởi chạy</label>
+            <label class="toggle-row"><input type="checkbox" id="sAutoUpdate" /> Tự kiểm tra phiên bản mới từ GitHub</label>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Cài đặt Kết nối, Quét chỉ mục &amp; Dữ liệu</div>
+          <div class="form-grid">
+            <div class="form-field">
+              <label>Backend Google Drive ưu tiên</label>
+              <select id="sBackend">
+                <option value="auto">Tự động (Auto — Khuyến nghị)</option>
+                <option value="api">Google Drive API (OAuth 2.0)</option>
+                <option value="cli">gdrive CLI (Cloud VM)</option>
+                <option value="local">Local FS (Thư mục máy)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Số luồng quét song song (1–64)</label>
+              <input type="number" id="sWorkers" min="1" max="64" value="32" />
+            </div>
+            <div class="form-field">
+              <label>Chế độ Chuẩn Danh Mục V7 mặc định</label>
+              <select id="sCatMode">
+                <option value="smart">Tinh gọn thông minh (Smart)</option>
+                <option value="full">Đầy đủ toàn cây (Full)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Kho GitHub kiểm tra cập nhật</label>
+              <input type="text" id="sGhRepo" value="kariusnocr/storage-management-suite" />
+            </div>
+            <div class="form-field" style="grid-column: span 2;">
+              <label>Thư mục lưu dữ liệu &amp; chỉ mục tùy chỉnh (để trống dùng mặc định)</label>
+              <input type="text" id="sDataDir" placeholder="Mặc định: ~/.local/share/kas" />
+            </div>
+          </div>
+          <label class="toggle-row" style="margin-top:10px;">
+            <input type="checkbox" id="sIncScan" /> Ưu tiên quét tăng cường (--tang-cuong) mặc định
+          </label>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="row-actions" style="justify-content:space-between;">
+          <div class="row-actions">
+            <button class="btn" onclick="saveAppSettings()">Lưu tất cả Cài đặt</button>
+            <button class="btn secondary" onclick="resetAppSettings()">Khôi phục mặc định</button>
+            <button class="btn secondary" onclick="checkUpdates()">Kiểm tra cập nhật KAS</button>
+            <button class="btn secondary" onclick="exportSettings()">Xuất sao lưu JSON</button>
+            <button class="btn danger" onclick="shutdownServer()">Tắt máy chủ nền KAS</button>
+          </div>
+          <span id="settingsMsg" style="font-size:13px; color:var(--ok);"></span>
+        </div>
+        <div id="updateBox" style="margin-top:12px; font-size:13px;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Đường dẫn Cấu hình &amp; Dữ liệu trên máy</div>
+        <pre class="console" id="settingsPathsBox">Đang tải...</pre>
+      </div>
+    </section>
+
     <!-- TAB: CHUẨN DANH MỤC V7 -->
     <section id="tab-catalog" class="section">
       <div class="card" style="margin-bottom:18px;">
@@ -590,6 +945,17 @@
     let _rulesPayload = null;
     let _aiPayload = null;
     let _chatHistory = [];
+    let _cmdHistory = [];
+    let _cmdHistIdx = -1;
+
+    async function apiFetch(url, opts) {
+      const r = await fetch(url, opts);
+      const data = await r.json().catch(() => ({}));
+      if (r.status === 401 && data.locked) {
+        document.getElementById('lockOverlay').classList.add('open');
+      }
+      return {ok: r.ok, status: r.status, data};
+    }
 
     function openTab(tabName) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
@@ -598,25 +964,469 @@
       if (el) el.classList.add('active');
       if (tabName === 'vaults') loadVaults();
       if (tabName === 'overview') loadOverview();
+      if (tabName === 'console') loadConsole();
       if (tabName === 'rules') loadNamingRules();
       if (tabName === 'ai') loadAiPanel();
+      if (tabName === 'account') loadAccountAndIntegrations();
+      if (tabName === 'settings') loadAppSettings();
       if (tabName === 'catalog') loadCatalogPlan();
       if (tabName === 'audit') loadAudit();
       if (tabName === 'undo') loadUndo();
       if (tabName === 'doctor') loadDoctor();
     }
 
+    function openConsolePrompt() {
+      openTab('console');
+      setTimeout(() => document.getElementById('consoleInput').focus(), 60);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openConsolePrompt();
+      }
+    });
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => openTab(btn.dataset.tab));
     });
 
-    function toggleTheme() {
+    async function toggleTheme() {
       const h = document.documentElement;
-      h.setAttribute('data-theme', h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+      const next = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      h.setAttribute('data-theme', next);
+      await apiFetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({theme: next}),
+      });
     }
 
+    /* ================= KHÓA / ĐĂNG NHẬP KAS ================= */
+    async function checkAccountGate() {
+      const {data: st} = await apiFetch('/api/account/status');
+      const btn = document.getElementById('headerAccountBtn');
+      if (st.has_account && st.account) {
+        btn.textContent = st.authenticated ? `👤 ${st.account.display_name}` : `🔒 ${st.account.username}`;
+      } else {
+        btn.textContent = 'Đăng nhập / Kết nối';
+      }
+      if (st.locked) {
+        document.getElementById('lockUser').value = (st.account && st.account.username) || '';
+        document.getElementById('lockOverlay').classList.add('open');
+        return true;
+      }
+      document.getElementById('lockOverlay').classList.remove('open');
+      return false;
+    }
+
+    async function submitLockLogin() {
+      const username = document.getElementById('lockUser').value.trim();
+      const password = document.getElementById('lockPass').value;
+      const errEl = document.getElementById('lockErr');
+      errEl.textContent = '';
+      const {ok, data} = await apiFetch('/api/account/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username, password}),
+      });
+      if (!ok) {
+        errEl.textContent = data.detail || 'Đăng nhập thất bại.';
+        return;
+      }
+      document.getElementById('lockPass').value = '';
+      document.getElementById('lockOverlay').classList.remove('open');
+      await refreshAll();
+    }
+
+    /* ================= DÒNG LỆNH TÍCH HỢP (CONSOLE) ================= */
+    async function loadConsole() {
+      const {ok, data} = await apiFetch('/api/console/history');
+      if (!ok) return;
+      _cmdHistory = (data.history || []).map(h => h.command);
+      document.getElementById('consoleQuickChips').innerHTML = (data.quick_commands || []).map(q =>
+        `<span class="chip" onclick="runQuickConsoleCmd('${esc(q.cmd)}')"><strong>${esc(q.label)}</strong> · <code>${esc(q.cmd)}</code></span>`
+      ).join('');
+      document.getElementById('consoleHistoryBody').innerHTML = (data.history || []).slice(0, 25).map(h => {
+        const cls = h.returncode === 0 ? 'ok' : 'err';
+        return `<tr>
+          <td class="mono">${esc(h.command)}</td>
+          <td><span class="pill ${cls}">${esc(h.returncode)}</span></td>
+          <td>${fmt(h.elapsed_ms)} ms</td>
+          <td style="color:var(--muted)">${esc(h.finished_utc)}</td>
+          <td><button class="btn secondary sm" onclick="runQuickConsoleCmd('${esc(h.command.replace(/^kas\s+/, ''))}')">Chạy lại</button></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5" style="color:var(--muted);">Chưa có lệnh nào được thực thi.</td></tr>';
+    }
+
+    function onConsoleKey(e) {
+      const inp = document.getElementById('consoleInput');
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runConsoleCmd();
+      } else if (e.key === 'ArrowUp') {
+        if (_cmdHistory.length) {
+          _cmdHistIdx = Math.min(_cmdHistory.length - 1, _cmdHistIdx + 1);
+          inp.value = _cmdHistory[_cmdHistIdx].replace(/^kas\s+/, '');
+        }
+      } else if (e.key === 'ArrowDown') {
+        if (_cmdHistIdx > 0) {
+          _cmdHistIdx -= 1;
+          inp.value = _cmdHistory[_cmdHistIdx].replace(/^kas\s+/, '');
+        } else {
+          _cmdHistIdx = -1;
+          inp.value = '';
+        }
+      }
+    }
+
+    function runQuickConsoleCmd(cmd) {
+      document.getElementById('consoleInput').value = cmd;
+      runConsoleCmd();
+    }
+
+    async function runConsoleCmd() {
+      const inp = document.getElementById('consoleInput');
+      const outEl = document.getElementById('consoleOutput');
+      const badge = document.getElementById('consoleStatusBadge');
+      const btn = document.getElementById('consoleRunBtn');
+      const cmd = inp.value.trim();
+      if (!cmd) return;
+      _cmdHistIdx = -1;
+      btn.disabled = true;
+      badge.className = 'pill warn';
+      badge.textContent = 'Đang chạy...';
+      outEl.textContent = `$ kas ${cmd.replace(/^kas\s+/i, '')}\nĐang thực thi...`;
+
+      const {ok, data: job} = await apiFetch('/api/console/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({command: cmd}),
+      });
+      if (!ok) {
+        badge.className = 'pill err';
+        badge.textContent = 'Lỗi cú pháp';
+        outEl.textContent = `[LỖI] ${job.detail || 'Không thể chạy lệnh'}`;
+        btn.disabled = false;
+        return;
+      }
+      const poll = setInterval(async () => {
+        const {data: st} = await apiFetch('/api/console/jobs/' + encodeURIComponent(job.id));
+        if (st.status !== 'running') {
+          clearInterval(poll);
+          btn.disabled = false;
+          badge.className = st.returncode === 0 ? 'pill ok' : 'pill err';
+          badge.textContent = st.returncode === 0 ? `Thành công (${st.elapsed_ms} ms)` : `Mã lỗi ${st.returncode}`;
+          outEl.textContent = `$ ${st.command}\n\n${st.output || '(Hoàn tất)'}`;
+          await loadConsole();
+          await loadVaults();
+          await loadOverview();
+        }
+      }, 450);
+    }
+
+    async function clearConsoleHistory() {
+      await apiFetch('/api/console/history/clear', {method: 'POST'});
+      await loadConsole();
+    }
+
+    /* ================= TÀI KHOẢN & KẾT NỐI BÊN THỨ 3 ================= */
+    async function loadAccountAndIntegrations() {
+      const {data: accSt} = await apiFetch('/api/account/status');
+      const accBadge = document.getElementById('accBadge');
+      if (accSt.has_account && accSt.account) {
+        accBadge.className = 'pill ok';
+        accBadge.textContent = accSt.require_login ? 'Đã tạo · Khóa BẬT' : 'Đã tạo · Khóa TẮT';
+        document.getElementById('accRegisterBox').style.display = 'none';
+        document.getElementById('accProfileBox').style.display = 'block';
+        document.getElementById('profUser').value = accSt.account.username;
+        document.getElementById('profName').value = accSt.account.display_name || '';
+        document.getElementById('profEmail').value = accSt.account.email || '';
+        document.getElementById('profReqLogin').checked = !!accSt.account.require_login;
+      } else {
+        accBadge.className = 'pill warn';
+        accBadge.textContent = 'Chưa tạo tài khoản';
+        document.getElementById('accRegisterBox').style.display = 'block';
+        document.getElementById('accProfileBox').style.display = 'none';
+      }
+
+      const {ok, data: ig} = await apiFetch('/api/integrations');
+      if (!ok) return;
+      const gd = (ig.google_drive && ig.google_drive.auth) || {};
+      const gdBadge = document.getElementById('gdBadge');
+      gdBadge.className = gd.authenticated ? 'pill ok' : 'pill warn';
+      gdBadge.textContent = gd.authenticated ? 'Đã đăng nhập OAuth 2.0' : 'Chưa đăng nhập';
+      document.getElementById('gdMeta').innerHTML =
+        `Thư viện API: <strong>${gd.libs_installed ? 'Sẵn sàng' : 'Chưa cài'}</strong> · ` +
+        `credentials.json: <strong>${gd.credentials_exists ? 'Đã có' : 'Chưa có'}</strong> · ` +
+        `token.json: <strong>${gd.token_exists ? 'Đã có' : 'Chưa có'}</strong><br>` +
+        `<span class="mono">${esc(gd.credentials_path || '')}</span>`;
+
+      const gh = ig.github || {};
+      const ghBadge = document.getElementById('ghBadge');
+      ghBadge.className = gh.connected ? 'pill ok' : 'pill warn';
+      ghBadge.textContent = gh.connected ? `Đã kết nối (${gh.login || gh.method})` : 'Chưa kết nối';
+      document.getElementById('ghMeta').textContent = gh.connected
+        ? `Tài khoản: @${gh.login || '—'} · Phương thức: ${gh.method} · Token: ${gh.token_masked || 'gh CLI'}`
+        : 'Nhập GitHub Personal Access Token (PAT) để đồng bộ kho riêng tư & kiểm tra cập nhật không giới hạn.';
+
+      const ai = ig.ai_provider || {};
+      document.getElementById('aiSummaryLine').innerHTML =
+        `AI hiện tại: <span class="pill info">${esc(ai.provider || 'builtin_offline')}</span> · Model: <code>${esc(ai.model || '')}</code> · API Key: <strong>${ai.has_api_key ? esc(ai.api_key_masked) : 'Không cần / Chưa đặt'}</strong>`;
+
+      document.getElementById('connectorsBody').innerHTML = (ig.connectors || []).map(c => `
+        <tr>
+          <td><strong>${esc(c.name)}</strong></td>
+          <td><span class="pill info">${esc(c.kind)}</span></td>
+          <td class="mono">${esc(c.endpoint_url)}</td>
+          <td>${c.has_api_key ? esc(c.api_key_masked) : '—'}</td>
+          <td><button class="btn secondary sm" onclick="removeConnector('${esc(c.name)}')">Xóa</button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="5" style="color:var(--muted);">Chưa có kết nối tùy chỉnh nào.</td></tr>';
+    }
+
+    async function registerAccount() {
+      const payload = {
+        username: document.getElementById('regUser').value.trim(),
+        display_name: document.getElementById('regName').value.trim(),
+        email: document.getElementById('regEmail').value.trim(),
+        password: document.getElementById('regPass').value,
+        require_login: document.getElementById('regReqLogin').checked,
+      };
+      const {ok, data} = await apiFetch('/api/account/register', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      document.getElementById('accMsg').textContent = ok ? `Đã tạo tài khoản "${data.account.username}" thành công!` : (`Lỗi: ${data.detail}`);
+      await checkAccountGate();
+      await loadAccountAndIntegrations();
+    }
+
+    async function updateAccountProfile() {
+      const payload = {
+        display_name: document.getElementById('profName').value.trim(),
+        email: document.getElementById('profEmail').value.trim(),
+        require_login: document.getElementById('profReqLogin').checked,
+      };
+      const {ok, data} = await apiFetch('/api/account/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      document.getElementById('accMsg').textContent = ok ? 'Đã cập nhật hồ sơ & trạng thái khóa bảo vệ.' : (`Lỗi: ${data.detail}`);
+      await checkAccountGate();
+      await loadAccountAndIntegrations();
+    }
+
+    async function changePassword() {
+      const {ok, data} = await apiFetch('/api/account/password', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          old_password: document.getElementById('oldPass').value,
+          new_password: document.getElementById('newPass').value,
+        }),
+      });
+      document.getElementById('oldPass').value = '';
+      document.getElementById('newPass').value = '';
+      document.getElementById('accMsg').textContent = ok ? data.message : (`Lỗi: ${data.detail}`);
+    }
+
+    async function logoutAccount() {
+      await apiFetch('/api/account/logout', {method: 'POST'});
+      await checkAccountGate();
+      await loadAccountAndIntegrations();
+    }
+
+    function readCredsFile(evt) {
+      const f = evt.target.files && evt.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => { document.getElementById('gdCredsJson').value = String(reader.result || ''); };
+      reader.readAsText(f);
+    }
+
+    async function saveGoogleCreds() {
+      const raw = document.getElementById('gdCredsJson').value.trim();
+      const msg = document.getElementById('gdMsg');
+      const {ok, data} = await apiFetch('/api/integrations/google/credentials', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({credentials_json: raw}),
+      });
+      msg.textContent = ok ? `Đã lưu credentials.json (${data.client_id_masked}) tại ${data.credentials_path}. Bấm Bước 2 để đăng nhập Google!` : (`Lỗi: ${data.detail}`);
+      if (ok) document.getElementById('gdCredsJson').value = '';
+      await loadAccountAndIntegrations();
+    }
+
+    async function startGoogleLogin() {
+      const msg = document.getElementById('gdMsg');
+      const btn = document.getElementById('gdLoginBtn');
+      btn.disabled = true;
+      msg.textContent = 'Đang mở trình duyệt đăng nhập Google OAuth 2.0...';
+      const {ok, data} = await apiFetch('/api/integrations/google/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({open_browser: true}),
+      });
+      if (!ok) {
+        msg.textContent = 'Lỗi: ' + (data.detail || data.message || 'Không thể bắt đầu OAuth');
+        btn.disabled = false;
+        return;
+      }
+      msg.textContent = data.message || 'Vui lòng hoàn tất đăng nhập trên trình duyệt vừa mở...';
+      const poll = setInterval(async () => {
+        const {data: st} = await apiFetch('/api/integrations/google/login-status');
+        msg.textContent = st.message || st.status;
+        if (st.status !== 'running') {
+          clearInterval(poll);
+          btn.disabled = false;
+          await loadAccountAndIntegrations();
+        }
+      }, 1200);
+    }
+
+    async function logoutGoogleDrive() {
+      if (!confirm('Đăng xuất khỏi Google Drive OAuth 2.0 trên máy này?')) return;
+      await apiFetch('/api/integrations/google/logout', {method: 'POST'});
+      document.getElementById('gdMsg').textContent = 'Đã đăng xuất Google Drive.';
+      await loadAccountAndIntegrations();
+    }
+
+    async function connectGithub() {
+      const tok = document.getElementById('ghTokenInput').value.trim();
+      const {ok, data} = await apiFetch('/api/integrations/github/connect', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token: tok, verify: true}),
+      });
+      document.getElementById('ghMsg').textContent = ok ? `Đã kết nối @${data.github.login}!` : (`Lỗi: ${data.detail}`);
+      if (ok) document.getElementById('ghTokenInput').value = '';
+      await loadAccountAndIntegrations();
+    }
+
+    async function disconnectGithub() {
+      await apiFetch('/api/integrations/github/disconnect', {method: 'POST'});
+      document.getElementById('ghMsg').textContent = 'Đã ngắt kết nối GitHub.';
+      await loadAccountAndIntegrations();
+    }
+
+    async function addConnector() {
+      const {ok, data} = await apiFetch('/api/integrations/connectors/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          name: document.getElementById('connName').value.trim(),
+          kind: document.getElementById('connKind').value,
+          endpoint_url: document.getElementById('connUrl').value.trim(),
+          api_key: document.getElementById('connKey').value.trim(),
+        }),
+      });
+      if (!ok) { alert('Lỗi: ' + data.detail); return; }
+      document.getElementById('connName').value = '';
+      document.getElementById('connUrl').value = '';
+      document.getElementById('connKey').value = '';
+      await loadAccountAndIntegrations();
+    }
+
+    async function removeConnector(name) {
+      await apiFetch('/api/integrations/connectors/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name}),
+      });
+      await loadAccountAndIntegrations();
+    }
+
+    /* ================= CÀI ĐẶT PHẦN MỀM ================= */
+    async function loadAppSettings() {
+      const {ok, data} = await apiFetch('/api/settings');
+      if (!ok) return;
+      const s = data.settings || {};
+      document.documentElement.setAttribute('data-theme', s.theme || 'dark');
+      document.getElementById('sTheme').value = s.theme || 'dark';
+      document.getElementById('sLang').value = s.language || 'vi';
+      document.getElementById('sDefaultTab').value = s.default_tab || 'vaults';
+      document.getElementById('sUiPort').value = s.ui_port || 8765;
+      document.getElementById('sOpenBrowser').checked = !!s.open_browser_on_start;
+      document.getElementById('sAutoUpdate').checked = !!s.auto_check_updates;
+      document.getElementById('sBackend').value = s.drive_backend || 'auto';
+      document.getElementById('sWorkers').value = s.scan_workers || 32;
+      document.getElementById('sCatMode').value = s.catalog_default_mode || 'smart';
+      document.getElementById('sGhRepo').value = s.github_repo || 'kariusnocr/storage-management-suite';
+      document.getElementById('sDataDir').value = s.data_dir_override || '';
+      document.getElementById('sIncScan').checked = !!s.scan_incremental_default;
+      document.getElementById('settingsPathsBox').textContent = JSON.stringify(data.paths || {}, null, 2);
+      return s;
+    }
+
+    async function saveAppSettings() {
+      const payload = {
+        theme: document.getElementById('sTheme').value,
+        language: document.getElementById('sLang').value,
+        default_tab: document.getElementById('sDefaultTab').value,
+        ui_port: Number(document.getElementById('sUiPort').value || 8765),
+        open_browser_on_start: document.getElementById('sOpenBrowser').checked,
+        auto_check_updates: document.getElementById('sAutoUpdate').checked,
+        drive_backend: document.getElementById('sBackend').value,
+        scan_workers: Number(document.getElementById('sWorkers').value || 32),
+        catalog_default_mode: document.getElementById('sCatMode').value,
+        github_repo: document.getElementById('sGhRepo').value.trim(),
+        data_dir_override: document.getElementById('sDataDir').value.trim(),
+        scan_incremental_default: document.getElementById('sIncScan').checked,
+      };
+      const {ok, data} = await apiFetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+      });
+      document.getElementById('settingsMsg').textContent = ok ? `Đã lưu cài đặt tại ${data.saved_path}` : (`Lỗi: ${data.detail}`);
+      await loadAppSettings();
+      await loadOverview();
+    }
+
+    async function resetAppSettings() {
+      if (!confirm('Khôi phục toàn bộ cài đặt phần mềm về mặc định?')) return;
+      await apiFetch('/api/settings/reset', {method: 'POST'});
+      document.getElementById('settingsMsg').textContent = 'Đã khôi phục cài đặt mặc định.';
+      await loadAppSettings();
+    }
+
+    async function checkUpdates() {
+      const box = document.getElementById('updateBox');
+      box.textContent = 'Đang kiểm tra bản phát hành mới nhất từ GitHub...';
+      const {data: u} = await apiFetch('/api/settings/check-update');
+      if (!u.ok) {
+        box.innerHTML = `<span class="pill err">Lỗi</span> ${esc(u.error)}`;
+        return;
+      }
+      if (u.update_available) {
+        box.innerHTML = `<span class="pill warn">Có bản mới v${esc(u.latest_version)}!</span> Bản hiện tại: <code>v${esc(u.current_version)}</code> · <a href="${esc(u.release_url)}" target="_blank">Mở trang tải về</a><br>Lệnh cập nhật nhanh PowerShell: <code class="mono">${esc(u.powershell_update_cmd)}</code>`;
+      } else {
+        box.innerHTML = `<span class="pill ok">Bạn đang dùng bản mới nhất (v${esc(u.current_version)})</span> · <a href="${esc(u.release_url)}" target="_blank">${esc(u.release_name)}</a>`;
+      }
+    }
+
+    async function exportSettings() {
+      const {data} = await apiFetch('/api/settings/export');
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `kas-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+    }
+
+    async function shutdownServer() {
+      if (!confirm('Tắt máy chủ nền Karius Academic System (KAS)? Cửa sổ này sẽ ngừng kết nối cho tới khi bạn mở lại KAS.')) return;
+      await apiFetch('/api/shutdown', {method: 'POST'});
+      document.getElementById('settingsMsg').textContent = 'Đã gửi lệnh tắt máy chủ nền KAS.';
+    }
+
+    /* ================= KHO DỮ LIỆU (MULTI-VAULT) ================= */
     async function loadVaults() {
-      const res = await fetch('/api/vaults').then(r => r.json());
+      const {ok, data: res} = await apiFetch('/api/vaults');
+      if (!ok) return {};
       _vaultsCache = res.vaults || [];
       document.getElementById('vaultCount').textContent = _vaultsCache.length;
       document.getElementById('noVaultBanner').style.display = _vaultsCache.length ? 'none' : 'block';
@@ -665,13 +1475,12 @@
       const msg = document.getElementById('vaultFormMsg');
       if (!source) { msg.textContent = 'Vui lòng nhập đường dẫn hoặc URL Google Drive.'; return; }
       msg.textContent = 'Đang kết nối kho...';
-      const r = await fetch('/api/vaults/add', {
+      const {ok, data} = await apiFetch('/api/vaults/add', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({source, name: name || null, mode, activate: true}),
       });
-      const data = await r.json();
-      if (!r.ok) { msg.textContent = 'Lỗi: ' + (data.detail || r.statusText); return; }
+      if (!ok) { msg.textContent = 'Lỗi: ' + (data.detail || 'Không thể kết nối'); return; }
       document.getElementById('vSource').value = '';
       document.getElementById('vName').value = '';
       msg.textContent = `Đã kết nối kho "${data.vault.name}" (${data.vault.slug}). Đang tải dữ liệu...`;
@@ -680,7 +1489,7 @@
 
     async function switchVault(slug) {
       if (!slug) return;
-      await fetch('/api/vaults/activate', {
+      await apiFetch('/api/vaults/activate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({slug, persist: true}),
@@ -690,7 +1499,7 @@
 
     async function removeVault(slug) {
       if (!confirm(`Gỡ kho "${slug}" khỏi danh sách quản lý KAS? (Không xóa bất kỳ tệp gốc nào)`)) return;
-      await fetch('/api/vaults/remove', {
+      await apiFetch('/api/vaults/remove', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({slug}),
@@ -708,15 +1517,14 @@
       const outEl = document.getElementById(outId);
       outEl.style.display = 'block';
       outEl.textContent = `Đang chạy lệnh: kas ${command} ${args.join(' ')} ...`;
-      const r = await fetch('/api/tasks/run', {
+      const {ok, data: task} = await apiFetch('/api/tasks/run', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({command, args}),
       });
-      const task = await r.json();
-      if (!r.ok) { outEl.textContent = 'Lỗi: ' + (task.detail || r.statusText); return; }
+      if (!ok) { outEl.textContent = 'Lỗi: ' + (task.detail || 'Không chạy được tác vụ'); return; }
       const poll = setInterval(async () => {
-        const st = await fetch('/api/tasks/' + encodeURIComponent(task.id)).then(x => x.json());
+        const {data: st} = await apiFetch('/api/tasks/' + encodeURIComponent(task.id));
         outEl.textContent = st.output || `Trạng thái: ${st.status}...`;
         if (st.status !== 'running') {
           clearInterval(poll);
@@ -728,13 +1536,12 @@
 
     async function initVaultStructure() {
       if (!confirm('Khởi tạo khung thư mục Chuẩn KAS ([00] TỔNG QUAN, [01] DANH SÁCH, [07] KIỂM TRA) cho kho đang chọn?')) return;
-      const r = await fetch('/api/vaults/init-structure', {
+      const {ok, data: res} = await apiFetch('/api/vaults/init-structure', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({confirm: true}),
       });
-      const res = await r.json();
-      alert(r.ok ? `Đã khởi tạo khung Chuẩn KAS cho "${res.root_name}".` : `Lỗi: ${res.detail}`);
+      alert(ok ? `Đã khởi tạo khung Chuẩn KAS cho "${res.root_name}".` : `Lỗi: ${res.detail}`);
       await refreshAll();
     }
 
@@ -755,8 +1562,7 @@
       document.getElementById('rLowerExt').checked = !!r.lowercase_extension;
       document.getElementById('rUnicodeNfc').checked = !!r.unicode_nfc;
       document.getElementById('rStripAccents').checked = !!r.strip_accents;
-      const acVals = Object.values(r.acronyms_upper || {});
-      document.getElementById('rAcronyms').value = acVals.join(', ');
+      document.getElementById('rAcronyms').value = Object.values(r.acronyms_upper || {}).join(', ');
       document.getElementById('rIgnored').value = (r.ignored_folders || []).join(', ');
       document.getElementById('rReplacements').value = Object.entries(r.custom_replacements || {})
         .map(([k, v]) => `${k} => ${v}`).join('\n');
@@ -798,7 +1604,8 @@
     }
 
     async function loadNamingRules() {
-      const d = await fetch('/api/rules').then(r => r.json());
+      const {ok, data: d} = await apiFetch('/api/rules');
+      if (!ok) return;
       _rulesPayload = d;
       document.getElementById('rulesSourceMeta').textContent = `Preset hiện hành: ${d.rules.preset} · Nguồn: ${d.source}`;
       document.getElementById('presetCards').innerHTML = Object.entries(d.presets || {}).map(([key, meta]) => `
@@ -817,25 +1624,25 @@
     async function selectPreset(presetKey) {
       if (!_rulesPayload || !_rulesPayload.presets[presetKey]) return;
       fillRulesForm(_rulesPayload.presets[presetKey].rules);
-      document.getElementById('rulesSaveMsg').textContent = `Đã nạp mẫu "${presetKey}" vào biểu mẫu — bấm "Lưu cho Kho hiện tại" hoặc "Lưu mặc định Toàn cục" để áp dụng.`;
+      document.getElementById('rulesSaveMsg').textContent = `Đã nạp mẫu "${presetKey}" — bấm "Lưu cho Kho hiện tại" hoặc "Lưu mặc định Toàn cục" để áp dụng.`;
       await livePreviewRule(presetKey);
     }
 
     async function saveNamingRules(scope) {
       const rules = collectRulesForm();
-      const r = await fetch('/api/rules', {
+      const {ok, data: r} = await apiFetch('/api/rules', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({scope, rules}),
-      }).then(x => x.json());
-      document.getElementById('rulesSaveMsg').textContent = r.ok
+      });
+      document.getElementById('rulesSaveMsg').textContent = ok
         ? `Đã lưu quy tắc đặt tên (${scope === 'global' ? 'Toàn cục' : 'Kho hiện tại'}) tại: ${r.saved_path}`
         : `Lỗi: ${r.detail}`;
       await loadNamingRules();
     }
 
     async function resetNamingRules(scope) {
-      await fetch('/api/rules/reset', {
+      await apiFetch('/api/rules/reset', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({scope}),
@@ -850,11 +1657,12 @@
       const box = document.getElementById('rulePreviewBox');
       if (!sample) { box.innerHTML = ''; return; }
       const rules = collectRulesForm(presetOverride);
-      const res = await fetch('/api/rules/preview', {
+      const {ok, data: res} = await apiFetch('/api/rules/preview', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({name: sample, is_folder: isFolder, rules}),
-      }).then(r => r.json());
+      });
+      if (!ok) return;
       const item = (res.results || [])[0];
       if (!item) return;
       const badge = item.compliant
@@ -872,7 +1680,8 @@
 
     /* ================= TRỢ LÝ AI & AGENT (MCP) ================= */
     async function loadAiPanel() {
-      const d = await fetch('/api/ai/config').then(r => r.json());
+      const {ok, data: d} = await apiFetch('/api/ai/config');
+      if (!ok) return;
       _aiPayload = d;
       const c = d.config || {};
       document.getElementById('aiProvider').value = c.provider || 'builtin_offline';
@@ -883,7 +1692,7 @@
       document.getElementById('aiActiveBadge').textContent = `Provider: ${c.provider} · Model: ${c.model}`;
       renderMcpSnippet();
       if (_chatHistory.length === 0) {
-        appendChat('bot', 'Xin chào! Tôi là Trợ Lý AI & Agent của Karius Academic System (KAS v1.0). Hãy bấm một gợi ý phía trên hoặc nhập câu hỏi bất kỳ để thao tác trên kho dữ liệu của bạn.');
+        appendChat('bot', 'Xin chào! Tôi là Trợ Lý AI & Agent của Karius Academic System (KAS). Hãy bấm một gợi ý phía trên hoặc nhập câu hỏi bất kỳ để thao tác trên kho dữ liệu của bạn.');
       }
     }
 
@@ -906,12 +1715,12 @@
       };
       const k = document.getElementById('aiApiKey').value.trim();
       if (k && !clearKey) payload.api_key = k;
-      const r = await fetch('/api/ai/config', {
+      const {ok, data: r} = await apiFetch('/api/ai/config', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload),
-      }).then(x => x.json());
-      document.getElementById('aiCfgMsg').textContent = r.ok ? 'Đã lưu!' : ('Lỗi: ' + r.detail);
+      });
+      document.getElementById('aiCfgMsg').textContent = ok ? 'Đã lưu!' : ('Lỗi: ' + r.detail);
       await loadAiPanel();
     }
 
@@ -968,14 +1777,13 @@
       btn.disabled = true;
       btn.textContent = 'Đang xử lý...';
       try {
-        const r = await fetch('/api/ai/chat', {
+        const {ok, data} = await apiFetch('/api/ai/chat', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({message: msg, history: _chatHistory.slice(-10)}),
         });
-        const data = await r.json();
-        if (!r.ok) {
-          appendChat('bot', 'Lỗi AI Provider: ' + (data.detail || r.statusText));
+        if (!ok) {
+          appendChat('bot', 'Lỗi AI Provider: ' + (data.detail || 'Không phản hồi'));
         } else {
           appendChat('bot', data.reply || '', data.tool_calls || []);
           _chatHistory.push({role: 'user', content: msg});
@@ -991,8 +1799,10 @@
 
     /* ================= TỔNG QUAN / TÌM KIẾM / V7 / KIỂM TOÁN / UNDO / DOCTOR ================= */
     async function loadOverview() {
-      const d = await fetch('/api/overview').then(r => r.json());
+      const {ok, data: d} = await apiFetch('/api/overview');
+      if (!ok) return;
       document.getElementById('verTag').textContent = 'v' + d.version;
+      document.title = `Karius Academic System (KAS) v${d.version}`;
       const modeText = d.vault_mode === 'academic_v7' ? 'Chuẩn KAS V7' : 'Kho thường';
       document.getElementById('rootSubtitle').textContent = d.has_vault
         ? `Kho đang chọn: ${d.root_name} · ${modeText} · backend=${d.drive_backend.selected}`
@@ -1017,7 +1827,8 @@
     async function runSearch() {
       const q = document.getElementById('searchInput').value.trim();
       if (!q) return;
-      const d = await fetch('/api/search?q=' + encodeURIComponent(q)).then(r => r.json());
+      const {ok, data: d} = await apiFetch('/api/search?q=' + encodeURIComponent(q));
+      if (!ok) return;
       document.getElementById('searchMeta').textContent = `Tìm thấy ${fmt(d.count)} kết quả trong ${d.elapsed_ms} ms`;
       document.getElementById('searchBody').innerHTML = (d.results || []).map(r =>
         `<tr><td><strong>${esc(r.name)}</strong></td><td style="color:var(--muted)">${esc(r.parent_path)}</td><td>${esc(r.size_human)}</td><td><a href="${esc(r.url)}" target="_blank">Mở</a></td></tr>`
@@ -1026,7 +1837,8 @@
 
     async function loadCatalogPlan() {
       const mode = document.getElementById('catMode').value;
-      const d = await fetch('/api/catalog-v7/plan?mode=' + encodeURIComponent(mode)).then(r => r.json());
+      const {ok, data: d} = await apiFetch('/api/catalog-v7/plan?mode=' + encodeURIComponent(mode));
+      if (!ok) return;
       const s = d.summary || {};
       const cards = [
         ['Bảng hiện có', fmt(s.existing_sheets)],
@@ -1045,17 +1857,18 @@
     async function executeCatalogV7() {
       const mode = document.getElementById('catMode').value;
       if (!confirm('Xác nhận thực thi Chuẩn Danh Mục V7 trên kho đang chọn? Mọi thao tác đều lưu trong Unified Undo Journal.')) return;
-      const r = await fetch('/api/catalog-v7/execute', {
+      const {data: r} = await apiFetch('/api/catalog-v7/execute', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({mode, apply_prunes: true, confirm: true}),
-      }).then(x => x.json());
+      });
       alert(`Hoàn tất: đổi tên ${r.renamed || 0}, tinh gọn ${r.pruned || 0}, lỗi ${(r.errors || []).length}. Mã hoàn tác: ${r.batch_id || '—'}`);
       await refreshAll();
     }
 
     async function loadAudit() {
-      const d = await fetch('/api/audit?limit=100').then(r => r.json());
+      const {ok, data: d} = await apiFetch('/api/audit?limit=100');
+      if (!ok) return;
       document.getElementById('auditTitle').textContent = `Kiểm toán kho (chế độ: ${d.vault_mode === 'academic_v7' ? 'Chuẩn KAS V7' : 'Kho thường'})`;
       document.getElementById('auditSummary').innerHTML = (d.by_code || []).slice(0, 12).map(x => {
         const cls = x.severity === 'LỖI' ? 'err' : (x.severity === 'CẢNH BÁO' ? 'warn' : 'ok');
@@ -1068,7 +1881,8 @@
     }
 
     async function loadUndo() {
-      const d = await fetch('/api/undo/batches').then(r => r.json());
+      const {ok, data: d} = await apiFetch('/api/undo/batches');
+      if (!ok) return;
       document.getElementById('undoBody').innerHTML = (d.batches || []).map(b =>
         `<tr><td><code>${esc(b.batch_id)}</code></td><td>${esc(b.kind)}</td><td>${fmt(b.action_count)}</td><td>${esc(b.description)}</td><td>${b.undone_at ? '<span class="pill ok">Đã hoàn tác</span>' : '<span class="pill warn">Có thể hoàn tác</span>'}</td><td>${b.undone_at ? '' : `<button class="btn secondary sm" onclick="runUndo('${esc(b.batch_id)}')">Hoàn tác</button>`}</td></tr>`
       ).join('') || '<tr><td colspan="6" style="color:var(--muted);">Chưa có lô thao tác nào trong kho này.</td></tr>';
@@ -1076,23 +1890,29 @@
 
     async function runUndo(bid) {
       if (!confirm(`Hoàn tác lô ${bid}?`)) return;
-      const r = await fetch(`/api/undo/${encodeURIComponent(bid)}?execute=true`, {method: 'POST'}).then(x => x.json());
+      const {data: r} = await apiFetch(`/api/undo/${encodeURIComponent(bid)}?execute=true`, {method: 'POST'});
       alert(`Kết quả hoàn tác: ${r.reverted || 0}/${r.total || 0} (lỗi: ${(r.errors || []).length})`);
       loadUndo();
     }
 
     async function loadDoctor() {
-      const d = await fetch('/api/doctor').then(r => r.json());
-      document.getElementById('doctorOut').textContent = JSON.stringify(d, null, 2);
+      const {ok, data: d} = await apiFetch('/api/doctor');
+      if (ok) document.getElementById('doctorOut').textContent = JSON.stringify(d, null, 2);
     }
 
     async function refreshAll() {
+      const locked = await checkAccountGate();
+      if (locked) return;
+      const s = await loadAppSettings();
       const v = await loadVaults();
       await loadOverview();
-      if (v.vaults && v.vaults.length > 0 && document.getElementById('tab-vaults').classList.contains('active') && !window._kasInitialized) {
-        openTab('overview');
+      if (!window._kasInitialized) {
+        const targetTab = (s && s.default_tab && s.default_tab !== 'vaults')
+          ? s.default_tab
+          : ((v.vaults && v.vaults.length > 0) ? 'overview' : 'vaults');
+        openTab(targetTab);
+        window._kasInitialized = true;
       }
-      window._kasInitialized = true;
     }
 
     refreshAll();
