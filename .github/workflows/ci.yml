@@ -56,7 +56,7 @@ jobs:
 
       - name: Kiểm chứng đóng gói Wheel & Sdist
         run: |
-          python3 -m build --no-isolation
+          python3 -m build
           ls -lh dist/
           astorage version
           astorage doctor || true
