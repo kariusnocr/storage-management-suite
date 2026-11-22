@@ -30,11 +30,40 @@ def _load_index_safe() -> Dict[str, Dict[str, Any]]:
         return {}
 
 
+_STATIC_MIME_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".ico": "image/x-icon",
+    ".json": "application/json; charset=utf-8",
+}
+
+
 def _render_index_html() -> str:
     html_path = _STATIC_DIR / "index.html"
     if not html_path.exists():
         return f"<h1>{APP_NAME} ({APP_SHORT}) v{__version__}</h1><p>Missing static/index.html</p>"
     return html_path.read_text(encoding="utf-8")
+
+
+def _read_static_asset(rel_name: str) -> Optional[Tuple[bytes, str]]:
+    """Đọc tệp tĩnh an toàn trong `web/static/` (chống path traversal tuyệt đối)."""
+    clean = (rel_name or "").lstrip("/")
+    if not clean or ".." in clean or "\\" in clean:
+        return None
+    try:
+        base = _STATIC_DIR.resolve()
+        target = (base / clean).resolve()
+        if not target.is_file() or target.parent != base:
+            return None
+        mime = _STATIC_MIME_TYPES.get(target.suffix.lower())
+        if not mime:
+            return None
+        return target.read_bytes(), mime
+    except OSError:
+        return None
 
 
 def _api_health_data() -> Dict[str, Any]:
@@ -933,6 +962,13 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                 if path in {"/", "/index.html"}:
                     self._send_bytes(200, _render_index_html().encode("utf-8"), "text/html; charset=utf-8")
                     return
+                if path.startswith("/static/"):
+                    asset = _read_static_asset(urllib.parse.unquote(path[len("/static/"):]))
+                    if asset is None:
+                        self._send_json(404, {"detail": f"Không tìm thấy tệp tĩnh: {path}"})
+                        return
+                    self._send_bytes(200, asset[0], asset[1])
+                    return
                 if path == "/api/health":
                     self._send_json(200, _api_health_data())
                     return
@@ -1227,7 +1263,7 @@ def create_app():
     """Khởi tạo ứng dụng FastAPI phục vụ giao diện quản trị cục bộ `kas ui`."""
     try:
         from fastapi import Body, FastAPI, HTTPException, Query, Request
-        from fastapi.responses import HTMLResponse, JSONResponse
+        from fastapi.responses import HTMLResponse, JSONResponse, Response
         from pydantic import BaseModel
     except (ImportError, OSError) as exc:
         raise RuntimeError(
@@ -1287,6 +1323,13 @@ def create_app():
     @app.get("/", response_class=HTMLResponse)
     def index_page():
         return HTMLResponse(_render_index_html())
+
+    @app.get("/static/{filename:path}")
+    def static_asset(filename: str):
+        asset = _read_static_asset(filename)
+        if asset is None:
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy tệp tĩnh: /static/{filename}")
+        return Response(content=asset[0], media_type=asset[1], headers={"Cache-Control": "no-store"})
 
     @app.get("/api/health")
     def api_health() -> Dict[str, Any]:

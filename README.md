@@ -1,14 +1,19 @@
-# Karius Academic System (KAS) `v1.4.0`
+# Karius Academic System (KAS) `v1.5.0`
 
-**Karius Academic System (KAS)** là phần mềm quản trị tri thức, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
+**Karius Academic System (KAS)** là phần mềm quản trị tri thức với **giao diện Desktop Workspace Shell thế hệ mới (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K` (Command Palette)**, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
 
 - **Thư mục cục bộ trên máy tính / Ổ cứng rời / NAS / Thư mục đồng bộ OneDrive · iCloud · Google Drive for Desktop** (`LocalFSBackend` — chạy 100% ngoại tuyến, không cần đăng nhập).
 - **Mọi thư mục hoặc Shared Drive trên Google Drive** (`GoogleDriveAPIClient` OAuth 2.0 đăng nhập ngay trong giao diện phần mềm & `GDriveCLIClient` trên cloud VM).
 
 ---
 
-## 1. Tính năng Nổi bật (`v1.4.0`)
+## 1. Tính năng Nổi bật (`v1.5.0`)
 
+- **Giao Diện Desktop Workspace Shell & Hệ Thống Thiết Kế Mới (`v1.5.0`)**:
+  - **Thanh điều hướng trái thu gọn linh hoạt (Collapsible Sidebar Rail · `Ctrl+B`)** phân 4 nhóm ngữ cảnh rõ ràng (*Kho Tri Thức*, *Quản trị & Chuẩn hóa*, *Trợ Lý & Công cụ*, *Hệ thống*) cùng bộ biểu tượng vector SVG nội tuyến (100% ngoại tuyến, 0 phụ thuộc CDN, tương thích tuyệt đối Windows 11 Smart App Control).
+  - **Bảng Lệnh Toàn Cục (`Ctrl+K` — Command Palette)**: Tìm tệp tin trực tiếp qua SQLite FTS5, chuyển đổi kho, mở nhanh 12 màn hình chức năng, kích hoạt tác vụ nhanh hoặc chạy trực tiếp lệnh `kas ...` chỉ bằng bàn phím.
+  - **Hai bảng màu học thuật tinh tế**: **Obsidian Ink (Tối mặc định)** và **Archival Paper (Sáng)**, đi kèm **thanh biểu đồ phân bố dung lượng nhánh**, **ngăn thông báo Toast** và **hộp thoại xác nhận tùy biến** thay thế hoàn toàn `alert()`/`confirm()`/`prompt()` cũ của trình duyệt.
+  - **Kiến trúc Frontend tách mô-đun (`index.html` + `static/styles.css` + `static/app.js`)**: phục vụ an toàn qua cả máy chủ thuần Python (`--stdlib`) lẫn FastAPI với lớp chặn Path Traversal tuyệt đối và luôn mở cho màn hình Khóa Ứng Dụng (App Lock).
 - **Cơ Chế Tự Động Cập Nhật Phần Mềm Xác Thực SHA-256 (`kas update` / `kas cap-nhat` & Trung Tâm Cập Nhật trong Tab *Cài Đặt*)**:
   - Tự động kiểm tra bản phát hành mới từ GitHub Releases ngay khi khởi động (chu kỳ đệm tùy chỉnh 1–168 giờ, hỗ trợ kênh **Ổn định / Thử nghiệm** & chế độ **Auto-Install**), hiển thị thanh thông báo đầu trang cùng nút **Cập nhật tự động ngay** / **Bỏ qua bản này**.
   - Tự tải gói `.whl`, **kiểm chứng toàn vẹn mật mã `SHA256SUMS.txt`** (tự hủy nếu sai băm), cài nâng cấp trực tiếp, đồng bộ số phiên bản trong *Windows Installed Apps*, tự khởi động lại máy chủ nền và tự tải lại cửa sổ ứng dụng sang phiên bản mới.
@@ -23,7 +28,7 @@
   - `kas doctor` tự phân biệt rõ máy cá nhân (đang dùng **Google Drive API OAuth 2.0** nên không cần `gdrive` CLI của Cloud VM) và nhận diện cả **GitHub CLI** lẫn **GitHub PAT**.
 - **Cài Đặt Phần Mềm Toàn Diện (`kas settings` & Tab *Cài Đặt*)**:
   - Tùy chỉnh Giao diện (**Tối / Sáng**), Ngôn ngữ (**Tiếng Việt / English**), Tab mặc định khi mở app, Cổng/Host Web Server, Backend mặc định (`auto / api / cli / local`), số luồng quét (`1–64`), chế độ Danh mục V7 (`smart / full`), thư mục dữ liệu tùy chỉnh (`data_dir_override`), kiểm tra cập nhật GitHub Releases trực tuyến, xuất/nhập cấu hình JSON và tắt nhanh máy chủ cục bộ.
-- **Dòng Lệnh Tích Hợp (`>_ Lệnh · Ctrl+K` & Tab *Dòng Lệnh (Console)*)**:
+- **Dòng Lệnh Tích Hợp (Tab *Dòng Lệnh (Console)* & Bảng Lệnh `Ctrl+K`)**:
   - Chạy trực tiếp mọi lệnh `kas ...` ngay trong giao diện ứng dụng Desktop/Web (tách tham số chuẩn Windows giữ nguyên đường dẫn như `E:\SÁCH`, hỗ trợ lịch sử phím `↑`/`↓`, chip lệnh nhanh 1 bấm, tự động chặn các lệnh lặp cửa sổ như `ui`/`desktop`, chạy bất đồng bộ có theo dõi thời gian thực).
 - **Đăng Nhập Phần Mềm & Kết Nối Bên Thứ 3 (`kas account` & Tab *Tài Khoản & Kết Nối*)**:
   - **Tài khoản KAS cục bộ & Khóa Ứng Dụng (App Lock)**: Đăng ký/đăng nhập bảo vệ bằng băm **PBKDF2-HMAC-SHA256 (200.000 vòng + muối ngẫu nhiên)**, phiên cookie `HttpOnly; SameSite=Lax`, tự khóa toàn bộ `/api/*` khi bật yêu cầu đăng nhập.
@@ -45,10 +50,13 @@
 
 ### Windows 11 có Smart App Control (Khuyến nghị — 1 lệnh PowerShell hoặc 1 nhấp đúp)
 
-**Cài mới hoặc cập nhật lên `v1.3.0` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
+**Cài mới hoặc cập nhật lên `v1.5.0` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
+
+**Hoặc cập nhật tự động (nếu máy đang cài KAS `v1.4.0+`):**
+- Bấm nút **Cập nhật tự động ngay** ngay trên ứng dụng KAS, hoặc chạy `kas update`.
 
 **Gỡ cài đặt an toàn (1 lệnh PowerShell — hoặc mở Windows Settings → Apps → Installed Apps / Tab Cài Đặt):**
 ```powershell
@@ -56,7 +64,7 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
 ```
 
 **Hoặc tải ZIP cài/gỡ offline 1 nhấp đúp:**
-1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.3.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
+1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.5.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
 2. Giải nén và nhấp đúp **`Cai_Dat_KAS_Windows11.cmd`** (để cài) hoặc **`Go_Cai_Dat_KAS_Windows11.cmd`** (để gỡ).
 
 ### Cài bằng Python (`pip`, Python 3.11+)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "karius-academic-system"
-version = "1.4.0"
+version = "1.5.0"
 description = "Karius Academic System (KAS) — Hệ thống quản trị tri thức, đa kho dữ liệu (Local/Google Drive), tùy chỉnh quy tắc đặt tên & kết nối AI/MCP Agent"
 readme = "README.md"
 requires-python = ">=3.11"
