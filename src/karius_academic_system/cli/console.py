@@ -64,6 +64,8 @@ def validate_console_argv(argv: List[str]) -> Tuple[bool, str]:
         return False, "Hãy dùng `ai ask \"<câu hỏi>\"` trong Dòng Lệnh, hoặc trò chuyện trực tiếp tại tab **Trợ Lý AI & Agent**."
     if cmd == "mcp" and rest and rest[0] == "serve":
         return False, "`mcp serve` là máy chủ stdio dành cho Claude Desktop/Cursor. Trong ứng dụng hãy dùng `mcp config` hoặc `mcp tools`."
+    if cmd in {"uninstall", "go-cai-dat"} and any(a in {"--thuc-thi", "--execute"} for a in rest):
+        return False, "Để gỡ cài đặt thật khi ứng dụng đang mở, hãy vào tab **Cài Đặt → Gỡ Cài Đặt Phần Mềm** (hoặc chạy `kas uninstall --thuc-thi` ngoài PowerShell/Terminal). Trong Console bạn vẫn có thể chạy `uninstall` để xem trước."
     return True, ""
 
 

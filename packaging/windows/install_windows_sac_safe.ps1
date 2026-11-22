@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Cai dat Karius Academic System (KAS) v1.2.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
+    Cai dat Karius Academic System (KAS) v1.3.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
 .DESCRIPTION
     100% pure 7-bit ASCII (tuong thich tuyet doi Windows PowerShell 5.1 & PowerShell 7 khong loi ma hoa).
     Khong dung tep .exe chua ky so hay pip.exe. Chay truc tiep qua trinh thong dich Python chinh thuc
@@ -9,7 +9,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.2.0",
+    [string]$Version = "1.3.0",
     [string]$WheelPath = "",
     [string]$GitHubToken = "",
     [string]$Repo = "kariusnocr/storage-management-suite",
@@ -203,8 +203,9 @@ try {
     Write-Host "      [!] Mot so cong cu tuy chon chua cai xong (ban co the chay lai 'kas setup' sau): $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
-Write-Host "[4/5] Dang tao lenh CLI 'kas.cmd' (khong dung .exe chua ky) va cap nhat PATH..." -ForegroundColor Cyan
-$binDir = Join-Path $env:LOCALAPPDATA "kas\bin"
+Write-Host "[4/5] Dang tao lenh CLI 'kas.cmd', trinh go cai dat va cap nhat PATH..." -ForegroundColor Cyan
+$kasRoot = Join-Path $env:LOCALAPPDATA "kas"
+$binDir = Join-Path $kasRoot "bin"
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
 $cliCmd = "@echo off`r`nset PYTHONUTF8=1`r`n`"$pythonExe`" -m karius_academic_system %*`r`n"
@@ -212,6 +213,32 @@ $cliCmd = "@echo off`r`nset PYTHONUTF8=1`r`n`"$pythonExe`" -m karius_academic_sy
 
 $desktopCmd = "@echo off`r`nset PYTHONUTF8=1`r`nstart `"`" `"$pythonwExe`" -m karius_academic_system desktop --browser --stdlib %*`r`n"
 [System.IO.File]::WriteAllText((Join-Path $binDir "kas-desktop.cmd"), $desktopCmd, [System.Text.Encoding]::ASCII)
+
+# Cai dat san trinh go cai dat cuc bo vao %LOCALAPPDATA%\kas
+$localUninstPs1 = Join-Path $kasRoot "uninstall_windows_sac_safe.ps1"
+$bundledUninstPs1 = if ($PSScriptRoot) { Join-Path $PSScriptRoot "uninstall_windows_sac_safe.ps1" } else { "" }
+if ($bundledUninstPs1 -and (Test-Path $bundledUninstPs1)) {
+    Copy-Item -Path $bundledUninstPs1 -Destination $localUninstPs1 -Force
+} else {
+    try {
+        $uninstUrl = "https://raw.githubusercontent.com/$Repo/main/packaging/windows/uninstall_windows_sac_safe.ps1"
+        Invoke-WebRequest -Uri $uninstUrl -OutFile $localUninstPs1 -UseBasicParsing
+    } catch {
+        $fallbackUninst = @(
+            "param([switch]`$Purge, [switch]`$Yes)",
+            "`$argsList = @('-m', 'karius_academic_system', 'uninstall', '--thuc-thi')",
+            "if (`$Purge) { `$argsList += '--xoa-sach' }",
+            "if (`$Yes) { `$argsList += '--dong-y' }",
+            "& '$pythonExe' @argsList"
+        ) -join "`r`n"
+        [System.IO.File]::WriteAllText($localUninstPs1, ($fallbackUninst + "`r`n"), [System.Text.Encoding]::ASCII)
+    }
+}
+
+$uninstCmdPath = Join-Path $kasRoot "Go_Cai_Dat_KAS_Windows11.cmd"
+$uninstCmd = "@echo off`r`nsetlocal`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$localUninstPs1`" %*`r`npause`r`n"
+[System.IO.File]::WriteAllText($uninstCmdPath, $uninstCmd, [System.Text.Encoding]::ASCII)
+[System.IO.File]::WriteAllText((Join-Path $binDir "kas-uninstall.cmd"), "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$localUninstPs1`" %*`r`n", [System.Text.Encoding]::ASCII)
 
 $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
 if (-not $userPath) { $userPath = "" }
@@ -222,7 +249,7 @@ if ($parts -notcontains $binDir) {
 }
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
-Write-Host "[5/5] Dang tao loi tat Desktop & Start Menu (pythonw.exe da ky so + Edge App Window)..." -ForegroundColor Cyan
+Write-Host "[5/5] Dang tao loi tat Desktop, Start Menu & dang ky Windows Installed Apps..." -ForegroundColor Cyan
 try {
     $wsh = New-Object -ComObject WScript.Shell
     $desktopDir = [Environment]::GetFolderPath("Desktop")
@@ -241,9 +268,31 @@ try {
         $sc.IconLocation = "$env:SystemRoot\System32\shell32.dll,43"
         $sc.Save()
     }
-    Write-Host "      Da tao loi tat: $desktopDir\Karius Academic System (KAS).lnk" -ForegroundColor Green
+
+    $unSc = $wsh.CreateShortcut((Join-Path $startMenuDir "Go cai dat Karius Academic System (KAS).lnk"))
+    $unSc.TargetPath = $uninstCmdPath
+    $unSc.WorkingDirectory = $kasRoot
+    $unSc.Description = "Go cai dat Karius Academic System (KAS)"
+    $unSc.IconLocation = "$env:SystemRoot\System32\shell32.dll,31"
+    $unSc.Save()
+
+    # Dang ky trong Windows Settings -> Apps -> Installed Apps (khong can quyen Admin)
+    $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\KariusAcademicSystem"
+    New-Item -Path $regPath -Force | Out-Null
+    Set-ItemProperty -Path $regPath -Name "DisplayName" -Value "Karius Academic System (KAS)"
+    Set-ItemProperty -Path $regPath -Name "DisplayVersion" -Value $Version
+    Set-ItemProperty -Path $regPath -Name "Publisher" -Value "kariusnocr"
+    Set-ItemProperty -Path $regPath -Name "URLInfoAbout" -Value "https://github.com/$Repo"
+    Set-ItemProperty -Path $regPath -Name "InstallLocation" -Value $kasRoot
+    Set-ItemProperty -Path $regPath -Name "DisplayIcon" -Value "$env:SystemRoot\System32\shell32.dll,43"
+    Set-ItemProperty -Path $regPath -Name "UninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$localUninstPs1`""
+    Set-ItemProperty -Path $regPath -Name "QuietUninstallString" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$localUninstPs1`" -Yes"
+    Set-ItemProperty -Path $regPath -Name "NoModify" -Type DWord -Value 1
+    Set-ItemProperty -Path $regPath -Name "NoRepair" -Type DWord -Value 1
+
+    Write-Host "      Da tao loi tat Desktop/Start Menu & dang ky Go cai dat trong Windows Settings -> Apps." -ForegroundColor Green
 } catch {
-    Write-Host "      (Bo qua tao loi tat: $($_.Exception.Message))" -ForegroundColor Yellow
+    Write-Host "      (Bo qua tao loi tat/registry: $($_.Exception.Message))" -ForegroundColor Yellow
 }
 
 Write-Host ""

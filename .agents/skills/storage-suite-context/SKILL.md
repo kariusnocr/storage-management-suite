@@ -1,13 +1,13 @@
 ---
 name: storage-suite-context
-description: Reference context for Karius Academic System (KAS) v1.2.0 (`kas`), multi-vault management (Local Folders + any Google Drive folder), auto-setup of tools/libraries/Vietnamese OCR (`kas setup`), app settings (`kas settings`), in-app command console, local account/app-lock & 3rd-party integrations (`kas account`), customizable naming rules (`kas rules`), AI Chatbot & MCP Agent (`kas ai`, `kas mcp`), Chuẩn V6 / Danh Mục V7, and kariusnocr/storage-management-suite.
+description: Reference context for Karius Academic System (KAS) v1.3.0 (`kas`), multi-vault management (Local Folders + any Google Drive folder), auto-setup of tools/libraries/Vietnamese OCR (`kas setup`), app settings (`kas settings`), in-app command console, local account/app-lock & 3rd-party integrations (`kas account`), customizable naming rules (`kas rules`), AI Chatbot & MCP Agent (`kas ai`, `kas mcp`), Chuẩn V6 / Danh Mục V7, and kariusnocr/storage-management-suite.
 ---
 
-# Karius Academic System (KAS `v1.2.0`) Context
+# Karius Academic System (KAS `v1.3.0`) Context
 
 ## 1. Software Identity & Architecture
 
-- **Software Name**: **Karius Academic System (KAS)** (`v1.2.0`)
+- **Software Name**: **Karius Academic System (KAS)** (`v1.3.0`)
 - **Python Package**: `karius-academic-system` (`src/karius_academic_system/`, `tests/`, `docs/`, `packaging/`, `Dockerfile`)
 - **Unified CLI & Desktop**: `kas` and `kas-desktop` (`kas ui` / `kas desktop`)
 - **GitHub Repository**: `kariusnocr/storage-management-suite` (**PUBLIC** repo — 1-line PowerShell install `irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex` and offline `kas-windows-sac-safe.zip` + `Cai_Dat_KAS_Windows11.cmd` both work and automatically run `kas setup`!)

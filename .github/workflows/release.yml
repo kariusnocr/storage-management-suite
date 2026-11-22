@@ -60,14 +60,16 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
-          $errs = $null
-          $tokens = $null
-          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path "packaging/windows/install_windows_sac_safe.ps1").Path, [ref]$tokens, [ref]$errs)
-          if ($errs -and $errs.Count -gt 0) {
-            $errs | ForEach-Object { Write-Error $_.ToString() }
-            exit 1
+          foreach ($psFile in @("packaging/windows/install_windows_sac_safe.ps1", "packaging/windows/uninstall_windows_sac_safe.ps1")) {
+            $errs = $null
+            $tokens = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $psFile).Path, [ref]$tokens, [ref]$errs)
+            if ($errs -and $errs.Count -gt 0) {
+              $errs | ForEach-Object { Write-Error "$psFile`: $($_.ToString())" }
+              exit 1
+            }
+            Write-Host "PowerShell 5.1 AST check PASSED (0 errors): $psFile"
           }
-          Write-Host "PowerShell 5.1 AST check PASSED (0 errors)."
       - name: Build CLI + Web UI standalone binary
         run: |
           python packaging/build_binary.py --mode cli

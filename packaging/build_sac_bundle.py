@@ -24,6 +24,8 @@ def build_sac_bundle(dist_dir: Path, out_zip: Path) -> Path:
         for name in (
             "Cai_Dat_KAS_Windows11.cmd",
             "install_windows_sac_safe.ps1",
+            "Go_Cai_Dat_KAS_Windows11.cmd",
+            "uninstall_windows_sac_safe.ps1",
             "Chay_Karius_Academic_System.cmd",
             "README_WINDOWS_SAC.txt",
         ):

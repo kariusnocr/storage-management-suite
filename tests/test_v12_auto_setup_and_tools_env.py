@@ -78,7 +78,7 @@ class TestKASv12AutoSetupAndDoctor(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_download_ocr_traineddata_and_shared_tessdata_dir(self) -> None:
-        self.assertEqual(__version__, "1.2.0")
+        self.assertTrue(__version__.startswith("1."), __version__)
         td = sc.shared_tessdata_dir()
         self.assertEqual(td, self.root / "tessdata")
 

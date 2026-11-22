@@ -336,6 +336,44 @@ def _api_setup_job_data(job_id: str) -> Tuple[int, Dict[str, Any]]:
     return 200, job
 
 
+def _api_uninstall_plan_data(
+    remove_config: bool = False,
+    remove_data: bool = False,
+    remove_tools: bool = False,
+) -> Dict[str, Any]:
+    from karius_academic_system.ops.uninstaller import inspect_installation
+
+    return inspect_installation(
+        remove_config=remove_config,
+        remove_data=remove_data,
+        remove_tools=remove_tools,
+    )
+
+
+def _api_uninstall_run_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any], bool]:
+    """Trả về `(status_code, payload, should_shutdown_server)`."""
+    from karius_academic_system.ops.uninstaller import inspect_installation, schedule_detached_self_uninstall
+
+    rm_cfg = bool(body.get("remove_config", False) or body.get("purge", False))
+    rm_data = bool(body.get("remove_data", False) or body.get("purge", False))
+    dry_run = bool(body.get("dry_run", False))
+    confirm = bool(body.get("confirm", False))
+
+    plan = inspect_installation(remove_config=rm_cfg, remove_data=rm_data)
+    if dry_run or not confirm:
+        return 200, {
+            "ok": True,
+            "dry_run": True,
+            "scheduled": False,
+            "plan": plan,
+            "message": "Chế độ xem trước (truyền confirm=true và dry_run=false để thực thi gỡ cài đặt thật).",
+        }, False
+
+    res = schedule_detached_self_uninstall(remove_config=rm_cfg, remove_data=rm_data)
+    res["plan"] = plan
+    return 200, res, True
+
+
 def _api_undo_list_data() -> Dict[str, Any]:
     with sc.StorageDB() as db:
         return {"batches": db.list_undo_batches(limit=30)}
@@ -926,6 +964,12 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     code, data = _api_setup_job_data(jid)
                     self._send_json(code, data)
                     return
+                if path == "/api/uninstall/plan":
+                    rm_cfg = (_q1("remove_config", "false") or "false").lower() in {"1", "true", "yes"}
+                    rm_data = (_q1("remove_data", "false") or "false").lower() in {"1", "true", "yes"}
+                    rm_tools = (_q1("remove_tools", "false") or "false").lower() in {"1", "true", "yes"}
+                    self._send_json(200, _api_uninstall_plan_data(remove_config=rm_cfg, remove_data=rm_data, remove_tools=rm_tools))
+                    return
                 if path == "/api/undo/batches":
                     self._send_json(200, _api_undo_list_data())
                     return
@@ -1078,6 +1122,12 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                 if path == "/api/setup/run":
                     code, data = _api_setup_run_data(body)
                     self._send_json(code, data)
+                    return
+                if path == "/api/uninstall/run":
+                    code, data, should_stop = _api_uninstall_run_data(body)
+                    self._send_json(code, data)
+                    if should_stop:
+                        threading.Thread(target=self.server.shutdown, daemon=True).start()
                     return
                 if path.startswith("/api/undo/"):
                     bid = urllib.parse.unquote(path[len("/api/undo/"):])
@@ -1468,6 +1518,27 @@ def create_app():
         if code != 200:
             raise HTTPException(status_code=code, detail=data.get("detail", "Không tìm thấy tiến trình cài đặt"))
         return data
+
+    @app.get("/api/uninstall/plan")
+    def api_uninstall_plan(
+        remove_config: bool = False,
+        remove_data: bool = False,
+        remove_tools: bool = False,
+    ) -> Dict[str, Any]:
+        return _api_uninstall_plan_data(
+            remove_config=remove_config,
+            remove_data=remove_data,
+            remove_tools=remove_tools,
+        )
+
+    @app.post("/api/uninstall/run")
+    def api_uninstall_run(body: Dict[str, Any] = Body(default={})):
+        code, data, should_stop = _api_uninstall_run_data(body)
+        if should_stop:
+            stop_cb = getattr(app.state, "stop_callback", None)
+            if callable(stop_cb):
+                threading.Thread(target=stop_cb, daemon=True).start()
+        return JSONResponse(data, status_code=code)
 
     @app.get("/api/undo/batches")
     def api_undo_list() -> Dict[str, Any]:

@@ -31,6 +31,8 @@ MODULE_MAP: Dict[str, str] = {
     "doctor": "karius_academic_system.ops.doctor",
     "setup": "karius_academic_system.ops.setup_tools",
     "cai-dat-phu-thuoc": "karius_academic_system.ops.setup_tools",
+    "uninstall": "karius_academic_system.ops.uninstaller",
+    "go-cai-dat": "karius_academic_system.ops.uninstaller",
     "watch": "karius_academic_system.ops.watcher",
 }
 
