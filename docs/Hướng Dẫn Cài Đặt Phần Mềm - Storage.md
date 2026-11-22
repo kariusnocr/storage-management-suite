@@ -1,4 +1,4 @@
-# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.3.0`)
+# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.4.0`)
 
 ## 1. Chọn Phương thức Cài đặt & Cập nhật
 
@@ -7,21 +7,21 @@
 > [!IMPORTANT]
 > **Windows 11 Smart App Control (SAC)** chặn các tệp `.exe` chưa ký số thương mại và không có nút *Run anyway*. Bạn **KHÔNG cần tắt Smart App Control** — bộ cài KAS dùng Python chính chủ + máy chủ thuần chuẩn (`--stdlib`) + cửa sổ **Microsoft Edge (`--app`)** đã ký số bởi Microsoft.
 
-**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.3.0`):**
+**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.4.0`):**
 Mở **PowerShell** và dán 1 dòng duy nhất:
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
 
 **Cách A2 — Tải ZIP & Nhấp đúp (Hoạt động cả khi không có Internet):**
-1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.3.0`** hoặc từ Google Drive:
+1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.4.0`** hoặc từ Google Drive:
    `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-windows-sac-safe.zip`.
 2. Giải nén toàn bộ vào một thư mục (ví dụ: `Downloads\kas-windows-sac-safe`).
 3. **Nhấp đúp `Cai_Dat_KAS_Windows11.cmd`** ngay trong thư mục vừa giải nén.
 4. Sau khi xong, nhấp đúp biểu tượng **Karius Academic System (KAS)** trên Desktop!
 
 ### Cách B — Tải Binary Độc lập (macOS / Linux / Windows không bật SAC)
-1. Tải tệp từ **GitHub Releases `v1.3.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
+1. Tải tệp từ **GitHub Releases `v1.4.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
 2. Kiểm tra mã băm trong `SHA256SUMS.txt`.
 3. Chạy `kas doctor` hoặc `kas desktop`.
 
@@ -114,3 +114,20 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
    kas uninstall --thuc-thi                # Gỡ phần mềm (giữ cấu hình & chỉ mục)
    kas uninstall --xoa-sach --thuc-thi     # Gỡ sạch cả ~/.config/kas và ~/.local/share/kas
    ```
+
+---
+
+## 5. Tự Động Cập Nhật Phần Mềm (Auto-Update · SHA-256 Verified · `v1.4.0`)
+
+- **Ngay trong giao diện ứng dụng KAS**:
+  - KAS tự động kiểm tra bản phát hành mới từ GitHub Releases khi khởi động (theo chu kỳ tùy chỉnh 1–168 giờ) và hiện thanh thông báo đầu trang kèm nút **Cập nhật tự động ngay** / **Bỏ qua bản này**.
+  - Vào tab **Cài Đặt → Trung Tâm Cập Nhật Tự Động** để bật chế độ **Tự động tải & cài (Auto-Install)**, đổi kênh **Ổn định (Stable)** / **Thử nghiệm (Prerelease)**, xem Release Notes, theo dõi lịch sử và **Quay về bản trước (Rollback)** 1 bấm.
+  - Mọi gói tải về đều được **kiểm chứng toàn vẹn mật mã `SHA256SUMS.txt`** trước khi cài và tự khởi động lại máy chủ sang phiên bản mới.
+- **Qua dòng lệnh (`kas update` / `kas cap-nhat`)**:
+  ```bash
+  kas update --check                  # Kiểm tra phiên bản mới nhất
+  kas update                          # Tự tải, xác thực SHA-256 và nâng cấp ngay
+  kas update --rollback               # Quay về phiên bản trước đó trong lịch sử
+  kas update --version v1.4.0         # Cài một phiên bản cụ thể
+  kas update --history                # Xem lịch sử cập nhật
+  ```

@@ -374,6 +374,56 @@ def _api_uninstall_run_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any], 
     return 200, res, True
 
 
+def _api_update_check_data(force: bool = False) -> Dict[str, Any]:
+    from karius_academic_system.ops.updater import check_for_updates, get_rollback_target_version
+
+    info = check_for_updates(force=force)
+    info["rollback_target"] = get_rollback_target_version()
+    return info
+
+
+def _api_update_apply_data(
+    body: Dict[str, Any],
+    *,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    stdlib: bool = True,
+    shutdown_cb: Optional[Callable[[], None]] = None,
+) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops.updater import get_rollback_target_version, start_update_job
+
+    target = str(body.get("target_version") or body.get("version") or "").strip()
+    if bool(body.get("rollback", False)) and not target:
+        target = get_rollback_target_version()
+        if not target:
+            return 400, {"detail": "Không tìm thấy phiên bản trước trong lịch sử cập nhật để quay về (Rollback)."}
+    return start_update_job(
+        target_version=target,
+        force=bool(body.get("force", False)),
+        dry_run=bool(body.get("dry_run", False)),
+        auto_restart=bool(body.get("auto_restart", True)),
+        host=host,
+        port=port,
+        stdlib=stdlib,
+        shutdown_cb=shutdown_cb,
+    )
+
+
+def _api_update_job_data(job_id: str) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops.updater import get_update_job
+
+    job = get_update_job(job_id)
+    if not job:
+        return 404, {"detail": "Không tìm thấy tiến trình cập nhật."}
+    return 200, job
+
+
+def _api_update_skip_data(body: Dict[str, Any]) -> Dict[str, Any]:
+    from karius_academic_system.ops.updater import skip_update_version
+
+    return skip_update_version(str(body.get("version") or ""))
+
+
 def _api_undo_list_data() -> Dict[str, Any]:
     with sc.StorageDB() as db:
         return {"batches": db.list_undo_batches(limit=30)}
@@ -970,6 +1020,18 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     rm_tools = (_q1("remove_tools", "false") or "false").lower() in {"1", "true", "yes"}
                     self._send_json(200, _api_uninstall_plan_data(remove_config=rm_cfg, remove_data=rm_data, remove_tools=rm_tools))
                     return
+                if path == "/api/update/status":
+                    self._send_json(200, _api_update_check_data(force=False))
+                    return
+                if path == "/api/update/check":
+                    force_q = (_q1("force", "true") or "true").lower() in {"1", "true", "yes"}
+                    self._send_json(200, _api_update_check_data(force=force_q))
+                    return
+                if path.startswith("/api/update/jobs/"):
+                    jid = urllib.parse.unquote(path[len("/api/update/jobs/"):])
+                    code, data = _api_update_job_data(jid)
+                    self._send_json(code, data)
+                    return
                 if path == "/api/undo/batches":
                     self._send_json(200, _api_undo_list_data())
                     return
@@ -1128,6 +1190,20 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     self._send_json(code, data)
                     if should_stop:
                         threading.Thread(target=self.server.shutdown, daemon=True).start()
+                    return
+                if path == "/api/update/apply":
+                    srv_host, srv_port = self.server.server_address[0], int(self.server.server_address[1])
+                    code, data = _api_update_apply_data(
+                        body,
+                        host=str(srv_host),
+                        port=srv_port,
+                        stdlib=True,
+                        shutdown_cb=lambda: threading.Thread(target=self.server.shutdown, daemon=True).start(),
+                    )
+                    self._send_json(code, data)
+                    return
+                if path == "/api/update/skip":
+                    self._send_json(200, _api_update_skip_data(body))
                     return
                 if path.startswith("/api/undo/"):
                     bid = urllib.parse.unquote(path[len("/api/undo/"):])
@@ -1540,6 +1616,41 @@ def create_app():
                 threading.Thread(target=stop_cb, daemon=True).start()
         return JSONResponse(data, status_code=code)
 
+    @app.get("/api/update/status")
+    def api_update_status() -> Dict[str, Any]:
+        return _api_update_check_data(force=False)
+
+    @app.get("/api/update/check")
+    def api_update_check(force: bool = True) -> Dict[str, Any]:
+        return _api_update_check_data(force=force)
+
+    @app.post("/api/update/apply")
+    def api_update_apply(request: Request, body: Dict[str, Any] = Body(default={})):
+        host = request.url.hostname or "127.0.0.1"
+        port = int(request.url.port or 8765)
+        stop_cb = getattr(app.state, "stop_callback", None)
+        code, data = _api_update_apply_data(
+            body,
+            host=host,
+            port=port,
+            stdlib=False,
+            shutdown_cb=(lambda: threading.Thread(target=stop_cb, daemon=True).start()) if callable(stop_cb) else None,
+        )
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi khởi chạy cập nhật"))
+        return JSONResponse(data)
+
+    @app.get("/api/update/jobs/{job_id}")
+    def api_update_job(job_id: str) -> Dict[str, Any]:
+        code, data = _api_update_job_data(job_id)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Không tìm thấy tiến trình cập nhật"))
+        return data
+
+    @app.post("/api/update/skip")
+    def api_update_skip(body: Dict[str, Any] = Body(default={})) -> Dict[str, Any]:
+        return _api_update_skip_data(body)
+
     @app.get("/api/undo/batches")
     def api_undo_list() -> Dict[str, Any]:
         return _api_undo_list_data()
@@ -1626,6 +1737,12 @@ def run_web_server(argv: Optional[List[str]] = None) -> int:
     url = f"http://{args.host}:{args.port}"
     th, stop_fn, engine = start_embedded_server(host=args.host, port=args.port, prefer_stdlib=args.stdlib)
     sc.log(f"{APP_NAME} ({APP_SHORT}) UI v{__version__} ({engine}) đang chạy tại {url}")
+    try:
+        from karius_academic_system.ops.updater import maybe_start_background_update_check
+
+        maybe_start_background_update_check()
+    except Exception:
+        pass
     if args.open_browser:
         try:
             webbrowser.open(url)

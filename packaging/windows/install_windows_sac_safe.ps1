@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
-    Cai dat Karius Academic System (KAS) v1.3.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
+    Cai dat Karius Academic System (KAS) v1.4.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
 .DESCRIPTION
     100% pure 7-bit ASCII (tuong thich tuyet doi Windows PowerShell 5.1 & PowerShell 7 khong loi ma hoa).
     Khong dung tep .exe chua ky so hay pip.exe. Chay truc tiep qua trinh thong dich Python chinh thuc
-    da ky so, tu dong cai thu vien Python, cong cu he thong (gh, git, 7z, ffmpeg, tesseract, poppler)
-    va tai du lieu OCR Tieng Viet (vie.traineddata + eng.traineddata).
+    da ky so, tu dong cai thu vien Python, cong cu he thong (gh, git, 7z, ffmpeg, tesseract, poppler),
+    tai du lieu OCR Tieng Viet, dang ky Go cai dat va ho tro tu dong cap nhat (kas update).
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.3.0",
+    [string]$Version = "1.4.0",
     [string]$WheelPath = "",
     [string]$GitHubToken = "",
     [string]$Repo = "kariusnocr/storage-management-suite",
@@ -21,6 +21,15 @@ param(
 $ErrorActionPreference = "Stop"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13 } catch { try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {} }
+
+if ($Version -eq "latest") {
+    try {
+        $relLatest = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ "User-Agent" = "KAS-Installer"; Accept = "application/vnd.github+json" }
+        if ($relLatest.tag_name) { $Version = $relLatest.tag_name.ToString().TrimStart("v", "V") }
+    } catch {
+        $Version = "1.4.0"
+    }
+}
 
 Write-Host ""
 Write-Host "==================================================================" -ForegroundColor Cyan

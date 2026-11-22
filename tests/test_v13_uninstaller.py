@@ -66,11 +66,11 @@ class TestKASv13Uninstaller(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_inspect_dry_run_and_safe_purge_preserves_user_vault_100_percent(self) -> None:
-        self.assertEqual(__version__, "1.3.0")
+        self.assertTrue(__version__.startswith("1."), __version__)
 
         # 1. Mặc định không chọn xóa config/data
         plan_keep = uninstaller.inspect_installation(remove_config=False, remove_data=False)
-        self.assertEqual(plan_keep["version"], "1.3.0")
+        self.assertEqual(plan_keep["version"], __version__)
         self.assertIn("KHÔNG BAO GIỜ", plan_keep["safety_note"])
         cfg_item = next(i for i in plan_keep["items"] if i["category"] == "config")
         data_item = next(i for i in plan_keep["items"] if i["category"] == "data")

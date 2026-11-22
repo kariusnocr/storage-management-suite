@@ -319,6 +319,15 @@
   </nav>
 
   <main>
+    <div id="updateBanner" style="display:none; margin-bottom:14px; padding:12px 16px; border-radius:10px; background:rgba(56,189,248,0.12); border:1px solid var(--accent); align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+      <div id="updateBannerText" style="font-size:13px;"></div>
+      <div class="row-actions">
+        <button class="btn sm" onclick="triggerAutoUpdate(false)">Cập nhật tự động ngay</button>
+        <button class="btn secondary sm" onclick="openTab('settings')">Chi tiết</button>
+        <button class="btn secondary sm" onclick="skipLatestUpdate()">Bỏ qua bản này</button>
+      </div>
+    </div>
+
     <!-- TAB: KHO DỮ LIỆU (MULTI-VAULT) -->
     <section id="tab-vaults" class="section active">
       <div id="noVaultBanner" class="empty-banner" style="display:none;">
@@ -809,7 +818,21 @@
           </div>
           <div class="form-grid" style="margin-top:10px;">
             <label class="toggle-row"><input type="checkbox" id="sOpenBrowser" /> Tự mở cửa sổ giao diện khi khởi chạy</label>
-            <label class="toggle-row"><input type="checkbox" id="sAutoUpdate" /> Tự kiểm tra phiên bản mới từ GitHub</label>
+            <label class="toggle-row"><input type="checkbox" id="sAutoUpdate" /> Tự kiểm tra bản mới khi mở KAS</label>
+            <label class="toggle-row"><input type="checkbox" id="sAutoInstallUpdate" /> Tự động tải &amp; cài bản mới (Auto-Install)</label>
+          </div>
+          <div class="form-grid" style="margin-top:10px;">
+            <div class="form-field">
+              <label>Kênh cập nhật (Update Channel)</label>
+              <select id="sUpdateChannel">
+                <option value="stable">Ổn định (Stable — Khuyến nghị)</option>
+                <option value="prerelease">Thử nghiệm (Prerelease / Beta)</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>Chu kỳ kiểm tra tự động (giờ)</label>
+              <input type="number" id="sUpdateInterval" min="1" max="168" value="6" />
+            </div>
           </div>
         </div>
 
@@ -856,13 +879,43 @@
           <div class="row-actions">
             <button class="btn" onclick="saveAppSettings()">Lưu tất cả Cài đặt</button>
             <button class="btn secondary" onclick="resetAppSettings()">Khôi phục mặc định</button>
-            <button class="btn secondary" onclick="checkUpdates()">Kiểm tra cập nhật KAS</button>
             <button class="btn secondary" onclick="exportSettings()">Xuất sao lưu JSON</button>
             <button class="btn danger" onclick="shutdownServer()">Tắt máy chủ nền KAS</button>
           </div>
           <span id="settingsMsg" style="font-size:13px; color:var(--ok);"></span>
         </div>
-        <div id="updateBox" style="margin-top:12px; font-size:13px;"></div>
+      </div>
+
+      <div class="card" style="margin-bottom:18px; border-color:rgba(56,189,248,0.45);">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:10px;">
+          <div>
+            <div class="card-title" style="margin:0;">Trung Tâm Cập Nhật Tự Động (Auto-Update · SHA-256 Verified)</div>
+            <p style="font-size:12px; color:var(--muted); margin-top:4px;">
+              Tự tải gói phát hành từ GitHub Releases, kiểm chứng toàn vẹn mật mã <code>SHA256SUMS.txt</code>, cài đặt và tự khởi động lại sang phiên bản mới.
+            </p>
+          </div>
+          <span id="updateStatusPill" class="pill info">Chưa kiểm tra</span>
+        </div>
+        <div id="updateBox" style="font-size:13px; margin-bottom:12px;">Bấm "Kiểm tra bản mới ngay" để kết nối GitHub Releases.</div>
+        <div class="row-actions" style="margin-bottom:10px;">
+          <button class="btn secondary sm" onclick="checkUpdates(true)">Kiểm tra bản mới ngay</button>
+          <button class="btn sm" id="btnApplyUpdate" onclick="triggerAutoUpdate(false)">Tải &amp; Cập nhật tự động ngay</button>
+          <button class="btn secondary sm" id="btnRollbackUpdate" onclick="triggerAutoUpdate(true)" style="display:none;">Quay về bản trước (Rollback)</button>
+        </div>
+        <div id="updateLogWrap" style="display:none; margin-top:8px;">
+          <pre class="console" id="updateLogOut" style="max-height:220px;"></pre>
+        </div>
+        <details id="updateNotesWrap" style="display:none; margin-top:10px; font-size:12px;">
+          <summary style="cursor:pointer; font-weight:600;">Ghi chú bản phát hành mới (Release Notes)</summary>
+          <pre class="console" id="updateNotesBox" style="max-height:200px;"></pre>
+        </details>
+        <div style="margin-top:12px;">
+          <div style="font-size:12px; color:var(--muted); font-weight:600; margin-bottom:4px;">Lịch sử cập nhật gần đây</div>
+          <table>
+            <thead><tr><th>Thời gian (UTC)</th><th>Phiên bản</th><th>Loại</th><th>Toàn vẹn</th></tr></thead>
+            <tbody id="updateHistoryBody"></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="card" style="margin-bottom:18px;">
@@ -1425,6 +1478,9 @@
       document.getElementById('sUiPort').value = s.ui_port || 8765;
       document.getElementById('sOpenBrowser').checked = !!s.open_browser_on_start;
       document.getElementById('sAutoUpdate').checked = !!s.auto_check_updates;
+      document.getElementById('sAutoInstallUpdate').checked = !!s.auto_install_updates;
+      document.getElementById('sUpdateChannel').value = s.update_channel || 'stable';
+      document.getElementById('sUpdateInterval').value = s.update_check_interval_hours || 6;
       document.getElementById('sBackend').value = s.drive_backend || 'auto';
       document.getElementById('sWorkers').value = s.scan_workers || 32;
       document.getElementById('sCatMode').value = s.catalog_default_mode || 'smart';
@@ -1444,6 +1500,9 @@
         ui_port: Number(document.getElementById('sUiPort').value || 8765),
         open_browser_on_start: document.getElementById('sOpenBrowser').checked,
         auto_check_updates: document.getElementById('sAutoUpdate').checked,
+        auto_install_updates: document.getElementById('sAutoInstallUpdate').checked,
+        update_channel: document.getElementById('sUpdateChannel').value,
+        update_check_interval_hours: Number(document.getElementById('sUpdateInterval').value || 6),
         drive_backend: document.getElementById('sBackend').value,
         scan_workers: Number(document.getElementById('sWorkers').value || 32),
         catalog_default_mode: document.getElementById('sCatMode').value,
@@ -1468,19 +1527,158 @@
       await loadAppSettings();
     }
 
-    async function checkUpdates() {
+    let _latestUpdateInfo = null;
+
+    function renderUpdateState(u) {
+      _latestUpdateInfo = u;
       const box = document.getElementById('updateBox');
-      box.textContent = 'Đang kiểm tra bản phát hành mới nhất từ GitHub...';
-      const {data: u} = await apiFetch('/api/settings/check-update');
-      if (!u.ok) {
-        box.innerHTML = `<span class="pill err">Lỗi</span> ${esc(u.error)}`;
+      const pill = document.getElementById('updateStatusPill');
+      const banner = document.getElementById('updateBanner');
+      const bannerTxt = document.getElementById('updateBannerText');
+      const notesWrap = document.getElementById('updateNotesWrap');
+      const notesBox = document.getElementById('updateNotesBox');
+      const rbBtn = document.getElementById('btnRollbackUpdate');
+      const histBody = document.getElementById('updateHistoryBody');
+
+      if (!u || !u.ok) {
+        if (pill) { pill.className = 'pill err'; pill.textContent = 'Lỗi kết nối'; }
+        if (box) box.innerHTML = `<span class="pill err">Lỗi</span> ${esc((u && u.error) || 'Không thể kiểm tra cập nhật')}`;
         return;
       }
+
       if (u.update_available) {
-        box.innerHTML = `<span class="pill warn">Có bản mới v${esc(u.latest_version)}!</span> Bản hiện tại: <code>v${esc(u.current_version)}</code> · <a href="${esc(u.release_url)}" target="_blank">Mở trang tải về</a><br>Lệnh cập nhật nhanh PowerShell: <code class="mono">${esc(u.powershell_update_cmd)}</code>`;
+        if (pill) { pill.className = 'pill warn'; pill.textContent = `Có bản mới v${u.latest_version}`; }
+        if (box) {
+          box.innerHTML = `<span class="pill warn">Có bản mới v${esc(u.latest_version)}!</span> Bản hiện tại: <code>v${esc(u.current_version)}</code> · <a href="${esc(u.release_url)}" target="_blank">${esc(u.release_name)}</a>${u.last_checked_utc ? ` · Kiểm tra lúc ${esc(u.last_checked_utc)}` : ''}`;
+        }
+        if (banner && !u.is_skipped) {
+          banner.style.display = 'flex';
+          bannerTxt.innerHTML = `🚀 Đã có <strong>Karius Academic System v${esc(u.latest_version)}</strong> (hiện tại: <code>v${esc(u.current_version)}</code>) — sẵn sàng tải &amp; xác thực SHA-256 tự động.`;
+        } else if (banner) {
+          banner.style.display = 'none';
+        }
       } else {
-        box.innerHTML = `<span class="pill ok">Bạn đang dùng bản mới nhất (v${esc(u.current_version)})</span> · <a href="${esc(u.release_url)}" target="_blank">${esc(u.release_name)}</a>`;
+        if (pill) { pill.className = 'pill ok'; pill.textContent = `Mới nhất (v${u.current_version})`; }
+        if (box) {
+          box.innerHTML = `<span class="pill ok">Bạn đang dùng bản mới nhất (v${esc(u.current_version)})</span> · <a href="${esc(u.release_url)}" target="_blank">${esc(u.release_name)}</a>${u.last_checked_utc ? ` · Kiểm tra lúc ${esc(u.last_checked_utc)}` : ''}`;
+        }
+        if (banner) banner.style.display = 'none';
       }
+
+      if (u.release_notes && notesWrap && notesBox) {
+        notesWrap.style.display = 'block';
+        notesBox.textContent = u.release_notes;
+      }
+      if (rbBtn) {
+        rbBtn.style.display = u.rollback_target ? 'inline-flex' : 'none';
+        if (u.rollback_target) rbBtn.textContent = `Quay về v${u.rollback_target} (Rollback)`;
+      }
+      if (histBody) {
+        histBody.innerHTML = (u.history || []).map(h =>
+          `<tr><td style="font-size:12px;">${esc(h.timestamp_utc)}</td><td><code>v${esc(h.from_version)} → v${esc(h.to_version)}</code></td><td>${esc(h.kind)}</td><td>${h.sha256_verified ? '<span class="pill ok">SHA-256 ✓</span>' : '<span class="pill info">HTTPS</span>'}</td></tr>`
+        ).join('') || '<tr><td colspan="4" style="color:var(--muted);">Chưa có lịch sử cập nhật tự động nào.</td></tr>';
+      }
+    }
+
+    async function checkUpdates(force = true) {
+      const box = document.getElementById('updateBox');
+      if (force && box) box.textContent = 'Đang kiểm tra bản phát hành mới nhất từ GitHub Releases...';
+      const url = force ? '/api/update/check?force=true' : '/api/update/status';
+      const {ok, data: u} = await apiFetch(url);
+      if (ok) renderUpdateState(u);
+    }
+
+    async function skipLatestUpdate() {
+      if (!_latestUpdateInfo || !_latestUpdateInfo.latest_version) return;
+      await apiFetch('/api/update/skip', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({version: _latestUpdateInfo.latest_version}),
+      });
+      document.getElementById('updateBanner').style.display = 'none';
+    }
+
+    function waitForServerReload(expectedVersion) {
+      const out = document.getElementById('updateLogOut');
+      let attempts = 0;
+      const timer = setInterval(async () => {
+        attempts += 1;
+        try {
+          const r = await fetch('/api/health', {cache: 'no-store'});
+          if (r.ok) {
+            const h = await r.json();
+            if (!expectedVersion || h.version === expectedVersion || attempts >= 8) {
+              clearInterval(timer);
+              window.location.reload();
+            }
+          }
+        } catch (_e) {
+          if (out) out.textContent += '.';
+        }
+        if (attempts > 45) {
+          clearInterval(timer);
+          if (out) out.textContent += '\nMáy chủ đã khởi động xong — vui lòng tải lại cửa sổ (F5).';
+        }
+      }, 1200);
+    }
+
+    async function triggerAutoUpdate(isRollback = false) {
+      const promptMsg = isRollback
+        ? 'Xác nhận quay về phiên bản trước đó (Rollback)? Máy chủ KAS sẽ tự khởi động lại.'
+        : 'Tự động tải gói cập nhật từ GitHub Releases, xác thực SHA-256, cài đặt và tự khởi động lại KAS?';
+      if (!confirm(promptMsg)) return;
+      openTab('settings');
+      const wrap = document.getElementById('updateLogWrap');
+      const out = document.getElementById('updateLogOut');
+      const btn = document.getElementById('btnApplyUpdate');
+      const pill = document.getElementById('updateStatusPill');
+      wrap.style.display = 'block';
+      out.textContent = 'Đang khởi chạy tiến trình tự động cập nhật...';
+      if (btn) btn.disabled = true;
+      if (pill) { pill.className = 'pill warn'; pill.textContent = 'Đang cập nhật...'; }
+
+      const {ok, data: job} = await apiFetch('/api/update/apply', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rollback: !!isRollback, auto_restart: true}),
+      });
+      if (!ok || !job.id) {
+        out.textContent = 'Lỗi: ' + (job.detail || 'Không thể khởi chạy cập nhật');
+        if (btn) btn.disabled = false;
+        return;
+      }
+
+      const poll = async () => {
+        try {
+          const {ok: pok, data: cur} = await apiFetch('/api/update/jobs/' + encodeURIComponent(job.id));
+          if (!pok) {
+            waitForServerReload('');
+            return;
+          }
+          out.textContent = (cur.logs || []).join('\n') || 'Đang xử lý...';
+          out.scrollTop = out.scrollHeight;
+          if (cur.status === 'running') {
+            setTimeout(poll, 600);
+            return;
+          }
+          if (btn) btn.disabled = false;
+          if (cur.restarting) {
+            if (pill) { pill.className = 'pill ok'; pill.textContent = `Đang khởi động lại → v${cur.to_version}...`; }
+            waitForServerReload(cur.to_version);
+            return;
+          }
+          if (cur.ok) {
+            if (pill) { pill.className = 'pill ok'; pill.textContent = cur.updated ? `Đã cập nhật v${cur.to_version}` : 'Đã ở bản mới nhất'; }
+            await checkUpdates(false);
+          } else {
+            if (pill) { pill.className = 'pill err'; pill.textContent = 'Cập nhật thất bại'; }
+          }
+        } catch (_err) {
+          // Máy chủ cũ vừa tắt để khởi động lại sang bản mới
+          waitForServerReload('');
+        }
+      };
+      setTimeout(poll, 400);
     }
 
     async function exportSettings() {
@@ -2104,6 +2302,9 @@
       const s = await loadAppSettings();
       const v = await loadVaults();
       await loadOverview();
+      if (s && s.auto_check_updates) {
+        checkUpdates(false).catch(() => {});
+      }
       if (!window._kasInitialized) {
         const targetTab = (s && s.default_tab && s.default_tab !== 'vaults')
           ? s.default_tab
