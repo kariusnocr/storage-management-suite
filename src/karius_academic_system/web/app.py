@@ -40,6 +40,7 @@ _STATIC_MIME_TYPES = {
     ".jpg": "image/jpeg",
     ".ico": "image/x-icon",
     ".json": "application/json; charset=utf-8",
+    ".webmanifest": "application/manifest+json; charset=utf-8",
 }
 
 
@@ -68,8 +69,32 @@ def _read_static_asset(rel_name: str) -> Optional[Tuple[bytes, str]]:
         return None
 
 
+def _api_android_info_data(port: int = 8765) -> Dict[str, Any]:
+    from karius_academic_system.web import android_bridge
+
+    return android_bridge.detect_android_environment(port=port)
+
+
+def _api_android_init_vault_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.web import android_bridge
+
+    try:
+        res = android_bridge.bootstrap_android_vault(
+            preferred_dir=str(body.get("path") or "").strip(),
+            vault_name=str(body.get("name") or "Kho Tài Liệu Android").strip() or "Kho Tài Liệu Android",
+            create_starter_files=bool(body.get("create_starter_files", True)),
+            force_new=True,
+        )
+        return 200, res
+    except Exception as exc:
+        return 400, {"detail": str(exc)}
+
+
 def _api_health_data() -> Dict[str, Any]:
+    from karius_academic_system.web import android_bridge
+
     vc = sc.active_vault()
+    flavor = android_bridge.detect_runtime_flavor()
     return {
         "status": "ok",
         "app_name": APP_NAME,
@@ -77,6 +102,8 @@ def _api_health_data() -> Dict[str, Any]:
         "version": __version__,
         "boot_id": lc.BOOT_ID,
         "pid": os.getpid(),
+        "runtime_flavor": flavor,
+        "is_android": flavor in {"chaquopy_apk", "termux"},
         "has_vault": sc.has_configured_vault(),
         "vault_slug": vc.slug if vc else sc.VAULT_SLUG,
         "root_name": sc.ROOT_NAME,
@@ -1056,6 +1083,20 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                 if path in {"/", "/index.html"}:
                     self._send_bytes(200, _render_index_html().encode("utf-8"), "text/html; charset=utf-8")
                     return
+                if path == "/manifest.webmanifest":
+                    asset = _read_static_asset("manifest.webmanifest")
+                    if asset is None:
+                        self._send_json(404, {"detail": "Không tìm thấy manifest.webmanifest"})
+                        return
+                    self._send_bytes(200, asset[0], asset[1])
+                    return
+                if path == "/sw.js":
+                    asset = _read_static_asset("sw.js")
+                    if asset is None:
+                        self._send_json(404, {"detail": "Không tìm thấy sw.js"})
+                        return
+                    self._send_bytes(200, asset[0], asset[1])
+                    return
                 if path.startswith("/static/"):
                     asset = _read_static_asset(urllib.parse.unquote(path[len("/static/"):]))
                     if asset is None:
@@ -1071,6 +1112,9 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     return
                 if _is_request_locked(path, sess_tok):
                     self._send_json(401, {"detail": "Phiên làm việc đang bị khóa. Vui lòng đăng nhập tài khoản KAS.", "locked": True})
+                    return
+                if path == "/api/android/info":
+                    self._send_json(200, _api_android_info_data(port=int(self.server.server_address[1])))
                     return
                 if path == "/api/settings":
                     self._send_json(200, _api_settings_get_data())
@@ -1420,6 +1464,10 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     code, data = _api_undo_run_data(bid, execute=ex_q or bool(body.get("execute", False)))
                     self._send_json(code, data)
                     return
+                if path == "/api/android/init-vault":
+                    code, data = _api_android_init_vault_data(body)
+                    self._send_json(code, data)
+                    return
                 if path == "/api/shutdown":
                     self._send_json(200, {"ok": True, "closing": True, "message": "Đang tắt máy chủ cục bộ..."})
                     lc.trigger_graceful_shutdown(delay_sec=0.35, close_windows=True)
@@ -1508,6 +1556,24 @@ def create_app():
     def index_page():
         return HTMLResponse(_render_index_html())
 
+    @app.get("/manifest.webmanifest")
+    def pwa_manifest():
+        asset = _read_static_asset("manifest.webmanifest")
+        if asset is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy manifest.webmanifest")
+        return Response(content=asset[0], media_type=asset[1], headers={"Cache-Control": "no-store"})
+
+    @app.get("/sw.js")
+    def pwa_service_worker():
+        asset = _read_static_asset("sw.js")
+        if asset is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy sw.js")
+        return Response(
+            content=asset[0],
+            media_type=asset[1],
+            headers={"Cache-Control": "no-store", "Service-Worker-Allowed": "/"},
+        )
+
     @app.get("/static/{filename:path}")
     def static_asset(filename: str):
         asset = _read_static_asset(filename)
@@ -1518,6 +1584,18 @@ def create_app():
     @app.get("/api/health")
     def api_health() -> Dict[str, Any]:
         return _api_health_data()
+
+    @app.get("/api/android/info")
+    def api_android_info(request: Request) -> Dict[str, Any]:
+        port = int(request.url.port or 8765)
+        return _api_android_info_data(port=port)
+
+    @app.post("/api/android/init-vault")
+    def api_android_init_vault(body: Dict[str, Any] = Body(default={})):
+        code, data = _api_android_init_vault_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Không thể khởi tạo kho Android"))
+        return JSONResponse(data)
 
     # --- Account & 3rd-Party Integrations ---
     @app.get("/api/account/status")

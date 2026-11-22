@@ -2,11 +2,16 @@
 <html lang="vi" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Karius Academic System (KAS) — Hệ thống quản trị tri thức học thuật, đa kho dữ liệu cục bộ & Google Drive, chuẩn hóa Danh Mục V7 và Trợ Lý AI / MCP." />
-  <title>Karius Academic System (KAS) v1.6.0</title>
-  <link rel="stylesheet" href="/static/styles.css?v=1.6.0" />
-  <script defer src="/static/app.js?v=1.6.0"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f17" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="description" content="Karius Academic System (KAS) — Hệ thống quản trị tri thức học thuật, đa kho dữ liệu cục bộ & Google Drive, chuẩn hóa Danh Mục V7 và Trợ Lý AI / MCP trên Desktop & Android." />
+  <title>Karius Academic System (KAS) v1.7.0</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg" />
+  <link rel="stylesheet" href="/static/styles.css?v=1.7.0" />
+  <script defer src="/static/app.js?v=1.7.0"></script>
 </head>
 <body>
   <!-- MÀN HÌNH KHÓA / ĐĂNG NHẬP KAS -->
@@ -88,7 +93,7 @@
           <div class="brand-mark">KAS</div>
           <div class="brand-text">
             <h1 class="brand-title">Karius Academic System</h1>
-            <span class="brand-ver" id="verTag">v1.6.0</span>
+            <span class="brand-ver" id="verTag">v1.7.0</span>
           </div>
         </div>
         <button type="button" class="icon-btn sidebar-collapse-btn" onclick="toggleSidebar()" title="Thu gọn thanh bên (Ctrl+B)" aria-label="Thu gọn thanh bên">
@@ -262,6 +267,47 @@
             <div class="row-actions" style="margin-top:14px;">
               <button class="btn" onclick="addVault()">Kết nối &amp; Kích hoạt Kho</button>
               <span id="vaultFormMsg" style="font-size:12.5px; color:var(--muted);"></span>
+            </div>
+          </div>
+
+          <div class="card" id="androidEcosystemCard" style="margin-bottom:20px;">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Hệ Sinh Thái Android &amp; Ghép Nối Di Động (KAS Mobile · <code>kas-android.apk</code>)</div>
+                <div style="font-size:12px; color:var(--muted);">Chạy độc lập 100% trên điện thoại/máy tính bảng Android, ghép nối Wi-Fi/LAN hoặc cài trên Termux.</div>
+              </div>
+              <span class="pill info" id="androidRuntimeBadge">Đang kiểm tra...</span>
+            </div>
+            <div class="two-col" style="margin-top:10px;">
+              <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:12px;">
+                <div style="font-size:12.5px; font-weight:650; margin-bottom:6px;">1. Ứng dụng Android Gốc (<code>kas-android.apk</code>)</div>
+                <div style="font-size:12px; color:var(--text-2); line-height:1.5; margin-bottom:10px;">
+                  Tích hợp sẵn máy chủ Python 3.11 + SQLite trên điện thoại Android (Android 8.0+) — duyệt kho ngoại tuyến, kết nối Google Drive OAuth 2.0 hoặc chuyển sang máy chủ PC qua Wi-Fi.
+                </div>
+                <div class="row-actions">
+                  <button type="button" class="btn sm" id="androidApkBtn" onclick="downloadAndroidApk()">Tải kas-android.apk</button>
+                  <button type="button" class="btn secondary sm" id="androidInitVaultBtn" onclick="initAndroidLocalVault()">Tạo Kho Tài Liệu Android</button>
+                </div>
+                <div class="row-actions" id="androidNativeControls" style="display:none; margin-top:8px;">
+                  <button type="button" class="btn secondary sm" onclick="openAndroidServerSwitcher()">Đổi Máy Chủ (Nội bộ / PC Wi-Fi)</button>
+                  <button type="button" class="btn secondary sm" onclick="requestAndroidStoragePermission()">Cấp quyền Bộ nhớ Android</button>
+                </div>
+              </div>
+              <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:12px;">
+                <div style="font-size:12.5px; font-weight:650; margin-bottom:6px;">2. Ghép nối Wi-Fi / LAN &amp; Android Termux</div>
+                <div style="font-size:12px; color:var(--text-2); margin-bottom:6px;">
+                  Địa chỉ LAN để mở từ ứng dụng KAS Android hoặc Chrome Android (cùng Wi-Fi):
+                </div>
+                <div class="row-actions" style="margin-bottom:8px;">
+                  <code id="androidLanUrlText" style="font-size:12px; padding:4px 8px; border-radius:6px; background:var(--bg); border:1px solid var(--border);">http://127.0.0.1:8765</code>
+                  <button type="button" class="btn secondary sm" id="androidCopyLanBtn" onclick="copyAndroidLanUrl()">Sao chép URL LAN</button>
+                </div>
+                <div style="font-size:11.5px; color:var(--muted); margin-bottom:4px;">Hoặc cài trọn bộ CLI + OCR Tiếng Việt trên <strong>Android Termux</strong> (1 lệnh):</div>
+                <div class="row-actions">
+                  <code id="androidTermuxCmdText" style="font-size:11px; padding:4px 8px; border-radius:6px; background:var(--bg); border:1px solid var(--border); word-break:break-all; flex:1;">curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash</code>
+                  <button type="button" class="btn secondary sm" id="androidCopyTermuxBtn" onclick="copyAndroidTermuxCmd()">Sao chép</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1094,6 +1140,30 @@
           </div>
         </section>
       </main>
+
+      <!-- THANH ĐIỀU HƯỚNG ĐÁY CHO THIẾT BỊ DI ĐỘNG ANDROID -->
+      <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Điều hướng nhanh trên Android">
+        <button type="button" class="mobile-nav-item" data-mobile-tab="overview" onclick="openTab('overview')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span>Tổng quan</span>
+        </button>
+        <button type="button" class="mobile-nav-item" data-mobile-tab="explorer" onclick="openTab('explorer')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span>Duyệt Kho</span>
+        </button>
+        <button type="button" class="mobile-nav-item" data-mobile-tab="search" onclick="openTab('search')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span>Tìm kiếm</span>
+        </button>
+        <button type="button" class="mobile-nav-item" data-mobile-tab="ai" onclick="openTab('ai')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Trợ Lý AI</span>
+        </button>
+        <button type="button" class="mobile-nav-item" data-mobile-tab="menu" onclick="toggleMobileNav()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <span>Menu</span>
+        </button>
+      </nav>
     </div>
   </div>
 </body>

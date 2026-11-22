@@ -49,15 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_items_parent ON items(parent_path);
 CREATE INDEX IF NOT EXISTS idx_items_mime ON items(mime_type);
 CREATE INDEX IF NOT EXISTS idx_items_size ON items(size);
 CREATE INDEX IF NOT EXISTS idx_items_mod ON items(modified_time);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
-    item_id UNINDEXED,
-    name,
-    name_ascii,
-    parent_path,
-    keywords,
-    tokenize='unicode61'
-);
+CREATE INDEX IF NOT EXISTS idx_items_name_ascii ON items(name_ascii);
 
 CREATE TABLE IF NOT EXISTS folder_metadata (
     folder_id TEXT PRIMARY KEY,
@@ -104,9 +96,31 @@ CREATE TABLE IF NOT EXISTS undo_actions (
 CREATE INDEX IF NOT EXISTS idx_undo_actions_batch ON undo_actions(batch_id);
 """
 
+_FTS5_SCHEMA_SQL = """
+CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
+    item_id UNINDEXED,
+    name,
+    name_ascii,
+    parent_path,
+    keywords,
+    tokenize='unicode61'
+);
+"""
+
+_FTS_FALLBACK_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS items_fts (
+    item_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    name_ascii TEXT NOT NULL DEFAULT '',
+    parent_path TEXT NOT NULL DEFAULT '',
+    keywords TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_items_fts_ascii ON items_fts(name_ascii);
+"""
+
 
 class StorageDB:
-    """Cơ sở dữ liệu SQLite (WAL + FTS5) lưu chỉ mục kho, trạng thái danh mục và sổ cái hoàn tác."""
+    """Cơ sở dữ liệu SQLite (WAL + FTS5 / Android Fallback) lưu chỉ mục kho, trạng thái danh mục và sổ cái hoàn tác."""
 
     def __init__(self, path: Optional[Path] = None) -> None:
         self.path = Path(path) if path else db_path()
@@ -114,11 +128,18 @@ class StorageDB:
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+        self.has_fts5 = True
         self._init_schema()
 
     def _init_schema(self) -> None:
         with self._lock:
             self._conn.executescript(_SCHEMA_SQL)
+            try:
+                self._conn.executescript(_FTS5_SCHEMA_SQL)
+                self.has_fts5 = True
+            except sqlite3.OperationalError:
+                self.has_fts5 = False
+                self._conn.executescript(_FTS_FALLBACK_SCHEMA_SQL)
             self._conn.commit()
 
     def close(self) -> None:
