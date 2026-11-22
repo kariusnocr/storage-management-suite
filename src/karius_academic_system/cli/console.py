@@ -222,6 +222,7 @@ QUICK_COMMANDS: List[Dict[str, str]] = [
     {"label": "Kiểm tra cập nhật KAS", "cmd": "update --check", "group": "Hệ thống"},
     {"label": "Tự động cài công cụ & thư viện", "cmd": "setup", "group": "Hệ thống"},
     {"label": "Danh sách kho", "cmd": "vault list", "group": "Kho dữ liệu"},
+    {"label": "Duyệt thư mục gốc", "cmd": "duyet", "group": "Kho dữ liệu"},
     {"label": "Quét chỉ mục kho", "cmd": "quet", "group": "Kho dữ liệu"},
     {"label": "Thống kê SQLite", "cmd": "db stats", "group": "Kho dữ liệu"},
     {"label": "Kiểm toán quy ước", "cmd": "kiem-tra", "group": "Kiểm toán"},

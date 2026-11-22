@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Karius Academic System (KAS) — Hệ thống quản trị tri thức học thuật, đa kho dữ liệu cục bộ & Google Drive, chuẩn hóa Danh Mục V7 và Trợ Lý AI / MCP." />
-  <title>Karius Academic System (KAS) v1.5.1</title>
-  <link rel="stylesheet" href="/static/styles.css?v=1.5.1" />
-  <script defer src="/static/app.js?v=1.5.1"></script>
+  <title>Karius Academic System (KAS) v1.6.0</title>
+  <link rel="stylesheet" href="/static/styles.css?v=1.6.0" />
+  <script defer src="/static/app.js?v=1.6.0"></script>
 </head>
 <body>
   <!-- MÀN HÌNH KHÓA / ĐĂNG NHẬP KAS -->
@@ -88,7 +88,7 @@
           <div class="brand-mark">KAS</div>
           <div class="brand-text">
             <h1 class="brand-title">Karius Academic System</h1>
-            <span class="brand-ver" id="verTag">v1.5.1</span>
+            <span class="brand-ver" id="verTag">v1.6.0</span>
           </div>
         </div>
         <button type="button" class="icon-btn sidebar-collapse-btn" onclick="toggleSidebar()" title="Thu gọn thanh bên (Ctrl+B)" aria-label="Thu gọn thanh bên">
@@ -102,6 +102,10 @@
           <button type="button" class="tab-btn" data-tab="overview" title="Tổng quan">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
             <span class="nav-label">Tổng quan</span>
+          </button>
+          <button type="button" class="tab-btn" data-tab="explorer" title="Duyệt Thư Mục &amp; Tệp">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
+            <span class="nav-label">Duyệt Kho</span>
           </button>
           <button type="button" class="tab-btn active" data-tab="vaults" title="Kho Dữ Liệu">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -287,7 +291,10 @@
           <div class="card" style="margin-bottom:20px;">
             <div class="card-head">
               <div class="card-title">Phân bố nhánh cấp 1 &amp; Dung lượng lưu trữ</div>
-              <button class="btn secondary sm" onclick="openTab('search')">Tìm nhanh trong kho</button>
+              <div class="row-actions">
+                <button class="btn secondary sm" onclick="openExplorerAt('')">Duyệt thư mục kho</button>
+                <button class="btn secondary sm" onclick="openTab('search')">Tìm nhanh trong kho</button>
+              </div>
             </div>
             <div class="table-wrap">
               <table>
@@ -296,6 +303,73 @@
               </table>
             </div>
             <pre class="console" id="overviewConsole" style="display:none;"></pre>
+          </div>
+        </section>
+
+        <!-- TAB: DUYỆT KHO (VAULT EXPLORER & PREVIEWER) -->
+        <section id="tab-explorer" class="section">
+          <div class="page-header">
+            <div>
+              <h2 class="page-title">Duyệt Thư Mục &amp; Xem Trước Tệp</h2>
+              <p class="page-sub" id="explorerSubtitle">Di chuyển giữa các thư mục, lọc/sắp xếp nhanh và xem trước tài liệu, ảnh, PDF, mã nguồn trực tiếp.</p>
+            </div>
+            <div class="row-actions">
+              <span id="explorerSourcePill" class="pill info">Đang tải...</span>
+              <button class="btn secondary sm" id="explorerOpenFolderBtn" onclick="openCurrentFolderExternal()" style="display:none;">Mở thư mục ngoài</button>
+            </div>
+          </div>
+
+          <div class="explorer-toolbar">
+            <div class="explorer-nav-btns">
+              <button type="button" class="icon-btn" id="expBackBtn" onclick="explorerGoBack()" title="Quay lại (Alt+←)" aria-label="Quay lại" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <button type="button" class="icon-btn" id="expFwdBtn" onclick="explorerGoForward()" title="Tiến tới (Alt+→)" aria-label="Tiến tới" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+              <button type="button" class="icon-btn" id="expUpBtn" onclick="explorerGoUp()" title="Lên thư mục cha (Alt+↑ / Backspace)" aria-label="Lên thư mục cha" disabled>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+              </button>
+              <button type="button" class="icon-btn" onclick="reloadExplorer()" title="Tải lại thư mục hiện tại" aria-label="Tải lại">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+            </div>
+
+            <div class="explorer-crumbs" id="explorerCrumbs" aria-label="Đường dẫn hiện tại"></div>
+
+            <div class="explorer-controls">
+              <input type="text" id="explorerFilter" placeholder="Lọc trong thư mục này..." oninput="onExplorerFilterInput()" />
+              <select id="explorerSort" aria-label="Sắp xếp" onchange="reloadExplorer()">
+                <option value="name:asc">Tên A → Z</option>
+                <option value="name:desc">Tên Z → A</option>
+                <option value="size:desc">Dung lượng lớn nhất</option>
+                <option value="size:asc">Dung lượng nhỏ nhất</option>
+                <option value="modified:desc">Mới cập nhật nhất</option>
+                <option value="type:asc">Theo loại tệp</option>
+              </select>
+              <button type="button" class="btn secondary sm" id="explorerViewBtn" onclick="toggleExplorerView()" title="Chuyển chế độ Danh sách / Lưới thẻ">Lưới thẻ</button>
+            </div>
+          </div>
+
+          <div class="explorer-layout">
+            <aside class="explorer-tree" aria-label="Cây thư mục kho">
+              <div class="card-title" style="padding:2px 6px 8px;">Cây thư mục</div>
+              <div id="explorerTree"></div>
+            </aside>
+
+            <div class="explorer-main">
+              <div id="explorerEntries"></div>
+              <div class="explorer-foot">
+                <span id="explorerFootStats">0 thư mục · 0 tệp</span>
+                <span>↑↓ chọn · Enter mở · Backspace lên cấp · Alt+←/→ lùi/tiến</span>
+              </div>
+            </div>
+
+            <aside class="explorer-preview" id="explorerPreviewPane" aria-label="Khung xem trước">
+              <div style="color:var(--muted); font-size:13px; padding:18px 4px; text-align:center;">
+                Chọn một thư mục hoặc tệp tin để xem chi tiết &amp; xem trước trực tiếp.
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -740,6 +814,7 @@
                   <select id="sDefaultTab">
                     <option value="vaults">Kho Dữ Liệu</option>
                     <option value="overview">Tổng quan</option>
+                    <option value="explorer">Duyệt Kho (Thư mục &amp; Tệp)</option>
                     <option value="search">Tìm kiếm FTS5</option>
                     <option value="console">Dòng Lệnh (Console)</option>
                     <option value="ai">Trợ Lý AI &amp; Agent</option>

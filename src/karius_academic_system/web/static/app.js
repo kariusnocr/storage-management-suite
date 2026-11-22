@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Karius Academic System (KAS) v1.5.0 — Frontend Workspace Engine
+   Karius Academic System (KAS) v1.6.0 — Frontend Workspace Engine
    Modular Vanilla JS · Zero External Dependencies · Offline & SAC Safe
    ========================================================================== */
 
@@ -24,6 +24,7 @@ let _latestUpdateInfo = null;
 
 const NAV_META = {
   overview: { group: 'Kho Tri Thức', label: 'Tổng quan', desc: 'Chỉ số kho, phân bố dung lượng & tác vụ nhanh' },
+  explorer: { group: 'Kho Tri Thức', label: 'Duyệt Kho', desc: 'Di chuyển giữa các thư mục/tệp & xem trước trực tiếp' },
   vaults:   { group: 'Kho Tri Thức', label: 'Kho Dữ Liệu', desc: 'Kết nối đa kho Local FS & Google Drive' },
   search:   { group: 'Kho Tri Thức', label: 'Tìm kiếm FTS5', desc: 'Tra cứu toàn văn SQLite FTS5 có dấu & không dấu' },
   catalog:  { group: 'Quản trị & Chuẩn hóa', label: 'Danh Mục V7', desc: 'Chuẩn hóa & tinh gọn bảng danh mục thông minh' },
@@ -218,6 +219,7 @@ function openTab(tabName) {
 
   if (tabName === 'vaults') loadVaults();
   if (tabName === 'overview') loadOverview();
+  if (tabName === 'explorer' && !_expState._suppressAutoLoad) loadExplorer(_expState.path, { pushHistory: false });
   if (tabName === 'search') setTimeout(() => { const i = document.getElementById('searchInput'); if (i) i.focus(); }, 40);
   if (tabName === 'console') loadConsole();
   if (tabName === 'rules') loadNamingRules();
@@ -360,14 +362,7 @@ function renderPaletteList(rawQuery) {
         group: `Tệp tin FTS5 (${_paletteLiveFiles.length})`,
         title: f.name,
         sub: `${f.parent_path || ''} · ${f.size_human || ''}`,
-        run: () => {
-          openTab('search');
-          const si = document.getElementById('searchInput');
-          if (si) {
-            si.value = q;
-            runSearch();
-          }
-        },
+        run: () => openExplorerAt(f.parent_path || '', f.id || ''),
       });
     });
   }
@@ -1321,8 +1316,13 @@ async function switchVault(slug) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ slug, persist: true }),
   });
+  resetExplorerState();
   if (ok) showToast(`Đã chuyển sang kho "${slug}".`, 'info', 2200);
   await refreshAll();
+  const expSec = document.getElementById('tab-explorer');
+  if (expSec && expSec.classList.contains('active')) {
+    await loadExplorer('', { pushHistory: false });
+  }
 }
 
 async function removeVault(slug) {
@@ -1702,12 +1702,13 @@ async function loadOverview() {
   const totalBytes = Math.max(1, branches.reduce((acc, b) => acc + Number(b.bytes || 0), 0));
   const maxBytes = Math.max(1, ...branches.map((b) => Number(b.bytes || 0)));
 
-  document.getElementById('branchTable').innerHTML = branches.map((b) => {
+  const branchTbody = document.getElementById('branchTable');
+  branchTbody.innerHTML = branches.map((b) => {
     const bytes = Number(b.bytes || 0);
     const relPct = Math.max(bytes > 0 ? 4 : 0, Math.round((bytes / maxBytes) * 100));
     const sharePct = Math.round((bytes / totalBytes) * 100);
     return `
-      <tr>
+      <tr class="explorer-row" data-branch="${esc(b.name)}" title="Bấm để mở thư mục này trong Duyệt Kho">
         <td><strong>${esc(b.name)}</strong></td>
         <td>${fmt(b.folders)}</td>
         <td>${fmt(b.files)}</td>
@@ -1724,6 +1725,9 @@ async function loadOverview() {
         </td>
       </tr>`;
   }).join('') || '<tr><td colspan="5" style="color:var(--muted);">Chưa có chỉ mục — bấm "Quét chỉ mục kho" ở góc trên để lập chỉ mục ngay.</td></tr>';
+  branchTbody.querySelectorAll('tr[data-branch]').forEach((tr) => {
+    tr.addEventListener('click', () => openExplorerAt(tr.dataset.branch || ''));
+  });
 }
 
 async function runSearch() {
@@ -1732,9 +1736,27 @@ async function runSearch() {
   const { ok, data: d } = await apiFetch('/api/search?q=' + encodeURIComponent(q));
   if (!ok) return;
   document.getElementById('searchMeta').textContent = `Tìm thấy ${fmt(d.count)} kết quả trong ${d.elapsed_ms} ms`;
-  document.getElementById('searchBody').innerHTML = (d.results || []).map((r) =>
-    `<tr><td><strong>${esc(r.name)}</strong></td><td style="color:var(--muted)">${esc(r.parent_path)}</td><td>${esc(r.size_human)}</td><td><a href="${esc(r.url)}" target="_blank">Mở</a></td></tr>`
+  const tbody = document.getElementById('searchBody');
+  const results = d.results || [];
+  tbody.innerHTML = results.map((r, idx) => `
+    <tr>
+      <td><strong>${esc(r.name)}</strong></td>
+      <td style="color:var(--muted)">${esc(r.parent_path)}</td>
+      <td>${esc(r.size_human)}</td>
+      <td>
+        <div class="row-actions">
+          <button type="button" class="btn secondary sm" data-sidx="${idx}">Duyệt vị trí</button>
+          ${r.url ? `<a class="btn secondary sm" href="${esc(r.url)}" target="_blank">Mở Drive</a>` : ''}
+        </div>
+      </td>
+    </tr>`
   ).join('') || '<tr><td colspan="4" style="color:var(--muted);">Không có kết quả phù hợp.</td></tr>';
+  tbody.querySelectorAll('button[data-sidx]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const hit = results[Number(btn.dataset.sidx)];
+      if (hit) openExplorerAt(hit.parent_path || '', hit.id || '');
+    });
+  });
 }
 
 async function loadCatalogPlan() {
@@ -1897,6 +1919,765 @@ async function runAutoSetup(scope) {
   setTimeout(poll, 400);
 }
 
+/* ==================== VAULT EXPLORER & PREVIEWER (v1.6.0) ==================== */
+
+const _expState = {
+  path: '',
+  parentPath: null,
+  currentId: '',
+  currentUrl: '',
+  canOpenOs: false,
+  sourceKind: '',
+  rootName: '',
+  entries: [],
+  treeBranches: [],
+  treeChildren: {},
+  treeExpanded: new Set(),
+  selectedIdx: -1,
+  selectedId: '',
+  history: [],
+  historyIdx: -1,
+  viewMode: localStorage.getItem('kas_explorer_view') || 'list',
+  filterTimer: null,
+  loadSeq: 0,
+  previewSeq: 0,
+  lastPreviewText: '',
+  _suppressAutoLoad: false,
+};
+
+function resetExplorerState() {
+  _expState.path = '';
+  _expState.parentPath = null;
+  _expState.currentId = '';
+  _expState.currentUrl = '';
+  _expState.canOpenOs = false;
+  _expState.sourceKind = '';
+  _expState.rootName = '';
+  _expState.entries = [];
+  _expState.treeBranches = [];
+  _expState.treeChildren = {};
+  _expState.treeExpanded = new Set();
+  _expState.selectedIdx = -1;
+  _expState.selectedId = '';
+  _expState.history = [];
+  _expState.historyIdx = -1;
+  _expState.lastPreviewText = '';
+  const flt = document.getElementById('explorerFilter');
+  if (flt) flt.value = '';
+}
+
+function explorerCategoryLabel(cat, ext) {
+  const labels = {
+    folder: 'Thư mục',
+    pdf: 'PDF',
+    image: 'Hình ảnh',
+    audio: 'Âm thanh',
+    video: 'Video',
+    text: 'Văn bản',
+    code: 'Mã nguồn',
+    office: 'Tài liệu',
+    gdoc: 'Google Doc',
+    ebook: 'Ebook',
+    archive: 'Tệp nén',
+    other: 'Tệp tin',
+  };
+  if (cat === 'folder') return labels.folder;
+  if (ext) return String(ext).toUpperCase();
+  return labels[cat] || 'Tệp tin';
+}
+
+function explorerCategoryIcon(cat) {
+  const icons = {
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
+    image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+    audio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10 9 15 12 10 15 10 9"/></svg>',
+    code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+    text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>',
+    office: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    gdoc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/></svg>',
+    ebook: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+    archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+    other: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>',
+  };
+  return icons[cat] || icons.other;
+}
+
+function fmtShortTime(isoStr) {
+  if (!isoStr) return '—';
+  const d = new Date(isoStr);
+  if (Number.isNaN(d.getTime())) return String(isoStr).slice(0, 16);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function updateExplorerNavButtons() {
+  const bBtn = document.getElementById('expBackBtn');
+  const fBtn = document.getElementById('expFwdBtn');
+  const uBtn = document.getElementById('expUpBtn');
+  const vBtn = document.getElementById('explorerViewBtn');
+  if (bBtn) bBtn.disabled = _expState.historyIdx <= 0;
+  if (fBtn) fBtn.disabled = _expState.historyIdx < 0 || _expState.historyIdx >= _expState.history.length - 1;
+  if (uBtn) uBtn.disabled = _expState.parentPath === null || _expState.parentPath === undefined;
+  if (vBtn) vBtn.textContent = _expState.viewMode === 'grid' ? 'Danh sách' : 'Lưới thẻ';
+}
+
+async function openExplorerAt(path = '', selectId = '') {
+  _expState._suppressAutoLoad = true;
+  try {
+    openTab('explorer');
+  } finally {
+    _expState._suppressAutoLoad = false;
+  }
+  const flt = document.getElementById('explorerFilter');
+  if (flt && flt.value) flt.value = '';
+  await loadExplorer(path, { pushHistory: true, selectId });
+}
+
+async function ensureTreeAncestorsExpanded(relPath) {
+  if (!relPath) return;
+  const parts = relPath.split('/').filter(Boolean);
+  let acc = '';
+  for (let i = 0; i < parts.length; i++) {
+    acc = acc ? `${acc}/${parts[i]}` : parts[i];
+    _expState.treeExpanded.add(acc);
+    if (!_expState.treeChildren[acc]) {
+      const { ok, data } = await apiFetch('/api/explorer/tree?path=' + encodeURIComponent(acc));
+      if (ok && Array.isArray(data.children)) {
+        _expState.treeChildren[acc] = data.children;
+      }
+    }
+  }
+}
+
+async function loadExplorer(path = '', { pushHistory = true, selectId = '' } = {}) {
+  const seq = ++_expState.loadSeq;
+  const sortRaw = (document.getElementById('explorerSort')?.value || 'name:asc').split(':');
+  const sortBy = sortRaw[0] || 'name';
+  const order = sortRaw[1] || 'asc';
+  const filterQ = (document.getElementById('explorerFilter')?.value || '').trim();
+
+  const qs = new URLSearchParams({
+    path: path || '',
+    sort: sortBy,
+    order,
+    q: filterQ,
+  });
+
+  const entriesBox = document.getElementById('explorerEntries');
+  if (entriesBox && !_expState.entries.length) {
+    entriesBox.innerHTML = '<div style="padding:28px; text-align:center; color:var(--muted); font-size:13px;">Đang tải danh sách thư mục...</div>';
+  }
+
+  const { ok, data } = await apiFetch('/api/explorer/list?' + qs.toString());
+  if (seq !== _expState.loadSeq) return;
+
+  const pill = document.getElementById('explorerSourcePill');
+  const sub = document.getElementById('explorerSubtitle');
+  const openBtn = document.getElementById('explorerOpenFolderBtn');
+
+  if (!ok) {
+    if (pill) {
+      pill.className = 'pill err';
+      pill.textContent = 'Lỗi truy cập';
+    }
+    if (entriesBox) {
+      entriesBox.innerHTML = `<div style="padding:28px; text-align:center; color:var(--err); font-size:13px;">${esc(data.detail || 'Không thể đọc thư mục này.')}</div>`;
+    }
+    showToast(data.detail || 'Không thể duyệt thư mục', 'err');
+    return;
+  }
+
+  if (!data.has_vault) {
+    if (pill) {
+      pill.className = 'pill warn';
+      pill.textContent = 'Chưa có kho';
+    }
+    if (openBtn) openBtn.style.display = 'none';
+    if (entriesBox) {
+      entriesBox.innerHTML = `
+        <div style="padding:36px 20px; text-align:center;">
+          <div style="font-size:14px; font-weight:600; margin-bottom:8px;">Chưa có Kho Dữ Liệu nào được kết nối</div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:14px;">Hãy kết nối một thư mục cục bộ trên máy tính hoặc thư mục Google Drive để bắt đầu duyệt xem.</div>
+          <button class="btn sm" data-action="go-vaults">Mở Kho Dữ Liệu</button>
+        </div>`;
+      const btn = entriesBox.querySelector('[data-action="go-vaults"]');
+      if (btn) btn.addEventListener('click', () => openTab('vaults'));
+    }
+    document.getElementById('explorerTree').innerHTML = '';
+    document.getElementById('explorerCrumbs').innerHTML = '';
+    document.getElementById('explorerFootStats').textContent = '0 thư mục · 0 tệp';
+    renderDefaultExplorerPreview(null);
+    return;
+  }
+
+  if (data.needs_scan) {
+    if (pill) {
+      pill.className = 'pill warn';
+      pill.textContent = 'Chưa quét chỉ mục';
+    }
+    if (openBtn) openBtn.style.display = 'none';
+    if (entriesBox) {
+      entriesBox.innerHTML = `
+        <div style="padding:36px 20px; text-align:center;">
+          <div style="font-size:14px; font-weight:600; margin-bottom:8px;">Kho Google Drive chưa có chỉ mục cục bộ</div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:14px;">Hãy chạy quét chỉ mục 1 lần để KAS duyệt toàn bộ thư mục &amp; tệp tức thì (&lt;15 ms).</div>
+          <button class="btn sm" data-action="scan-now">Quét chỉ mục kho ngay</button>
+        </div>`;
+      const btn = entriesBox.querySelector('[data-action="scan-now"]');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          openTab('overview');
+          runBackgroundTask('quet', [], 'overviewConsole');
+        });
+      }
+    }
+    document.getElementById('explorerTree').innerHTML = '';
+    document.getElementById('explorerCrumbs').innerHTML = '';
+    document.getElementById('explorerFootStats').textContent = '0 thư mục · 0 tệp';
+    renderDefaultExplorerPreview(null);
+    return;
+  }
+
+  const curPath = data.current_path || '';
+  _expState.path = curPath;
+  _expState.parentPath = data.parent_path;
+  _expState.currentId = data.current_id || '';
+  _expState.currentUrl = data.current_url || '';
+  _expState.canOpenOs = Boolean(data.can_open_os);
+  _expState.sourceKind = data.source_kind || '';
+  _expState.rootName = data.root_name || 'Kho gốc';
+  _expState.entries = Array.isArray(data.entries) ? data.entries : [];
+  _expState.treeBranches = Array.isArray(data.tree_branches) ? data.tree_branches : [];
+
+  if (pushHistory) {
+    if (_expState.historyIdx < 0 || _expState.history[_expState.historyIdx] !== curPath) {
+      _expState.history = _expState.history.slice(0, _expState.historyIdx + 1);
+      _expState.history.push(curPath);
+      _expState.historyIdx = _expState.history.length - 1;
+    }
+  } else if (_expState.history.length === 0) {
+    _expState.history = [curPath];
+    _expState.historyIdx = 0;
+  }
+
+  if (pill) {
+    if (data.data_source === 'local_live') {
+      pill.className = 'pill ok';
+      pill.textContent = 'Cục bộ · Thời gian thực';
+    } else {
+      pill.className = 'pill info';
+      pill.textContent = 'Google Drive · Chỉ mục SQLite';
+    }
+  }
+  if (sub) {
+    sub.textContent = data.current_fs_path
+      ? `Thư mục máy tính: ${data.current_fs_path}`
+      : `Kho đang duyệt: ${_expState.rootName}${curPath ? ' / ' + curPath : ''}`;
+  }
+  if (openBtn) {
+    if (_expState.canOpenOs) {
+      openBtn.style.display = 'inline-flex';
+      openBtn.textContent = 'Mở trong File Explorer';
+    } else if (_expState.currentUrl) {
+      openBtn.style.display = 'inline-flex';
+      openBtn.textContent = 'Mở trên Google Drive';
+    } else {
+      openBtn.style.display = 'none';
+    }
+  }
+
+  updateExplorerNavButtons();
+  renderExplorerCrumbs(data.breadcrumbs || []);
+  renderExplorerEntries(data.stats || {});
+  renderExplorerTree();
+
+  // Tự mở rộng các nhánh cha của đường dẫn hiện tại (không chặn hiển thị danh sách)
+  if (curPath) {
+    ensureTreeAncestorsExpanded(curPath).then(() => {
+      if (seq === _expState.loadSeq) renderExplorerTree();
+    }).catch(() => {});
+  }
+
+  // Khôi phục hoặc chọn mục được chỉ định (từ Tìm kiếm FTS5 / Ctrl+K)
+  let targetIdx = -1;
+  if (selectId) {
+    targetIdx = _expState.entries.findIndex((it) => it.id === selectId);
+  }
+  if (targetIdx >= 0) {
+    selectExplorerIndex(targetIdx, { scrollIntoView: true });
+  } else {
+    _expState.selectedIdx = -1;
+    _expState.selectedId = '';
+    renderDefaultExplorerPreview(data);
+  }
+}
+
+function reloadExplorer() {
+  loadExplorer(_expState.path, { pushHistory: false, selectId: _expState.selectedId });
+}
+
+function explorerGoBack() {
+  if (_expState.historyIdx <= 0) return;
+  _expState.historyIdx -= 1;
+  const target = _expState.history[_expState.historyIdx] || '';
+  loadExplorer(target, { pushHistory: false });
+}
+
+function explorerGoForward() {
+  if (_expState.historyIdx < 0 || _expState.historyIdx >= _expState.history.length - 1) return;
+  _expState.historyIdx += 1;
+  const target = _expState.history[_expState.historyIdx] || '';
+  loadExplorer(target, { pushHistory: false });
+}
+
+function explorerGoUp() {
+  if (_expState.parentPath === null || _expState.parentPath === undefined) return;
+  loadExplorer(_expState.parentPath, { pushHistory: true });
+}
+
+function onExplorerFilterInput() {
+  clearTimeout(_expState.filterTimer);
+  _expState.filterTimer = setTimeout(() => {
+    loadExplorer(_expState.path, { pushHistory: false });
+  }, 200);
+}
+
+function toggleExplorerView() {
+  _expState.viewMode = _expState.viewMode === 'grid' ? 'list' : 'grid';
+  localStorage.setItem('kas_explorer_view', _expState.viewMode);
+  updateExplorerNavButtons();
+  renderExplorerEntries();
+}
+
+async function openCurrentFolderExternal() {
+  if (_expState.canOpenOs) {
+    await openItemExternal(_expState.currentId, _expState.path, false);
+  } else if (_expState.currentUrl) {
+    window.open(_expState.currentUrl, '_blank', 'noopener');
+  }
+}
+
+function renderExplorerCrumbs(crumbs) {
+  const el = document.getElementById('explorerCrumbs');
+  if (!el) return;
+  if (!crumbs.length) {
+    el.innerHTML = '<span style="color:var(--muted);">/</span>';
+    return;
+  }
+  el.innerHTML = crumbs.map((c, idx) => {
+    const isLast = idx === crumbs.length - 1;
+    const sep = idx > 0 ? '<span class="crumb-sep">/</span>' : '';
+    return `${sep}<button type="button" class="crumb-btn ${isLast ? 'current' : ''}" data-crumb-path="${esc(c.path)}">${esc(c.name)}</button>`;
+  }).join('');
+  el.querySelectorAll('[data-crumb-path]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const p = btn.getAttribute('data-crumb-path') || '';
+      if (p !== _expState.path) loadExplorer(p, { pushHistory: true });
+    });
+  });
+}
+
+function _renderTreeNodesHtml(nodes, depth = 0) {
+  if (!nodes || !nodes.length || depth > 8) return '';
+  return nodes.map((n) => {
+    const expanded = _expState.treeExpanded.has(n.path);
+    const active = _expState.path === n.path;
+    const hasKids = Boolean(n.has_children);
+    const caret = hasKids ? (expanded ? '▾' : '▸') : '·';
+    const children = expanded ? (_expState.treeChildren[n.path] || []) : [];
+    const cnt = Number(n.child_folders || 0) + Number(n.child_files || 0);
+    return `
+      <div class="tree-node">
+        <div class="tree-row ${active ? 'active' : ''}" data-tree-path="${esc(n.path)}" title="${esc(n.name)}">
+          <button type="button" class="tree-caret" data-tree-toggle="${esc(n.path)}" aria-label="Mở rộng ${esc(n.name)}">${caret}</button>
+          <span class="tree-label">${esc(n.name)}</span>
+          ${cnt > 0 ? `<span class="tree-count">${fmt(cnt)}</span>` : ''}
+        </div>
+        ${expanded && children.length ? `<div class="tree-children">${_renderTreeNodesHtml(children, depth + 1)}</div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function renderExplorerTree() {
+  const box = document.getElementById('explorerTree');
+  if (!box) return;
+  const rootActive = _expState.path === '';
+  const rootHtml = `
+    <div class="tree-row ${rootActive ? 'active' : ''}" data-tree-path="">
+      <span class="tree-caret">⌂</span>
+      <span class="tree-label">${esc(_expState.rootName || 'Kho gốc')}</span>
+      <span class="tree-count">${fmt(_expState.treeBranches.length)}</span>
+    </div>
+    <div class="tree-children">${_renderTreeNodesHtml(_expState.treeBranches, 0)}</div>`;
+  box.innerHTML = rootHtml;
+
+  box.querySelectorAll('[data-tree-toggle]').forEach((btn) => {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      toggleTreeNode(btn.getAttribute('data-tree-toggle') || '');
+    });
+  });
+  box.querySelectorAll('[data-tree-path]').forEach((row) => {
+    row.addEventListener('click', () => {
+      loadExplorer(row.getAttribute('data-tree-path') || '', { pushHistory: true });
+    });
+  });
+}
+
+async function toggleTreeNode(relPath) {
+  if (!relPath) return;
+  if (_expState.treeExpanded.has(relPath)) {
+    _expState.treeExpanded.delete(relPath);
+    renderExplorerTree();
+    return;
+  }
+  _expState.treeExpanded.add(relPath);
+  if (!_expState.treeChildren[relPath]) {
+    const { ok, data } = await apiFetch('/api/explorer/tree?path=' + encodeURIComponent(relPath));
+    if (ok && Array.isArray(data.children)) {
+      _expState.treeChildren[relPath] = data.children;
+    } else {
+      _expState.treeChildren[relPath] = [];
+    }
+  }
+  renderExplorerTree();
+}
+
+function renderExplorerEntries(statsObj) {
+  const box = document.getElementById('explorerEntries');
+  const foot = document.getElementById('explorerFootStats');
+  if (!box) return;
+
+  const entries = _expState.entries;
+  if (foot && statsObj) {
+    const flt = (document.getElementById('explorerFilter')?.value || '').trim();
+    const baseTxt = `${fmt(statsObj.folders || 0)} thư mục · ${fmt(statsObj.files || 0)} tệp · ${statsObj.size_human || '0 B'}`;
+    foot.textContent = flt ? `Đang lọc: ${fmt(entries.length)} / ${fmt(statsObj.total_items || 0)} mục (${baseTxt})` : baseTxt;
+  }
+
+  if (!entries.length) {
+    const flt = (document.getElementById('explorerFilter')?.value || '').trim();
+    box.innerHTML = `
+      <div style="padding:36px 20px; text-align:center; color:var(--muted); font-size:13px;">
+        <div style="margin-bottom:10px;">${flt ? `Không có mục nào khớp với "${esc(flt)}" trong thư mục này.` : 'Thư mục này hiện đang trống.'}</div>
+        <div class="row-actions" style="justify-content:center;">
+          ${flt ? '<button type="button" class="btn secondary sm" data-action="clear-filter">Xóa bộ lọc</button>' : ''}
+          ${_expState.parentPath !== null ? '<button type="button" class="btn secondary sm" data-action="go-up">Lên thư mục cha</button>' : ''}
+        </div>
+      </div>`;
+    const clr = box.querySelector('[data-action="clear-filter"]');
+    if (clr) {
+      clr.addEventListener('click', () => {
+        const f = document.getElementById('explorerFilter');
+        if (f) f.value = '';
+        reloadExplorer();
+      });
+    }
+    const up = box.querySelector('[data-action="go-up"]');
+    if (up) up.addEventListener('click', () => explorerGoUp());
+    return;
+  }
+
+  if (_expState.viewMode === 'grid') {
+    box.innerHTML = `<div class="explorer-grid">${entries.map((it, idx) => {
+      const sel = idx === _expState.selectedIdx ? 'selected' : '';
+      const subMeta = it.is_folder
+        ? `${fmt(it.child_folders || 0)} TM · ${fmt(it.child_files || 0)} tệp`
+        : `${esc(explorerCategoryLabel(it.category, it.ext))} · ${esc(it.size_human || '0 B')}`;
+      return `
+        <div class="explorer-tile ${sel}" data-entry-idx="${idx}" title="${esc(it.name)}">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <span class="entry-icon cat-${esc(it.category || 'other')}">${explorerCategoryIcon(it.category)}</span>
+            <span class="pill" style="font-size:10.5px;">${esc(explorerCategoryLabel(it.category, it.ext))}</span>
+          </div>
+          <div class="explorer-tile-name">${esc(it.name)}</div>
+          <div class="explorer-tile-meta">${subMeta}</div>
+        </div>`;
+    }).join('')}</div>`;
+  } else {
+    const rows = entries.map((it, idx) => {
+      const sel = idx === _expState.selectedIdx ? 'selected' : '';
+      const subInfo = it.is_folder
+        ? `${fmt(it.child_folders || 0)} thư mục, ${fmt(it.child_files || 0)} tệp`
+        : esc(it.size_human || '0 B');
+      return `
+        <tr class="explorer-row ${sel}" data-entry-idx="${idx}">
+          <td>
+            <div class="entry-name-cell">
+              <span class="entry-icon cat-${esc(it.category || 'other')}">${explorerCategoryIcon(it.category)}</span>
+              <div style="min-width:0;">
+                <strong style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:340px;" title="${esc(it.name)}">${esc(it.name)}</strong>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:12px; color:var(--muted); white-space:nowrap;">${esc(explorerCategoryLabel(it.category, it.ext))}</td>
+          <td style="font-size:12px; color:var(--text-2); white-space:nowrap;">${subInfo}</td>
+          <td style="font-size:11.5px; color:var(--muted); white-space:nowrap;">${esc(fmtShortTime(it.modified_time))}</td>
+        </tr>`;
+    }).join('');
+    box.innerHTML = `
+      <div class="explorer-list-wrap">
+        <table>
+          <thead><tr><th>Tên mục</th><th>Loại</th><th>Dung lượng / Mục con</th><th>Cập nhật</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  box.querySelectorAll('[data-entry-idx]').forEach((node) => {
+    const idx = Number(node.getAttribute('data-entry-idx'));
+    node.addEventListener('click', () => selectExplorerIndex(idx));
+    node.addEventListener('dblclick', () => activateExplorerEntry(idx));
+  });
+}
+
+function selectExplorerIndex(idx, { scrollIntoView = false } = {}) {
+  if (idx < 0 || idx >= _expState.entries.length) return;
+  _expState.selectedIdx = idx;
+  const entry = _expState.entries[idx];
+  _expState.selectedId = entry.id || '';
+
+  const box = document.getElementById('explorerEntries');
+  if (box) {
+    box.querySelectorAll('[data-entry-idx]').forEach((el) => {
+      const match = Number(el.getAttribute('data-entry-idx')) === idx;
+      el.classList.toggle('selected', match);
+      if (match && scrollIntoView) {
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  }
+  loadExplorerPreview(entry, { fetchDrive: false });
+}
+
+function activateExplorerEntry(idx) {
+  if (idx < 0 || idx >= _expState.entries.length) return;
+  const entry = _expState.entries[idx];
+  if (entry.is_folder) {
+    loadExplorer(entry.path || '', { pushHistory: true });
+    return;
+  }
+  if (entry.can_open_os) {
+    openItemExternal(entry.id || '', entry.path || '', false);
+  } else if (entry.url) {
+    window.open(entry.url, '_blank', 'noopener');
+  } else {
+    selectExplorerIndex(idx);
+  }
+}
+
+function renderDefaultExplorerPreview(folderData) {
+  const pane = document.getElementById('explorerPreviewPane');
+  if (!pane) return;
+  if (!folderData) {
+    pane.innerHTML = `
+      <div style="color:var(--muted); font-size:13px; padding:18px 4px; text-align:center;">
+        Chọn một thư mục hoặc tệp tin để xem chi tiết &amp; xem trước trực tiếp.
+      </div>`;
+    return;
+  }
+  const st = folderData.stats || {};
+  pane.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      <span class="entry-icon cat-folder">${explorerCategoryIcon('folder')}</span>
+      <div style="min-width:0;">
+        <div style="font-size:14px; font-weight:650; word-break:break-word;">${esc(folderData.current_path ? folderData.current_path.split('/').pop() : folderData.root_name)}</div>
+        <div style="font-size:11.5px; color:var(--muted);">Thư mục đang mở</div>
+      </div>
+    </div>
+    <dl class="preview-meta-list">
+      <dt>Đường dẫn</dt><dd><code>${esc(folderData.current_path || '/')}</code></dd>
+      <dt>Thư mục con</dt><dd>${fmt(st.folders || 0)}</dd>
+      <dt>Tệp tin</dt><dd>${fmt(st.files || 0)}</dd>
+      <dt>Dung lượng</dt><dd>${esc(st.size_human || '0 B')}</dd>
+    </dl>
+    <p style="font-size:12px; color:var(--muted); margin-top:12px; line-height:1.5;">
+      Bấm 1 lần vào bất kỳ mục nào để xem trước ngay tại đây; bấm đúp hoặc nhấn <code>Enter</code> để đi vào thư mục / mở tệp.
+    </p>`;
+}
+
+async function loadExplorerPreview(entry, { fetchDrive = false } = {}) {
+  const pane = document.getElementById('explorerPreviewPane');
+  if (!pane || !entry) return;
+  const seq = ++_expState.previewSeq;
+  _expState.lastPreviewText = '';
+
+  pane.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <span class="entry-icon cat-${esc(entry.category || 'other')}">${explorerCategoryIcon(entry.category)}</span>
+      <div style="min-width:0;">
+        <div style="font-size:14px; font-weight:650; word-break:break-word;">${esc(entry.name)}</div>
+        <div style="font-size:11.5px; color:var(--muted);">${fetchDrive ? 'Đang tải nội dung từ Google Drive...' : 'Đang chuẩn bị bản xem trước...'}</div>
+      </div>
+    </div>`;
+
+  const qs = new URLSearchParams();
+  if (entry.id) qs.set('id', entry.id);
+  if (entry.path) qs.set('path', entry.path);
+  if (fetchDrive) qs.set('fetch_drive', 'true');
+
+  const { ok, data } = await apiFetch('/api/explorer/preview?' + qs.toString());
+  if (seq !== _expState.previewSeq) return;
+
+  if (!ok) {
+    pane.innerHTML = `
+      <div style="font-size:14px; font-weight:650; margin-bottom:8px;">${esc(entry.name)}</div>
+      <div class="pill err" style="margin-bottom:8px;">Không thể xem trước</div>
+      <div style="font-size:12.5px; color:var(--muted);">${esc(data.detail || 'Đã xảy ra lỗi khi đọc tệp.')}</div>`;
+    return;
+  }
+
+  _expState.lastPreviewText = data.text_preview || '';
+  const mode = data.preview_mode || 'binary';
+  const cat = data.category || entry.category || 'other';
+
+  // Thanh nút thao tác ngữ cảnh
+  let actionsHtml = '';
+  if (data.is_folder) {
+    actionsHtml += '<button type="button" class="btn sm" data-pv-action="enter-folder">Mở thư mục</button>';
+  }
+  if (data.can_open_os) {
+    actionsHtml += '<button type="button" class="btn secondary sm" data-pv-action="open-os">Mở ứng dụng ngoài</button>';
+    if (!data.is_folder) {
+      actionsHtml += '<button type="button" class="btn secondary sm" data-pv-action="reveal-os">Hiện trong thư mục</button>';
+    }
+  }
+  if (data.raw_url && !data.is_folder) {
+    actionsHtml += `<a class="btn secondary sm" href="${esc(data.raw_url)}" target="_blank" rel="noopener">Mở tab mới</a>`;
+  }
+  if (data.url) {
+    actionsHtml += `<a class="btn secondary sm" href="${esc(data.url)}" target="_blank" rel="noopener">Mở trên Drive</a>`;
+  }
+  if (data.source_kind === 'gdrive' && !data.is_folder && !fetchDrive && !data.text_preview) {
+    actionsHtml += '<button type="button" class="btn sm" data-pv-action="fetch-drive">Tải &amp; xem nội dung</button>';
+  }
+  if (data.text_preview) {
+    actionsHtml += '<button type="button" class="btn secondary sm" data-pv-action="copy-text">Sao chép văn bản</button>';
+  }
+
+  // Khung hiển thị nội dung xem trước theo loại tệp
+  let stageHtml = '';
+  if (mode === 'image' && data.raw_url) {
+    stageHtml = `<div class="preview-stage"><img src="${esc(data.raw_url)}" alt="${esc(data.name)}" loading="lazy" /></div>`;
+  } else if (mode === 'pdf' && data.raw_url) {
+    stageHtml = `<div class="preview-stage"><iframe class="preview-pdf" src="${esc(data.raw_url)}" title="${esc(data.name)}"></iframe></div>`;
+  } else if (mode === 'audio' && data.raw_url) {
+    stageHtml = `<div class="preview-stage"><audio controls preload="metadata" src="${esc(data.raw_url)}"></audio></div>`;
+  } else if (mode === 'video' && data.raw_url) {
+    stageHtml = `<div class="preview-stage"><video controls preload="metadata" src="${esc(data.raw_url)}"></video></div>`;
+  } else if (mode === 'drive_card') {
+    stageHtml = `
+      <div style="margin:12px 0; padding:12px; border:1px dashed var(--border-strong); border-radius:9px; font-size:12.5px; color:var(--text-2); line-height:1.5;">
+        Tệp đang lưu trên <strong>Google Drive</strong>. Bấm <strong>Tải &amp; xem nội dung</strong> để trích xuất văn bản/mục lục trực tiếp (giới hạn 15 MB) hoặc bấm <strong>Mở trên Drive</strong>.
+      </div>`;
+  }
+
+  // Mục lục (Outline) cho PDF / DOCX / EPUB
+  let outlineHtml = '';
+  if (Array.isArray(data.outline) && data.outline.length) {
+    outlineHtml = `
+      <div style="margin-top:10px;">
+        <div class="card-title" style="margin-bottom:6px;">Mục lục (${fmt(data.outline.length)})</div>
+        <ul style="margin:0; padding-left:16px; font-size:12px; color:var(--text-2); max-height:120px; overflow:auto; line-height:1.55;">
+          ${data.outline.slice(0, 20).map((o) => `<li>${esc(typeof o === 'string' ? o : (o.title || JSON.stringify(o)))}</li>`).join('')}
+        </ul>
+      </div>`;
+  }
+
+  // Đoạn trích văn bản / mã nguồn
+  let textHtml = '';
+  if (data.text_preview) {
+    const badge = data.truncated
+      ? '<span class="pill warn" style="margin-left:6px;">Rút gọn xem nhanh</span>'
+      : (data.from_cache ? '<span class="pill ok" style="margin-left:6px;">Từ bộ đệm</span>' : '');
+    textHtml = `
+      <div style="margin-top:10px;">
+        <div class="card-title" style="display:flex; align-items:center;">Nội dung trích xuất ${badge}</div>
+        <pre class="preview-text">${esc(data.text_preview)}</pre>
+      </div>`;
+  }
+
+  if (data.error) {
+    textHtml += `<div style="margin-top:8px; font-size:12px; color:var(--warn);">Lưu ý: ${esc(data.error)}</div>`;
+  }
+
+  // Bảng siêu dữ liệu chi tiết
+  const metaRows = [];
+  metaRows.push(['Loại', explorerCategoryLabel(cat, data.ext)]);
+  if (data.is_folder) {
+    metaRows.push(['Thư mục con', fmt(data.child_folders || 0)]);
+    metaRows.push(['Tệp trực tiếp', fmt(data.child_files || 0)]);
+    metaRows.push(['Dung lượng', data.size_human || '0 B']);
+  } else {
+    metaRows.push(['Dung lượng', data.size_human || '0 B']);
+    if (data.mime_type) metaRows.push(['MIME', data.mime_type]);
+  }
+  metaRows.push(['Cập nhật', fmtShortTime(data.modified_time)]);
+  metaRows.push(['Vị trí', data.path || '/']);
+
+  const extraMeta = data.metadata || {};
+  Object.keys(extraMeta).slice(0, 8).forEach((k) => {
+    const v = extraMeta[k];
+    if (v !== null && v !== undefined && String(v).trim() !== '') {
+      metaRows.push([k, typeof v === 'object' ? JSON.stringify(v) : String(v)]);
+    }
+  });
+  const st = data.stats || {};
+  if (st.words) metaRows.push(['Số từ', fmt(st.words)]);
+  if (st.pages) metaRows.push(['Số trang', fmt(st.pages)]);
+
+  pane.innerHTML = `
+    <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;">
+      <span class="entry-icon cat-${esc(cat)}">${explorerCategoryIcon(cat)}</span>
+      <div style="min-width:0; flex:1;">
+        <div style="font-size:14px; font-weight:650; word-break:break-word; line-height:1.35;">${esc(data.name || entry.name)}</div>
+        <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${esc(explorerCategoryLabel(cat, data.ext))}${data.is_folder ? '' : ' · ' + esc(data.size_human || '0 B')}</div>
+      </div>
+    </div>
+    <div class="row-actions" style="margin-bottom:8px;">${actionsHtml}</div>
+    ${stageHtml}
+    ${outlineHtml}
+    ${textHtml}
+    <dl class="preview-meta-list">
+      ${metaRows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}
+    </dl>`;
+
+  const bind = (act, fn) => {
+    const b = pane.querySelector(`[data-pv-action="${act}"]`);
+    if (b) b.addEventListener('click', fn);
+  };
+  bind('enter-folder', () => loadExplorer(data.path || entry.path || '', { pushHistory: true }));
+  bind('open-os', () => openItemExternal(data.id || entry.id || '', data.path || entry.path || '', false));
+  bind('reveal-os', () => openItemExternal(data.id || entry.id || '', data.path || entry.path || '', true));
+  bind('fetch-drive', () => loadExplorerPreview(entry, { fetchDrive: true }));
+  bind('copy-text', () => copyPreviewText());
+}
+
+async function openItemExternal(id, path, reveal = false) {
+  const { ok, data } = await apiFetch('/api/explorer/open-os', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: id || '', path: path || '', reveal: Boolean(reveal) }),
+  });
+  if (!ok) {
+    showToast(data.detail || 'Không thể mở bằng ứng dụng hệ thống', 'err');
+    return;
+  }
+  showToast(reveal ? 'Đã mở vị trí tệp trong trình quản lý hệ thống.' : 'Đã mở bằng ứng dụng mặc định của hệ thống.', 'ok');
+}
+
+async function copyPreviewText() {
+  if (!_expState.lastPreviewText) return;
+  try {
+    await navigator.clipboard.writeText(_expState.lastPreviewText);
+    showToast('Đã sao chép văn bản trích xuất vào bộ nhớ tạm.', 'ok');
+  } catch (_) {
+    showToast('Trình duyệt từ chối sao chép tự động — hãy bôi đen và nhấn Ctrl+C.', 'warn');
+  }
+}
+
 /* ==================== BOOTSTRAP & KEYBOARD SHORTCUTS ==================== */
 
 async function refreshAll() {
@@ -1945,10 +2726,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const ov = document.getElementById('paletteOverlay');
       if (ov && ov.classList.contains('open')) closeCommandPalette();
       else openCommandPalette();
-    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
       e.preventDefault();
       toggleSidebar();
-    } else if (e.key === 'Escape') {
+      return;
+    }
+    if (e.key === 'Escape') {
       const cOv = document.getElementById('confirmOverlay');
       if (cOv && cOv.classList.contains('open')) {
         closeConfirmModal(false);
@@ -1958,8 +2743,43 @@ document.addEventListener('DOMContentLoaded', () => {
       if (pOv && pOv.classList.contains('open')) {
         closeCommandPalette();
       }
+      return;
+    }
+
+    // Điều hướng bàn phím cho tab Duyệt Kho (#tab-explorer)
+    const expSec = document.getElementById('tab-explorer');
+    if (!expSec || !expSec.classList.contains('active')) return;
+    if (document.querySelector('.modal-overlay.open, .lock-overlay.open')) return;
+    const tag = (document.activeElement && document.activeElement.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (document.activeElement && document.activeElement.isContentEditable)) {
+      return;
+    }
+
+    if (e.altKey && e.key === 'ArrowLeft') {
+      e.preventDefault();
+      explorerGoBack();
+    } else if (e.altKey && e.key === 'ArrowRight') {
+      e.preventDefault();
+      explorerGoForward();
+    } else if ((e.altKey && e.key === 'ArrowUp') || e.key === 'Backspace') {
+      e.preventDefault();
+      explorerGoUp();
+    } else if (e.key === 'ArrowDown') {
+      if (!_expState.entries.length) return;
+      e.preventDefault();
+      const next = _expState.selectedIdx < 0 ? 0 : Math.min(_expState.entries.length - 1, _expState.selectedIdx + 1);
+      selectExplorerIndex(next, { scrollIntoView: true });
+    } else if (e.key === 'ArrowUp') {
+      if (!_expState.entries.length) return;
+      e.preventDefault();
+      const prev = _expState.selectedIdx <= 0 ? 0 : _expState.selectedIdx - 1;
+      selectExplorerIndex(prev, { scrollIntoView: true });
+    } else if (e.key === 'Enter' && _expState.selectedIdx >= 0) {
+      e.preventDefault();
+      activateExplorerEntry(_expState.selectedIdx);
     }
   });
 
   refreshAll();
 });
+

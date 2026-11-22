@@ -245,6 +245,95 @@ def _api_search_data(q: str, branch: Optional[str] = None, limit: int = 50) -> D
     return {"query": q, "elapsed_ms": elapsed_ms, "count": len(hits), "results": hits}
 
 
+def _api_explorer_list_data(
+    path: str = "",
+    sort_by: str = "name",
+    order: str = "asc",
+    filter_q: str = "",
+) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops import explorer
+
+    try:
+        return 200, explorer.browse_folder(path, sort_by=sort_by, order=order, filter_q=filter_q)
+    except Exception as exc:
+        return explorer.safe_error_status(exc), {"detail": str(exc)}
+
+
+def _api_explorer_tree_data(path: str = "") -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops import explorer
+
+    try:
+        return 200, explorer.list_folder_children_tree(path)
+    except Exception as exc:
+        return explorer.safe_error_status(exc), {"detail": str(exc)}
+
+
+def _api_explorer_preview_data(
+    item_id: str = "",
+    path: str = "",
+    fetch_drive: bool = False,
+) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops import explorer
+
+    try:
+        return 200, explorer.preview_item(item_id=item_id, path=path, fetch_drive=fetch_drive)
+    except Exception as exc:
+        return explorer.safe_error_status(exc), {"detail": str(exc)}
+
+
+def _api_explorer_open_os_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops import explorer
+
+    try:
+        return 200, explorer.open_in_os(
+            item_id=str(body.get("id") or ""),
+            path=str(body.get("path") or ""),
+            reveal=bool(body.get("reveal", False)),
+        )
+    except Exception as exc:
+        return explorer.safe_error_status(exc), {"detail": str(exc)}
+
+
+def _parse_byte_range(range_header: str, total_size: int) -> Optional[Tuple[int, int]]:
+    """Phân tích tiêu đề HTTP `Range: bytes=start-end` phục vụ phát audio/video/PDF mượt."""
+    if not range_header or total_size <= 0:
+        return None
+    raw = range_header.strip()
+    if not raw.lower().startswith("bytes="):
+        return None
+    spec = raw[6:].split(",", 1)[0].strip()
+    if "-" not in spec:
+        return None
+    s_part, e_part = spec.split("-", 1)
+    try:
+        if not s_part:
+            length = int(e_part)
+            if length <= 0:
+                return None
+            start = max(0, total_size - length)
+            end = total_size - 1
+        else:
+            start = int(s_part)
+            end = int(e_part) if e_part else (total_size - 1)
+        if start < 0 or start >= total_size or end < start:
+            return None
+        return start, min(end, total_size - 1)
+    except ValueError:
+        return None
+
+
+def _safe_raw_headers(filename: str, mime: str) -> List[Tuple[str, str]]:
+    encoded_name = urllib.parse.quote(filename, safe="")
+    hdrs: List[Tuple[str, str]] = [
+        ("X-Content-Type-Options", "nosniff"),
+        ("Accept-Ranges", "bytes"),
+        ("Content-Disposition", f"inline; filename*=UTF-8''{encoded_name}"),
+    ]
+    if "svg" in mime.lower():
+        hdrs.append(("Content-Security-Policy", "sandbox; default-src 'none'"))
+    return hdrs
+
+
 def _api_audit_data(branch: Optional[str] = None, limit: int = 100) -> Dict[str, Any]:
     from karius_academic_system.ops.auditor import audit
 
@@ -1028,6 +1117,77 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                         return
                     self._send_json(200, _api_search_data(q, branch=_q1("branch"), limit=int(_q1("limit", "50") or "50")))
                     return
+                if path == "/api/explorer/list":
+                    code, data = _api_explorer_list_data(
+                        path=_q1("path", "") or "",
+                        sort_by=_q1("sort", "name") or "name",
+                        order=_q1("order", "asc") or "asc",
+                        filter_q=_q1("q", "") or "",
+                    )
+                    self._send_json(code, data)
+                    return
+                if path == "/api/explorer/tree":
+                    code, data = _api_explorer_tree_data(path=_q1("path", "") or "")
+                    self._send_json(code, data)
+                    return
+                if path == "/api/explorer/preview":
+                    fetch_drv = (_q1("fetch_drive", "false") or "false").lower() in {"1", "true", "yes"}
+                    code, data = _api_explorer_preview_data(
+                        item_id=_q1("id", "") or "",
+                        path=_q1("path", "") or "",
+                        fetch_drive=fetch_drv,
+                    )
+                    self._send_json(code, data)
+                    return
+                if path == "/api/explorer/raw":
+                    from karius_academic_system.ops import explorer
+
+                    try:
+                        fpath, mime, dl_name = explorer.read_raw_local_file(
+                            item_id=_q1("id", "") or "",
+                            path=_q1("path", "") or "",
+                        )
+                    except Exception as exc:
+                        self._send_json(explorer.safe_error_status(exc), {"detail": str(exc)})
+                        return
+                    total = fpath.stat().st_size
+                    hdrs = _safe_raw_headers(dl_name, mime)
+                    rng = _parse_byte_range(self.headers.get("Range", ""), total)
+                    if rng is not None:
+                        start, end = rng
+                        length = end - start + 1
+                        self.send_response(206)
+                        self.send_header("Content-Type", mime)
+                        self.send_header("Content-Length", str(length))
+                        self.send_header("Content-Range", f"bytes {start}-{end}/{total}")
+                        self.send_header("Cache-Control", "no-store")
+                        for hk, hv in hdrs:
+                            self.send_header(hk, hv)
+                        self.end_headers()
+                        with fpath.open("rb") as fh:
+                            fh.seek(start)
+                            remaining = length
+                            while remaining > 0:
+                                chunk = fh.read(min(65536, remaining))
+                                if not chunk:
+                                    break
+                                self.wfile.write(chunk)
+                                remaining -= len(chunk)
+                        return
+                    self.send_response(200)
+                    self.send_header("Content-Type", mime)
+                    self.send_header("Content-Length", str(total))
+                    self.send_header("Cache-Control", "no-store")
+                    for hk, hv in hdrs:
+                        self.send_header(hk, hv)
+                    self.end_headers()
+                    with fpath.open("rb") as fh:
+                        while True:
+                            chunk = fh.read(65536)
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                    return
                 if path == "/api/audit":
                     self._send_json(200, _api_audit_data(branch=_q1("branch"), limit=int(_q1("limit", "100") or "100")))
                     return
@@ -1218,6 +1378,10 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     )
                     self._send_json(200, res)
                     return
+                if path == "/api/explorer/open-os":
+                    code, data = _api_explorer_open_os_data(body)
+                    self._send_json(code, data)
+                    return
                 if path == "/api/tasks/run":
                     code, data = _api_task_run_data(str(body.get("command", "")), body.get("args"))
                     self._send_json(code, data)
@@ -1283,7 +1447,7 @@ def create_app():
     """Khởi tạo ứng dụng FastAPI phục vụ giao diện quản trị cục bộ `kas ui`."""
     try:
         from fastapi import Body, FastAPI, HTTPException, Query, Request
-        from fastapi.responses import HTMLResponse, JSONResponse, Response
+        from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
         from pydantic import BaseModel
     except (ImportError, OSError) as exc:
         raise RuntimeError(
@@ -1612,6 +1776,51 @@ def create_app():
         limit: int = Query(50, ge=1, le=200),
     ) -> Dict[str, Any]:
         return _api_search_data(q, branch=branch, limit=limit)
+
+    @app.get("/api/explorer/list")
+    def api_explorer_list(
+        path: str = "",
+        sort: str = "name",
+        order: str = "asc",
+        q: str = "",
+    ):
+        code, data = _api_explorer_list_data(path=path, sort_by=sort, order=order, filter_q=q)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi duyệt thư mục"))
+        return JSONResponse(data)
+
+    @app.get("/api/explorer/tree")
+    def api_explorer_tree(path: str = ""):
+        code, data = _api_explorer_tree_data(path=path)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi tải cây thư mục"))
+        return JSONResponse(data)
+
+    @app.get("/api/explorer/preview")
+    def api_explorer_preview(id: str = "", path: str = "", fetch_drive: bool = False):
+        code, data = _api_explorer_preview_data(item_id=id, path=path, fetch_drive=fetch_drive)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi xem trước tệp"))
+        return JSONResponse(data)
+
+    @app.get("/api/explorer/raw")
+    def api_explorer_raw(id: str = "", path: str = ""):
+        from karius_academic_system.ops import explorer
+
+        try:
+            fpath, mime, dl_name = explorer.read_raw_local_file(item_id=id, path=path)
+        except Exception as exc:
+            raise HTTPException(status_code=explorer.safe_error_status(exc), detail=str(exc)) from exc
+        headers = dict(_safe_raw_headers(dl_name, mime))
+        headers["Cache-Control"] = "no-store"
+        return FileResponse(path=str(fpath), media_type=mime, headers=headers)
+
+    @app.post("/api/explorer/open-os")
+    def api_explorer_open_os(body: Dict[str, Any] = Body(default={})):
+        code, data = _api_explorer_open_os_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Không mở được trên hệ điều hành"))
+        return JSONResponse(data)
 
     @app.get("/api/audit")
     def api_audit(branch: Optional[str] = None, limit: int = Query(100, ge=1, le=500)) -> Dict[str, Any]:

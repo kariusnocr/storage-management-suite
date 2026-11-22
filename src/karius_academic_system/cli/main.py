@@ -550,6 +550,70 @@ def _cmd_tests() -> int:
     return proc.returncode
 
 
+def _cmd_browse(argv: List[str]) -> int:
+    from karius_academic_system.ops import explorer
+
+    ap = argparse.ArgumentParser(
+        prog="kas duyet",
+        description="Di chuyển duyệt thư mục và xem trước tệp tin trong kho hiện hành.",
+    )
+    ap.add_argument("path", nargs="?", default="", help="Đường dẫn thư mục hoặc tệp tương đối trong kho")
+    ap.add_argument("--sort", default="name", choices=["name", "size", "modified", "type"], help="Tiêu chí sắp xếp")
+    ap.add_argument("--desc", action="store_true", help="Sắp xếp giảm dần")
+    ap.add_argument("--loc", "--filter", dest="filter_q", default="", help="Lọc theo tên tệp/thư mục")
+    ap.add_argument("--xem", "--preview", dest="preview", action="store_true", help="Xem trước chi tiết tệp/thư mục")
+    ap.add_argument("--tai-drive", action="store_true", help="Tải nội dung tệp Google Drive để xem trước")
+    ap.add_argument("--json", action="store_true", dest="as_json", help="Xuất kết quả định dạng JSON")
+    args = ap.parse_args(argv)
+
+    try:
+        if args.preview:
+            data = explorer.preview_item(path=args.path, fetch_drive=args.tai_drive)
+            if args.as_json:
+                print(json.dumps(data, ensure_ascii=False, indent=2))
+                return 0
+            sc.log(f"[XEM TRƯỚC] {data.get('name')} ({data.get('category')} · {data.get('size_human')})")
+            sc.log(f"  Đường dẫn : {data.get('path') or '/'}")
+            if data.get("mime_type"):
+                sc.log(f"  MIME      : {data.get('mime_type')}")
+            if data.get("url"):
+                sc.log(f"  Drive URL : {data.get('url')}")
+            if data.get("outline"):
+                sc.log(f"  Mục lục   : {', '.join(str(x) for x in data['outline'][:8])}")
+            txt = data.get("text_preview") or ""
+            if txt:
+                sc.log("-" * 60)
+                print(txt[:2500])
+            return 0
+
+        data = explorer.browse_folder(
+            args.path,
+            sort_by=args.sort,
+            order="desc" if args.desc else "asc",
+            filter_q=args.filter_q,
+        )
+        if args.as_json:
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        if not data.get("has_vault"):
+            sc.log("[CẢNH BÁO] Chưa kết nối kho dữ liệu nào. Dùng `kas vault add <đường_dẫn>`.")
+            return 1
+        if data.get("needs_scan"):
+            sc.log("[CẢNH BÁO] Kho Google Drive chưa có chỉ mục. Chạy `kas quet` trước khi duyệt.")
+            return 1
+        st = data.get("stats", {})
+        cur = data.get("current_path") or "/"
+        sc.log(f"[DUYỆT KHO] {data.get('root_name')} :: {cur} ({st.get('folders', 0)} thư mục, {st.get('files', 0)} tệp, {st.get('size_human', '0 B')})")
+        for it in data.get("entries", []):
+            tag = "[DIR]" if it["is_folder"] else f"[{(it.get('ext') or it.get('category') or 'FILE').upper():>4}]"
+            meta = f"{it.get('child_folders', 0)} TM / {it.get('child_files', 0)} tệp" if it["is_folder"] else it.get("size_human", "")
+            print(f"  {tag:<7} {it['name']:<52}  {meta}")
+        return 0
+    except Exception as exc:
+        sc.log(f"[LỖI] {exc}")
+        return 1
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -575,6 +639,8 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     all_cmds = [
         "vault",
+        "duyet",
+        "browse",
         "rules",
         "ai",
         "mcp",
@@ -617,6 +683,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 0
     if cmd == "vault":
         return _cmd_vault(rest)
+    if cmd in {"duyet", "browse"}:
+        return _cmd_browse(rest)
     if cmd == "rules":
         return _cmd_rules(rest)
     if cmd == "settings":
