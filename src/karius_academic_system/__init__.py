@@ -2,6 +2,6 @@
 
 APP_NAME = "Karius Academic System"
 APP_SHORT = "KAS"
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 __all__ = ["APP_NAME", "APP_SHORT", "__version__"]

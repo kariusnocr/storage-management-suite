@@ -865,9 +865,41 @@
         <div id="updateBox" style="margin-top:12px; font-size:13px;"></div>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:18px;">
         <div class="card-title">Đường dẫn Cấu hình &amp; Dữ liệu trên máy</div>
         <pre class="console" id="settingsPathsBox">Đang tải...</pre>
+      </div>
+
+      <div class="card" style="border-color:rgba(248,113,113,0.45);">
+        <div class="row-actions" style="justify-content:space-between; margin-bottom:8px;">
+          <div class="card-title" style="margin:0; color:var(--err);">Gỡ Cài Đặt Phần Mềm (Uninstall KAS)</div>
+          <button class="btn secondary sm" onclick="loadUninstallPlan()">Kiểm kê thành phần</button>
+        </div>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">
+          <strong>An toàn tuyệt đối:</strong> Trình gỡ cài đặt <strong>KHÔNG BAO GIỜ</strong> xóa thư mục tài liệu cá nhân của bạn (như <code>E:\SÁCH</code>) hay dữ liệu trên Google Drive.
+        </p>
+        <div class="form-grid" style="margin-bottom:10px;">
+          <label class="toggle-row">
+            <input type="checkbox" id="unRmConfig" onchange="loadUninstallPlan()" />
+            Xóa thêm cấu hình (<code>~/.config/kas</code>: danh sách kho, tài khoản, OAuth token)
+          </label>
+          <label class="toggle-row">
+            <input type="checkbox" id="unRmData" onchange="loadUninstallPlan()" />
+            Xóa thêm chỉ mục &amp; bộ đệm (<code>~/.local/share/kas</code>: SQLite <code>kas.db</code>, OCR)
+          </label>
+        </div>
+        <table style="margin-bottom:12px;">
+          <thead><tr><th>Trạng thái</th><th>Thành phần</th><th>Đường dẫn</th></tr></thead>
+          <tbody id="uninstallPlanBody"></tbody>
+        </table>
+        <div class="row-actions">
+          <button class="btn danger sm" onclick="executeUninstallFromUi()">Gỡ cài đặt Karius Academic System (KAS)</button>
+          <span id="uninstallMsg" style="font-size:12px; color:var(--warn);"></span>
+        </div>
+        <div style="margin-top:10px; font-size:12px; color:var(--muted);">
+          Gỡ bằng 1 lệnh PowerShell bất cứ lúc nào (hoặc qua <strong>Windows Settings → Apps → Installed Apps</strong>):
+          <code id="uninstallPsCmd" style="display:block; margin-top:4px; word-break:break-all;">irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/uninstall_windows_sac_safe.ps1 | iex</code>
+        </div>
       </div>
     </section>
 
@@ -1400,6 +1432,7 @@
       document.getElementById('sDataDir').value = s.data_dir_override || '';
       document.getElementById('sIncScan').checked = !!s.scan_incremental_default;
       document.getElementById('settingsPathsBox').textContent = JSON.stringify(data.paths || {}, null, 2);
+      loadUninstallPlan();
       return s;
     }
 
@@ -1463,6 +1496,47 @@
       if (!confirm('Tắt máy chủ nền Karius Academic System (KAS)? Cửa sổ này sẽ ngừng kết nối cho tới khi bạn mở lại KAS.')) return;
       await apiFetch('/api/shutdown', {method: 'POST'});
       document.getElementById('settingsMsg').textContent = 'Đã gửi lệnh tắt máy chủ nền KAS.';
+    }
+
+    async function loadUninstallPlan() {
+      const rmCfg = !!(document.getElementById('unRmConfig') && document.getElementById('unRmConfig').checked);
+      const rmData = !!(document.getElementById('unRmData') && document.getElementById('unRmData').checked);
+      const {ok, data: p} = await apiFetch(`/api/uninstall/plan?remove_config=${rmCfg}&remove_data=${rmData}`);
+      if (!ok) return;
+      const body = document.getElementById('uninstallPlanBody');
+      if (!body) return;
+      body.innerHTML = (p.items || []).map(it => {
+        const pill = it.selected
+          ? '<span class="pill err">Sẽ xóa</span>'
+          : (it.exists ? '<span class="pill ok">Giữ lại</span>' : '<span class="pill">Không có</span>');
+        const sz = it.size_human && it.size_human !== '—' && it.exists ? ` (${esc(it.size_human)})` : '';
+        return `<tr><td>${pill}</td><td style="font-size:12px;">${esc(it.label)}${sz}</td><td style="font-size:11px; color:var(--muted);"><code>${esc(it.path)}</code></td></tr>`;
+      }).join('');
+      if (p.windows_powershell_cmd && document.getElementById('uninstallPsCmd')) {
+        document.getElementById('uninstallPsCmd').textContent = p.windows_powershell_cmd;
+      }
+    }
+
+    async function executeUninstallFromUi() {
+      const rmCfg = !!document.getElementById('unRmConfig').checked;
+      const rmData = !!document.getElementById('unRmData').checked;
+      const extraTxt = (rmCfg || rmData)
+        ? '\n\nCẢNH BÁO: Bạn đã chọn xóa thêm cấu hình/dữ liệu chỉ mục của KAS (thư mục tài liệu gốc và Google Drive vẫn được giữ nguyên).'
+        : '\n\nCấu hình (~/.config/kas) và dữ liệu chỉ mục (~/.local/share/kas) sẽ được giữ lại an toàn.';
+      if (!confirm('Xác nhận gỡ cài đặt Karius Academic System (KAS) khỏi máy tính này?' + extraTxt)) return;
+      const typed = prompt('Nhập chính xác chữ "GO-CAI-DAT" để xác nhận gỡ cài đặt phần mềm:');
+      if ((typed || '').trim().toUpperCase() !== 'GO-CAI-DAT') {
+        document.getElementById('uninstallMsg').textContent = 'Đã hủy thao tác gỡ cài đặt.';
+        return;
+      }
+      const {ok, data} = await apiFetch('/api/uninstall/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({remove_config: rmCfg, remove_data: rmData, confirm: true, dry_run: false}),
+      });
+      document.getElementById('uninstallMsg').textContent = ok
+        ? (data.message || 'Đang gỡ cài đặt KAS — bạn có thể đóng cửa sổ này.')
+        : ('Lỗi: ' + (data.detail || 'Không thể gỡ cài đặt'));
     }
 
     /* ================= KHO DỮ LIỆU (MULTI-VAULT) ================= */
