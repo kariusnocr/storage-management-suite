@@ -108,8 +108,21 @@ function Find-SignedPython {
     return $null
 }
 
-Write-Host "[1/5] Dang kiem tra va dung tien trinh KAS dang chay (neu co)..." -ForegroundColor Cyan
+Write-Host "[1/5] Dang dong cua so va dung tien trinh KAS dang chay (neu co)..." -ForegroundColor Cyan
 try {
+    $rtPort = 8765
+    $rtBrowserPid = 0
+    $rtFile = Join-Path $cfgDir "runtime.json"
+    if (Test-Path $rtFile) {
+        try {
+            $rtObj = Get-Content -Path $rtFile -Raw | ConvertFrom-Json
+            if ($rtObj.port) { $rtPort = [int]$rtObj.port }
+            if ($rtObj.browser_pid) { $rtBrowserPid = [int]$rtObj.browser_pid }
+            if ($rtObj.pid -and ([int]$rtObj.pid -ne $PID)) {
+                Stop-Process -Id ([int]$rtObj.pid) -Force -ErrorAction SilentlyContinue
+            }
+        } catch {}
+    }
     $procs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
         $_.CommandLine -and ($_.CommandLine -match "karius_academic_system") -and ($_.ProcessId -ne $PID)
     }
@@ -117,7 +130,24 @@ try {
         Write-Host "      Dung tien trinh PID $($p.ProcessId)..." -ForegroundColor DarkGray
         Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
     }
-    if ($procs) { Start-Sleep -Seconds 1 }
+    if ($rtBrowserPid -gt 0) {
+        Stop-Process -Id $rtBrowserPid -Force -ErrorAction SilentlyContinue
+    }
+    $kasProf = Join-Path $dataDir "browser_profile"
+    $appTag = "--app=http://127.0.0.1:$rtPort"
+    $bProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match "^(msedge|chrome|brave)\.exe$" -and $_.CommandLine
+    }
+    foreach ($bp in $bProcs) {
+        if ($bp.CommandLine.IndexOf($kasProf, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            Stop-Process -Id $bp.ProcessId -Force -ErrorAction SilentlyContinue
+        } elseif ($bp.CommandLine.IndexOf($appTag, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            $gp = Get-Process -Id $bp.ProcessId -ErrorAction SilentlyContinue
+            if ($gp -and $gp.MainWindowHandle -ne 0) { [void]$gp.CloseMainWindow() }
+        }
+    }
+    Get-Process msedge,chrome,brave -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like "Karius Academic System*" } | ForEach-Object { [void]$_.CloseMainWindow() }
+    Start-Sleep -Milliseconds 1200
 } catch {}
 
 Write-Host "[2/5] Dang go goi Python 'karius-academic-system'..." -ForegroundColor Cyan

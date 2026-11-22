@@ -1081,6 +1081,20 @@ pre.console {
   transition: transform 200ms var(--ease);
 }
 
+.lifecycle-spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: kasSpin 0.8s linear infinite;
+}
+
+@keyframes kasSpin {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(10px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }

@@ -987,28 +987,81 @@ async function skipLatestUpdate() {
   showToast(`Đã ẩn nhắc nhở cho phiên bản v${_latestUpdateInfo.latest_version}.`, 'info');
 }
 
-function waitForServerReload(expectedVersion) {
+function showLifecycleOverlay(title, message, sub = '', showSpinner = true) {
+  const ov = document.getElementById('lifecycleOverlay');
+  if (!ov) return;
+  const sp = document.getElementById('lifecycleSpinner');
+  const t = document.getElementById('lifecycleTitle');
+  const m = document.getElementById('lifecycleMessage');
+  const s = document.getElementById('lifecycleSub');
+  if (sp) sp.style.display = showSpinner ? 'block' : 'none';
+  if (t) t.textContent = title;
+  if (m) m.textContent = message;
+  if (s) s.textContent = sub;
+  ov.classList.add('open');
+}
+
+function attemptCloseAppWindow(doneTitle, doneMessage) {
+  setTimeout(() => {
+    try { window.open('', '_self'); } catch (_e) { /* ignore */ }
+    try { window.close(); } catch (_e) { /* ignore */ }
+    setTimeout(() => {
+      showLifecycleOverlay(
+        doneTitle,
+        doneMessage,
+        'Nếu cửa sổ trình duyệt không tự đóng do chính sách tab thường, bạn có thể đóng cửa sổ/tab này ngay bây giờ.',
+        false
+      );
+    }, 900);
+  }, 1100);
+}
+
+function waitForServerReload(expectedVersion, oldBootId = '', oldPid = 0) {
   const out = document.getElementById('updateLogOut');
+  const verLabel = expectedVersion ? `v${expectedVersion}` : 'phiên bản mới';
+  showLifecycleOverlay(
+    `Đang khởi động lại KAS sang ${verLabel}...`,
+    'Máy chủ cũ đang dừng để nạp bản mới. Giao diện sẽ tự động tải lại ngay khi sẵn sàng.',
+    'Đang chờ máy chủ mới phản hồi...'
+  );
   let attempts = 0;
   const timer = setInterval(async () => {
     attempts += 1;
+    const sub = document.getElementById('lifecycleSub');
+    if (sub) sub.textContent = `Đang kết nối lại máy chủ mới (lần thử ${attempts}/60)...`;
     try {
-      const r = await fetch('/api/health', { cache: 'no-store' });
+      const r = await fetch('/api/health?_t=' + Date.now(), { cache: 'no-store' });
       if (r.ok) {
         const h = await r.json();
-        if (!expectedVersion || h.version === expectedVersion || attempts >= 8) {
+        const isNewBoot = !!(oldBootId && h.boot_id && h.boot_id !== oldBootId);
+        const isNewPid = !!(oldPid && h.pid && Number(h.pid) !== Number(oldPid));
+        const isExpectedVer = !!(expectedVersion && h.version === expectedVersion);
+        if (isNewBoot || isNewPid || isExpectedVer || (!oldBootId && !expectedVersion && attempts >= 4)) {
           clearInterval(timer);
-          window.location.reload();
+          showLifecycleOverlay(
+            `Đã khởi động lại KAS v${h.version || expectedVersion || ''}!`,
+            'Đang nạp giao diện phiên bản mới...',
+            '',
+            true
+          );
+          const nextUrl = '/?_kas_v=' + encodeURIComponent(h.version || String(Date.now()));
+          window.location.replace(nextUrl);
         }
       }
     } catch (_e) {
       if (out) out.textContent += '.';
     }
-    if (attempts > 45) {
+    if (attempts >= 60) {
       clearInterval(timer);
+      showLifecycleOverlay(
+        'Máy chủ đang hoàn tất khởi động lại',
+        'Vui lòng nhấn F5 (hoặc mở lại biểu tượng KAS trên Desktop) nếu trang chưa tự tải lại.',
+        '',
+        false
+      );
       if (out) out.textContent += '\nMáy chủ đã khởi động xong — vui lòng tải lại cửa sổ (F5).';
     }
-  }, 1200);
+  }, 900);
 }
 
 async function triggerAutoUpdate(isRollback = false) {
@@ -1030,6 +1083,18 @@ async function triggerAutoUpdate(isRollback = false) {
   if (btn) btn.disabled = true;
   if (pill) { pill.className = 'pill warn'; pill.textContent = 'Đang cập nhật...'; }
 
+  let oldBootId = '';
+  let oldPid = 0;
+  try {
+    const { ok: hok, data: h } = await apiFetch('/api/health');
+    if (hok && h) {
+      oldBootId = h.boot_id || '';
+      oldPid = Number(h.pid || 0);
+    }
+  } catch (_e) {
+    // ignore
+  }
+
   const { ok, data: job } = await apiFetch('/api/update/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1042,24 +1107,26 @@ async function triggerAutoUpdate(isRollback = false) {
     return;
   }
 
+  let expectedVer = '';
   const poll = async () => {
     try {
       const { ok: pok, data: cur } = await apiFetch('/api/update/jobs/' + encodeURIComponent(job.id));
       if (!pok) {
-        waitForServerReload('');
+        waitForServerReload(expectedVer, oldBootId, oldPid);
         return;
       }
+      if (cur.to_version) expectedVer = cur.to_version;
       out.textContent = (cur.logs || []).join('\n') || 'Đang xử lý...';
       out.scrollTop = out.scrollHeight;
       if (cur.status === 'running') {
-        setTimeout(poll, 600);
+        setTimeout(poll, 550);
         return;
       }
       if (btn) btn.disabled = false;
       if (cur.restarting) {
         if (pill) { pill.className = 'pill ok'; pill.textContent = `Đang khởi động lại → v${cur.to_version}...`; }
         showToast(`Đang khởi động lại sang KAS v${cur.to_version}...`, 'ok');
-        waitForServerReload(cur.to_version);
+        waitForServerReload(cur.to_version || expectedVer, oldBootId, oldPid);
         return;
       }
       if (cur.ok) {
@@ -1070,7 +1137,7 @@ async function triggerAutoUpdate(isRollback = false) {
         showToast('Cập nhật gặp lỗi — kiểm tra nhật kí bên dưới.', 'err');
       }
     } catch (_err) {
-      waitForServerReload('');
+      waitForServerReload(expectedVer, oldBootId, oldPid);
     }
   };
   setTimeout(poll, 400);
@@ -1089,14 +1156,20 @@ async function exportSettings() {
 async function shutdownServer() {
   const yes = await showConfirmModal({
     title: 'Tắt máy chủ nền KAS',
-    message: 'Cửa sổ giao diện sẽ ngừng kết nối cho tới khi bạn khởi chạy lại Karius Academic System.',
-    confirmText: 'Tắt máy chủ',
+    message: 'Máy chủ nền và cửa sổ Karius Academic System sẽ tự động đóng ngay bây giờ.',
+    confirmText: 'Tắt & Đóng ứng dụng',
     danger: true,
   });
   if (!yes) return;
-  await apiFetch('/api/shutdown', { method: 'POST' });
+  showLifecycleOverlay(
+    'Đang tắt Karius Academic System...',
+    'Đang dừng máy chủ cục bộ và đóng cửa sổ ứng dụng.',
+    '',
+    true
+  );
+  await apiFetch('/api/shutdown', { method: 'POST' }).catch(() => {});
   document.getElementById('settingsMsg').textContent = 'Đã gửi lệnh tắt máy chủ nền KAS.';
-  showToast('Máy chủ nền KAS đang dừng.', 'warn');
+  attemptCloseAppWindow('Đã tắt Karius Academic System', 'Máy chủ cục bộ KAS đã dừng an toàn.');
 }
 
 async function loadUninstallPlan() {
@@ -1127,7 +1200,7 @@ async function executeUninstallFromUi() {
   const confirmed = await showConfirmModal({
     title: 'Gỡ cài đặt Karius Academic System (KAS)',
     message: extraTxt,
-    confirmText: 'Gỡ cài đặt vĩnh viễn',
+    confirmText: 'Gỡ cài đặt & Đóng ứng dụng',
     danger: true,
     requireTyped: 'GO-CAI-DAT',
     placeholder: 'GO-CAI-DAT',
@@ -1136,16 +1209,31 @@ async function executeUninstallFromUi() {
     document.getElementById('uninstallMsg').textContent = 'Đã hủy thao tác gỡ cài đặt.';
     return;
   }
+  showLifecycleOverlay(
+    'Đang gỡ cài đặt Karius Academic System...',
+    'Đang dừng máy chủ nền, đóng ứng dụng và dọn sạch các thành phần đã chọn.',
+    'Tài liệu cá nhân và Google Drive của bạn được bảo toàn 100%.',
+    true
+  );
   const { ok, data } = await apiFetch('/api/uninstall/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ remove_config: rmCfg, remove_data: rmData, confirm: true, dry_run: false }),
   });
-  const txt = ok
-    ? (data.message || 'Đang gỡ cài đặt KAS — bạn có thể đóng cửa sổ này.')
-    : ('Lỗi: ' + (data.detail || 'Không thể gỡ cài đặt'));
+  if (!ok) {
+    const ov = document.getElementById('lifecycleOverlay');
+    if (ov) ov.classList.remove('open');
+    const errTxt = 'Lỗi: ' + (data.detail || 'Không thể gỡ cài đặt');
+    document.getElementById('uninstallMsg').textContent = errTxt;
+    showToast(errTxt, 'err', 6000);
+    return;
+  }
+  const txt = data.message || 'Đang gỡ cài đặt KAS — ứng dụng sẽ tự đóng ngay bây giờ.';
   document.getElementById('uninstallMsg').textContent = txt;
-  showToast(txt, ok ? 'warn' : 'err', 6000);
+  attemptCloseAppWindow(
+    'Đã bắt đầu gỡ cài đặt KAS',
+    'Máy chủ đã dừng và trình gỡ cài đặt nền đang hoàn tất dọn sạch. Tài liệu cá nhân & Google Drive của bạn được giữ nguyên 100%.'
+  );
 }
 
 /* ==================== KHO DỮ LIỆU (MULTI-VAULT) ==================== */

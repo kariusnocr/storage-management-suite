@@ -334,6 +334,13 @@ def perform_uninstall(
             "errors": errors,
         }
 
+    # 0. Tự động đóng cửa sổ & dừng mọi máy chủ nền KAS đang chạy để giải phóng tệp khóa
+    from karius_academic_system.web.lifecycle import resolve_console_python, stop_running_kas_instances
+
+    stopped = stop_running_kas_instances(close_windows=True)
+    if stopped.get("was_running"):
+        removed.append(f"Đã dừng tiến trình KAS đang chạy (PID {stopped.get('pid') or 'active'}) và đóng cửa sổ ứng dụng")
+
     # 1. Xóa lối tắt, thư mục bin cục bộ, User PATH và mục Windows Installed Apps
     if os.name == "nt":
         win_root = _windows_install_root()
@@ -393,13 +400,15 @@ def perform_uninstall(
 
     # 4. Gỡ gói Python cuối cùng (để mọi mô-đun đang nạp chạy trọn vẹn trước khi gỡ)
     if uninstall_python_pkg:
+        pip_python = resolve_console_python(sys.executable)
+        run_kwargs: Dict[str, Any] = {"capture_output": True, "text": True, "timeout": 120}
+        if os.name == "nt":
+            run_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         for pkg in PACKAGE_NAMES:
             try:
                 proc = subprocess.run(
-                    [sys.executable, "-m", "pip", "uninstall", "-y", pkg],
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
+                    [pip_python, "-m", "pip", "uninstall", "-y", pkg],
+                    **run_kwargs,
                 )
                 out_low = (proc.stdout + "\n" + proc.stderr).lower()
                 if proc.returncode == 0 and "skipping" not in out_low:
@@ -425,19 +434,53 @@ def _generate_windows_detached_ps1(
     data_root: Path,
     remove_config: bool,
     remove_data: bool,
+    browser_pid: int = 0,
+    port: int = 8765,
+    browser_profile: Optional[Path] = None,
 ) -> str:
-    """Sinh kịch bản PowerShell thuần 7-bit ASCII tự dọn sạch sau khi tiến trình máy chủ KAS đã tắt hẳn."""
+    """Sinh kịch bản PowerShell thuần 7-bit ASCII tự đóng cửa sổ, dừng hẳn máy chủ KAS rồi dọn sạch."""
     py_esc = python_exe.replace("'", "''")
     cfg_esc = str(cfg_dir).replace("'", "''")
     data_esc = str(data_root).replace("'", "''")
+    prof_esc = str(browser_profile or (data_root / "browser_profile")).replace("'", "''")
     rm_cfg = "$true" if remove_config else "$false"
     rm_data = "$true" if remove_data else "$false"
     return "\r\n".join([
         "$ErrorActionPreference = 'Continue'",
-        f"try {{ Wait-Process -Id {int(wait_pid)} -Timeout 8 -ErrorAction SilentlyContinue }} catch {{}}",
-        "Start-Sleep -Seconds 2",
-        "Write-Host '=== DANG GO CAI DAT KARIUS ACADEMIC SYSTEM (KAS) ===' -ForegroundColor Cyan",
-        f"& '{py_esc}' -m pip uninstall -y karius-academic-system storage-management-suite",
+        f"$waitPid = {int(wait_pid)}",
+        f"$browserPid = {int(browser_pid)}",
+        f"$prof = '{prof_esc}'",
+        f"$appTag = '--app=http://127.0.0.1:{int(port)}'",
+        "if ($waitPid -gt 0) {",
+        "    try { Wait-Process -Id $waitPid -Timeout 5 -ErrorAction SilentlyContinue } catch {}",
+        "    if (Get-Process -Id $waitPid -ErrorAction SilentlyContinue) {",
+        "        Stop-Process -Id $waitPid -Force -ErrorAction SilentlyContinue",
+        "    }",
+        "}",
+        "$kasProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {",
+        "    $_.ProcessId -ne $PID -and $_.CommandLine -and ($_.CommandLine -match 'karius_academic_system')",
+        "}",
+        "foreach ($p in $kasProcs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }",
+        "if ($browserPid -gt 0) { Stop-Process -Id $browserPid -Force -ErrorAction SilentlyContinue }",
+        "$bProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {",
+        "    $_.Name -match '^(msedge|chrome|brave)\\.exe$' -and $_.CommandLine",
+        "}",
+        "foreach ($bp in $bProcs) {",
+        "    if ($bp.CommandLine.IndexOf($prof, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {",
+        "        Stop-Process -Id $bp.ProcessId -Force -ErrorAction SilentlyContinue",
+        "    } elseif ($bp.CommandLine.IndexOf($appTag, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {",
+        "        $gp = Get-Process -Id $bp.ProcessId -ErrorAction SilentlyContinue",
+        "        if ($gp -and $gp.MainWindowHandle -ne 0) { [void]$gp.CloseMainWindow() }",
+        "    }",
+        "}",
+        "Get-Process msedge,chrome,brave -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like 'Karius Academic System*' } | ForEach-Object { [void]$_.CloseMainWindow() }",
+        "Start-Sleep -Milliseconds 1200",
+        f"$pyExe = '{py_esc}'",
+        "if ($pyExe -match 'pythonw\\.exe$') {",
+        "    $candPy = $pyExe -replace 'pythonw\\.exe$', 'python.exe'",
+        "    if (Test-Path $candPy) { $pyExe = $candPy }",
+        "}",
+        "& $pyExe -m pip uninstall -y karius-academic-system storage-management-suite",
         "$binDir = Join-Path $env:LOCALAPPDATA 'kas\\bin'",
         "$kasRoot = Join-Path $env:LOCALAPPDATA 'kas'",
         "$uPath = [Environment]::GetEnvironmentVariable('Path', 'User')",
@@ -447,14 +490,14 @@ def _generate_windows_detached_ps1(
         "}",
         "Remove-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\KariusAcademicSystem' -Force -ErrorAction SilentlyContinue",
         "$desktop = [Environment]::GetFolderPath('Desktop')",
+        "$oneDriveDesktop = Join-Path $env:USERPROFILE 'OneDrive\\Desktop'",
         "$startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Karius Academic System'",
         "Remove-Item -Path (Join-Path $desktop 'Karius Academic System (KAS).lnk') -Force -ErrorAction SilentlyContinue",
+        "Remove-Item -Path (Join-Path $oneDriveDesktop 'Karius Academic System (KAS).lnk') -Force -ErrorAction SilentlyContinue",
         "Remove-Item -Path $startMenu -Recurse -Force -ErrorAction SilentlyContinue",
         "Remove-Item -Path $kasRoot -Recurse -Force -ErrorAction SilentlyContinue",
         f"if ({rm_cfg}) {{ Remove-Item -Path '{cfg_esc}' -Recurse -Force -ErrorAction SilentlyContinue }}",
         f"if ({rm_data}) {{ Remove-Item -Path '{data_esc}' -Recurse -Force -ErrorAction SilentlyContinue }}",
-        "Write-Host 'DA GO CAI DAT KARIUS ACADEMIC SYSTEM (KAS) THANH CONG!' -ForegroundColor Green",
-        "Write-Host '(Thu muc tai lieu ca nhan va Google Drive cua ban van duoc bao toan 100%.)' -ForegroundColor Yellow",
         "Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue",
     ]) + "\r\n"
 
@@ -463,40 +506,59 @@ def schedule_detached_self_uninstall(
     *,
     remove_config: bool = False,
     remove_data: bool = False,
+    port: int = 8765,
 ) -> Dict[str, Any]:
-    """Khởi chạy tiến trình gỡ cài đặt tách rời để an toàn xóa gói KAS sau khi Web/Desktop Server tắt hẳn."""
+    """Khởi chạy tiến trình gỡ cài đặt tách rời để an toàn đóng cửa sổ, dừng server và gỡ sạch gói KAS."""
+    from karius_academic_system.web.lifecycle import (
+        browser_profile_dir,
+        get_tracked_browser_pid,
+        resolve_console_python,
+    )
+
     cfg_dir = sc.user_config_dir()
     data_root = _default_data_root()
+    prof_dir = browser_profile_dir()
+    bpid = get_tracked_browser_pid()
     tag = uuid.uuid4().hex[:8]
 
     if os.name == "nt":
         ps1_path = Path(tempfile.gettempdir()) / f"kas_self_uninstall_{tag}.ps1"
         ps1_text = _generate_windows_detached_ps1(
             wait_pid=os.getpid(),
-            python_exe=sys.executable,
+            python_exe=resolve_console_python(sys.executable),
             cfg_dir=cfg_dir,
             data_root=data_root,
             remove_config=remove_config,
             remove_data=remove_data,
+            browser_pid=bpid,
+            port=port,
+            browser_profile=prof_dir,
         )
         ps1_path.write_bytes(ps1_text.encode("ascii", errors="ignore"))
-        creationflags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         subprocess.Popen(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps1_path)],
+            ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", str(ps1_path)],
             creationflags=creationflags,
             close_fds=True,
         )
         return {
             "ok": True,
             "scheduled": True,
+            "closing": True,
             "script": str(ps1_path),
-            "message": "Đã khởi chạy trình gỡ cài đặt nền. Máy chủ KAS sẽ tắt ngay bây giờ và hoàn tất gỡ bỏ sau vài giây.",
+            "message": "Đã khởi chạy trình gỡ cài đặt nền. Ứng dụng và máy chủ KAS sẽ tự động đóng ngay bây giờ.",
         }
 
     sh_path = Path(tempfile.gettempdir()) / f"kas_self_uninstall_{tag}.sh"
     lines = [
         "#!/bin/sh",
-        "sleep 2",
+        f"WAIT_PID={os.getpid()}",
+        f"BROWSER_PID={int(bpid)}",
+        "i=0",
+        'while [ "$i" -lt 20 ] && kill -0 "$WAIT_PID" 2>/dev/null; do sleep 0.25; i=$((i + 1)); done',
+        'kill -0 "$WAIT_PID" 2>/dev/null && kill -TERM "$WAIT_PID" 2>/dev/null || true',
+        '[ "$BROWSER_PID" -gt 0 ] && kill -TERM "$BROWSER_PID" 2>/dev/null || true',
+        "sleep 0.6",
         f'"{sys.executable}" -m pip uninstall -y karius-academic-system storage-management-suite >/dev/null 2>&1 || true',
         'rm -f "$HOME/.local/share/applications/karius-academic-system.desktop"',
         'rm -rf "$HOME/Applications/Karius Academic System.app"',
@@ -515,8 +577,9 @@ def schedule_detached_self_uninstall(
     return {
         "ok": True,
         "scheduled": True,
+        "closing": True,
         "script": str(sh_path),
-        "message": "Đã khởi chạy trình gỡ cài đặt nền. Máy chủ KAS sẽ tắt ngay bây giờ và tự gỡ sạch sau 2 giây.",
+        "message": "Đã khởi chạy trình gỡ cài đặt nền. Ứng dụng và máy chủ KAS sẽ tự động đóng ngay bây giờ.",
     }
 
 
