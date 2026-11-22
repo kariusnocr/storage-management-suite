@@ -1,12 +1,12 @@
-# TỔNG QUAN HỆ THỐNG — KARIUS ACADEMIC SYSTEM (KAS `v1.5.0`)
+# TỔNG QUAN HỆ THỐNG — KARIUS ACADEMIC SYSTEM (KAS `v1.5.1`)
 
-**Karius Academic System (KAS `v1.5.0`)** là nền tảng quản trị tri thức học thuật với **giao diện Desktop Workspace Shell (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K`**, đa kho dữ liệu (Multi-Vault), tùy chỉnh quy tắc đặt tên linh hoạt, dòng lệnh tích hợp, tự động cài công cụ/OCR (`kas setup`), tự động cập nhật xác thực SHA-256 (`kas update`), gỡ cài đặt sạch (`kas uninstall`), bảo vệ đăng nhập cục bộ, kết nối dịch vụ bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook/Connector) và máy chủ AI/MCP Agent — hỗ trợ **mọi thư mục cục bộ trên máy tính** và **mọi thư mục / Shared Drive trên Google Drive**, phát triển tại **`kariusnocr/storage-management-suite`**.
+**Karius Academic System (KAS `v1.5.1`)** là nền tảng quản trị tri thức học thuật với **giao diện Desktop Workspace Shell (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K`**, đa kho dữ liệu (Multi-Vault), tùy chỉnh quy tắc đặt tên linh hoạt, dòng lệnh tích hợp, tự động cài công cụ/OCR (`kas setup`), tự động cập nhật xác thực SHA-256 (`kas update`), gỡ cài đặt sạch (`kas uninstall`), bảo vệ đăng nhập cục bộ, kết nối dịch vụ bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook/Connector) và máy chủ AI/MCP Agent — hỗ trợ **mọi thư mục cục bộ trên máy tính** và **mọi thư mục / Shared Drive trên Google Drive**, phát triển tại **`kariusnocr/storage-management-suite`**.
 
 ---
 
 ## 1. Kiến trúc Gói Phần Mềm (`src/karius_academic_system/`)
 
-Toàn bộ phần mềm được đóng gói chuẩn Python **`karius-academic-system`** (`v1.5.0`) với lệnh điều phối duy nhất **`kas`** và ứng dụng giao diện **`kas ui`** / **`kas desktop`**:
+Toàn bộ phần mềm được đóng gói chuẩn Python **`karius-academic-system`** (`v1.5.1`) với lệnh điều phối duy nhất **`kas`** và ứng dụng giao diện **`kas ui`** / **`kas desktop`**:
 
 | Phân hệ gói | Mô-đun chính | Lệnh `kas` | Vai trò |
 | :--- | :--- | :--- | :--- |

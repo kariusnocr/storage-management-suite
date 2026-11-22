@@ -1,4 +1,4 @@
-# Karius Academic System (KAS) `v1.5.0`
+# Karius Academic System (KAS) `v1.5.1`
 
 **Karius Academic System (KAS)** là phần mềm quản trị tri thức với **giao diện Desktop Workspace Shell thế hệ mới (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K` (Command Palette)**, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
 
@@ -7,9 +7,9 @@
 
 ---
 
-## 1. Tính năng Nổi bật (`v1.5.0`)
+## 1. Tính năng Nổi bật (`v1.5.1`)
 
-- **Giao Diện Desktop Workspace Shell & Hệ Thống Thiết Kế Mới (`v1.5.0`)**:
+- **Giao Diện Desktop Workspace Shell & Hệ Thống Thiết Kế Mới (`v1.5.1`)**:
   - **Thanh điều hướng trái thu gọn linh hoạt (Collapsible Sidebar Rail · `Ctrl+B`)** phân 4 nhóm ngữ cảnh rõ ràng (*Kho Tri Thức*, *Quản trị & Chuẩn hóa*, *Trợ Lý & Công cụ*, *Hệ thống*) cùng bộ biểu tượng vector SVG nội tuyến (100% ngoại tuyến, 0 phụ thuộc CDN, tương thích tuyệt đối Windows 11 Smart App Control).
   - **Bảng Lệnh Toàn Cục (`Ctrl+K` — Command Palette)**: Tìm tệp tin trực tiếp qua SQLite FTS5, chuyển đổi kho, mở nhanh 12 màn hình chức năng, kích hoạt tác vụ nhanh hoặc chạy trực tiếp lệnh `kas ...` chỉ bằng bàn phím.
   - **Hai bảng màu học thuật tinh tế**: **Obsidian Ink (Tối mặc định)** và **Archival Paper (Sáng)**, đi kèm **thanh biểu đồ phân bố dung lượng nhánh**, **ngăn thông báo Toast** và **hộp thoại xác nhận tùy biến** thay thế hoàn toàn `alert()`/`confirm()`/`prompt()` cũ của trình duyệt.
@@ -50,7 +50,7 @@
 
 ### Windows 11 có Smart App Control (Khuyến nghị — 1 lệnh PowerShell hoặc 1 nhấp đúp)
 
-**Cài mới hoặc cập nhật lên `v1.5.0` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
+**Cài mới hoặc cập nhật lên `v1.5.1` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
@@ -64,7 +64,7 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
 ```
 
 **Hoặc tải ZIP cài/gỡ offline 1 nhấp đúp:**
-1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.5.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
+1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.5.1`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
 2. Giải nén và nhấp đúp **`Cai_Dat_KAS_Windows11.cmd`** (để cài) hoặc **`Go_Cai_Dat_KAS_Windows11.cmd`** (để gỡ).
 
 ### Cài bằng Python (`pip`, Python 3.11+)

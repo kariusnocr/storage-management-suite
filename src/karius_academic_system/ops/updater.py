@@ -431,18 +431,24 @@ def apply_update(
         _emit(f"  ✗ Lỗi tải / xác thực bản cập nhật: {exc}")
         return {"ok": False, "updated": False, "error": str(exc), "logs": logs}
 
-    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "--force-reinstall", "--no-deps", "--no-warn-script-location"]
+    from karius_academic_system.web.lifecycle import resolve_console_python
+
+    pip_python = resolve_console_python(sys.executable)
+    cmd = [pip_python, "-m", "pip", "install", "--upgrade", "--force-reinstall", "--no-deps", "--no-warn-script-location"]
     if not _in_virtualenv():
         cmd.append("--user")
     if os.name != "nt" and not _in_virtualenv():
         cmd.append("--break-system-packages")
     cmd.append(str(whl_path))
 
-    _emit(f"  ⚙ Đang cài đặt gói `{whl_path.name}` vào Python ({sys.executable})...")
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    _emit(f"  ⚙ Đang cài đặt gói `{whl_path.name}` vào Python ({pip_python})...")
+    run_kwargs: Dict[str, Any] = {"capture_output": True, "text": True, "timeout": 180}
+    if os.name == "nt":
+        run_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    proc = subprocess.run(cmd, **run_kwargs)
     if proc.returncode != 0 and "--break-system-packages" in cmd:
         retry = [c for c in cmd if c != "--break-system-packages"]
-        proc = subprocess.run(retry, capture_output=True, text=True, timeout=180)
+        proc = subprocess.run(retry, **run_kwargs)
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-1:] or [f"mã lỗi {proc.returncode}"]
         err = f"Cài đặt pip thất bại: {tail[0]}"
@@ -482,31 +488,83 @@ def apply_update(
     }
 
 
-def _generate_windows_restart_ps1(wait_pid: int, python_exe: str, host: str, port: int, stdlib: bool = True) -> str:
-    """Sinh kịch bản PowerShell thuần 7-bit ASCII đợi máy chủ cũ tắt rồi khởi chạy bản KAS mới trên cùng cổng."""
+def _generate_windows_restart_ps1(
+    wait_pid: int,
+    python_exe: str,
+    host: str,
+    port: int,
+    stdlib: bool = True,
+    *,
+    reopen_window: bool = False,
+) -> str:
+    """Sinh kịch bản PowerShell thuần 7-bit ASCII đợi/dừng máy chủ cũ rồi khởi chạy bản KAS mới trên cùng cổng."""
     py_path = Path(python_exe)
     pythonw = py_path.parent / "pythonw.exe"
     launcher = str(pythonw if pythonw.exists() else py_path).replace("'", "''")
-    extra_flag = " '--stdlib'" if stdlib else ""
+    host_esc = str(host or "127.0.0.1").replace("'", "''")
+    if reopen_window:
+        arg_list = ["-m", "karius_academic_system", "desktop", "--browser", "--port", str(int(port))]
+    else:
+        arg_list = ["-m", "karius_academic_system", "ui", "--host", host_esc, "--port", str(int(port))]
+    if stdlib:
+        arg_list.append("--stdlib")
+    ps_args = ", ".join(f"'{a}'" for a in arg_list)
     return "\r\n".join([
         "$ErrorActionPreference = 'SilentlyContinue'",
-        f"Wait-Process -Id {int(wait_pid)} -Timeout 10 -ErrorAction SilentlyContinue",
-        "Start-Sleep -Milliseconds 1200",
+        f"$waitPid = {int(wait_pid)}",
+        "if ($waitPid -gt 0) {",
+        "    try { Wait-Process -Id $waitPid -Timeout 6 -ErrorAction SilentlyContinue } catch {}",
+        "    if (Get-Process -Id $waitPid -ErrorAction SilentlyContinue) {",
+        "        Stop-Process -Id $waitPid -Force -ErrorAction SilentlyContinue",
+        "    }",
+        "}",
+        "$leftover = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {",
+        "    $_.ProcessId -ne $PID -and $_.CommandLine -and ($_.CommandLine -match 'karius_academic_system') -and ($_.CommandLine -match '\\b(ui|desktop)\\b')",
+        "}",
+        "foreach ($p in $leftover) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }",
+        "for ($i = 0; $i -lt 25; $i++) {",
+        "    $busy = $false",
+        "    try {",
+        f"        $c = New-Object System.Net.Sockets.TcpClient('{host_esc}', {int(port)})",
+        "        $c.Close()",
+        "        $busy = $true",
+        "    } catch {}",
+        "    if (-not $busy) { break }",
+        "    Start-Sleep -Milliseconds 250",
+        "}",
+        "Start-Sleep -Milliseconds 350",
         "$env:PYTHONUTF8 = '1'",
-        f"Start-Process -FilePath '{launcher}' -ArgumentList @('-m', 'karius_academic_system', 'ui', '--host', '{host}', '--port', '{int(port)}'{extra_flag})",
+        f"Start-Process -FilePath '{launcher}' -ArgumentList @({ps_args}) -WindowStyle Hidden",
         "Remove-Item -Path $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue",
     ]) + "\r\n"
 
 
-def schedule_detached_server_restart(host: str = "127.0.0.1", port: int = 8765, stdlib: bool = True) -> Dict[str, Any]:
+def schedule_detached_server_restart(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    stdlib: bool = True,
+    *,
+    reopen_window: bool = False,
+    wait_pid: Optional[int] = None,
+) -> Dict[str, Any]:
     """Khởi chạy lại máy chủ KAS sau khi tiến trình hiện tại giải phóng cổng HTTP."""
     tag = uuid.uuid4().hex[:8]
+    pid_to_wait = os.getpid() if wait_pid is None else int(wait_pid)
     if os.name == "nt":
         ps1 = Path(tempfile.gettempdir()) / f"kas_restart_{tag}.ps1"
-        ps1.write_bytes(_generate_windows_restart_ps1(os.getpid(), sys.executable, host, port, stdlib=stdlib).encode("ascii"))
-        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        ps1.write_bytes(
+            _generate_windows_restart_ps1(
+                pid_to_wait,
+                sys.executable,
+                host,
+                port,
+                stdlib=stdlib,
+                reopen_window=reopen_window,
+            ).encode("ascii")
+        )
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         subprocess.Popen(
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps1)],
+            ["powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", str(ps1)],
             creationflags=flags,
             close_fds=True,
         )
@@ -514,10 +572,26 @@ def schedule_detached_server_restart(host: str = "127.0.0.1", port: int = 8765, 
 
     sh = Path(tempfile.gettempdir()) / f"kas_restart_{tag}.sh"
     flag = " --stdlib" if stdlib else ""
-    sh.write_text(
-        f'#!/bin/sh\nsleep 1.5\nPYTHONUTF8=1 "{sys.executable}" -m karius_academic_system ui --host "{host}" --port {int(port)}{flag} >/dev/null 2>&1 &\nrm -f "$0"\n',
-        encoding="utf-8",
-    )
+    if reopen_window:
+        launch_cmd = f'PYTHONUTF8=1 "{sys.executable}" -m karius_academic_system desktop --browser --port {int(port)}{flag}'
+    else:
+        launch_cmd = f'PYTHONUTF8=1 "{sys.executable}" -m karius_academic_system ui --host "{host}" --port {int(port)}{flag}'
+    lines = [
+        "#!/bin/sh",
+        f"WAIT_PID={int(pid_to_wait)}",
+        'if [ "$WAIT_PID" -gt 0 ]; then',
+        "  i=0",
+        '  while [ "$i" -lt 25 ] && kill -0 "$WAIT_PID" 2>/dev/null; do',
+        "    sleep 0.25",
+        "    i=$((i + 1))",
+        "  done",
+        '  kill -0 "$WAIT_PID" 2>/dev/null && kill -TERM "$WAIT_PID" 2>/dev/null || true',
+        "fi",
+        "sleep 0.5",
+        f"nohup {launch_cmd} >/dev/null 2>&1 &",
+        'rm -f "$0"',
+    ]
+    sh.write_text("\n".join(lines) + "\n", encoding="utf-8")
     try:
         os.chmod(sh, 0o700)
     except OSError:
@@ -535,6 +609,7 @@ def start_update_job(
     host: str = "127.0.0.1",
     port: int = 8765,
     stdlib: bool = True,
+    reopen_window: bool = False,
     shutdown_cb: Optional[Callable[[], None]] = None,
 ) -> Tuple[int, Dict[str, Any]]:
     """Khởi chạy nền tác vụ tự động cập nhật để Web/Desktop UI theo dõi trực tiếp và tự tải lại trang."""
@@ -578,8 +653,13 @@ def start_update_job(
                     "result": res,
                 })
             if will_restart:
-                time.sleep(0.8)
-                schedule_detached_server_restart(host=host, port=port, stdlib=stdlib)
+                time.sleep(1.3)
+                schedule_detached_server_restart(
+                    host=host,
+                    port=port,
+                    stdlib=stdlib,
+                    reopen_window=reopen_window,
+                )
                 if callable(shutdown_cb):
                     shutdown_cb()
         except Exception as exc:
@@ -620,7 +700,25 @@ def maybe_start_background_update_check() -> None:
                     f"(hiện tại: v{__version__}). Chạy `kas update` hoặc bấm cập nhật trên giao diện."
                 )
                 if st.auto_install_updates:
-                    apply_update(force=False, log_cb=sc.log)
+                    res = apply_update(force=False, log_cb=sc.log)
+                    if res.get("ok") and res.get("updated"):
+                        from karius_academic_system.web.lifecycle import (
+                            get_runtime_ui_mode,
+                            read_runtime,
+                            trigger_graceful_shutdown,
+                        )
+
+                        rt = read_runtime()
+                        if rt and int(rt.get("pid") or 0) == os.getpid():
+                            mode = get_runtime_ui_mode()
+                            sc.log(f"↻ Đang tự động khởi động lại KAS sang v{res.get('to_version')}...")
+                            schedule_detached_server_restart(
+                                host=str(rt.get("host") or st.ui_host or "127.0.0.1"),
+                                port=int(rt.get("port") or st.ui_port or 8765),
+                                stdlib=bool(rt.get("stdlib", True)),
+                                reopen_window=(mode == "pywebview"),
+                            )
+                            trigger_graceful_shutdown(delay_sec=0.5, close_windows=(mode == "pywebview"))
         except Exception:
             pass
 
@@ -643,11 +741,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         description=f"Kiểm tra và tự động cập nhật {APP_NAME} ({APP_SHORT}) có xác thực SHA-256.",
     )
     ap.add_argument("--check", "--kiem-tra", action="store_true", dest="check_only", help="Chỉ kiểm tra phiên bản mới, không cài")
-    ap.add_argument("--version", dest="target_version", default="", help="Cài đặt một phiên bản cụ thể (vd: v1.4.0)")
+    ap.add_argument("--version", dest="target_version", default="", help="Cài đặt một phiên bản cụ thể (vd: v1.5.1)")
     ap.add_argument("--rollback", action="store_true", help="Quay về phiên bản trước đó trong lịch sử cập nhật")
     ap.add_argument("--skip", action="store_true", help="Bỏ qua thông báo phiên bản mới nhất hiện tại")
     ap.add_argument("--history", action="store_true", help="Xem lịch sử các lần cập nhật")
     ap.add_argument("--force", action="store_true", help="Cài lại ngay cả khi đang ở bản mới nhất")
+    ap.add_argument("--no-restart", action="store_true", dest="no_restart", help="Không tự khởi động lại máy chủ KAS đang chạy sau khi cập nhật")
     ap.add_argument("--chay-thu", "--dry-run", action="store_true", dest="dry_run", help="Chạy thử không tải/cài thật")
     ap.add_argument("--json", action="store_true", dest="as_json", help="Xuất kết quả dạng JSON")
     args = ap.parse_args(argv)
@@ -700,6 +799,24 @@ def main(argv: Optional[List[str]] = None) -> int:
         dry_run=args.dry_run,
         log_cb=(None if args.as_json else sc.log),
     )
+    if res.get("ok") and res.get("updated") and not args.dry_run and not args.no_restart:
+        try:
+            from karius_academic_system.web.lifecycle import stop_running_kas_instances
+
+            stopped = stop_running_kas_instances(close_windows=False)
+            if stopped.get("was_running"):
+                schedule_detached_server_restart(
+                    host=str(stopped.get("host") or "127.0.0.1"),
+                    port=int(stopped.get("port") or 8765),
+                    stdlib=bool(stopped.get("stdlib", True)),
+                    reopen_window=(stopped.get("mode") == "pywebview"),
+                    wait_pid=0,
+                )
+                res["restarted_running_instance"] = True
+                if not args.as_json:
+                    sc.log(f"  ↻ Đã tự đóng máy chủ KAS cũ và khởi động lại phiên bản v{res.get('to_version')}!")
+        except Exception:
+            pass
     if args.as_json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
     return 0 if res.get("ok") else 1

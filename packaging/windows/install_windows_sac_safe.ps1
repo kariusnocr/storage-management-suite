@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Cai dat Karius Academic System (KAS) v1.5.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
+    Cai dat Karius Academic System (KAS) v1.5.1 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
 .DESCRIPTION
     100% pure 7-bit ASCII (tuong thich tuyet doi Windows PowerShell 5.1 & PowerShell 7 khong loi ma hoa).
     Khong dung tep .exe chua ky so hay pip.exe. Chay truc tiep qua trinh thong dich Python chinh thuc
@@ -9,7 +9,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.5.0",
+    [string]$Version = "1.5.1",
     [string]$WheelPath = "",
     [string]$GitHubToken = "",
     [string]$Repo = "kariusnocr/storage-management-suite",
@@ -27,7 +27,7 @@ if ($Version -eq "latest") {
         $relLatest = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ "User-Agent" = "KAS-Installer"; Accept = "application/vnd.github+json" }
         if ($relLatest.tag_name) { $Version = $relLatest.tag_name.ToString().TrimStart("v", "V") }
     } catch {
-        $Version = "1.5.0"
+        $Version = "1.5.1"
     }
 }
 
@@ -185,7 +185,24 @@ if (-not $WheelPath -or -not (Test-Path $WheelPath)) {
     }
 }
 
-Write-Host "[2/5] Dang cai dat Karius Academic System (KAS) v$Version va thu vien Python..." -ForegroundColor Cyan
+Write-Host "[2/5] Dang dung phien ban KAS cu dang chay (neu co) va cai dat KAS v$Version..." -ForegroundColor Cyan
+try {
+    $oldKasProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.ProcessId -ne $PID -and $_.CommandLine -and ($_.CommandLine -match "karius_academic_system") -and ($_.CommandLine -match "\b(ui|desktop)\b")
+    }
+    foreach ($op in $oldKasProcs) {
+        Write-Host "      Dung tien trinh KAS cu PID $($op.ProcessId)..." -ForegroundColor DarkGray
+        Stop-Process -Id $op.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    $kasProf = Join-Path $env:USERPROFILE ".local\share\kas\browser_profile"
+    $oldBrowsers = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match "^(msedge|chrome|brave)\.exe$" -and $_.CommandLine -and ($_.CommandLine.IndexOf($kasProf, [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
+    }
+    foreach ($ob in $oldBrowsers) {
+        Stop-Process -Id $ob.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    if ($oldKasProcs -or $oldBrowsers) { Start-Sleep -Milliseconds 1200 }
+} catch {}
 Write-Host "      Nguon: $WheelPath" -ForegroundColor DarkGray
 
 & $pythonExe -m pip install --user --upgrade --force-reinstall --no-warn-script-location $WheelPath

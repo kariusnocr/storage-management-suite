@@ -70,6 +70,18 @@ jobs:
             }
             Write-Host "PowerShell 5.1 AST check PASSED (0 errors): $psFile"
           }
+          python -c "from pathlib import Path; from karius_academic_system.ops.updater import _generate_windows_restart_ps1; from karius_academic_system.ops.uninstaller import _generate_windows_detached_ps1; Path('_gen_restart_stdlib.ps1').write_bytes(_generate_windows_restart_ps1(9999, r'C:\Python312\pythonw.exe', '127.0.0.1', 8765, stdlib=True, reopen_window=False).encode('ascii')); Path('_gen_restart_reopen.ps1').write_bytes(_generate_windows_restart_ps1(9999, r'C:\Python312\pythonw.exe', '127.0.0.1', 8765, stdlib=False, reopen_window=True).encode('ascii')); Path('_gen_uninstall.ps1').write_bytes(_generate_windows_detached_ps1(wait_pid=9999, python_exe=r'C:\Python312\pythonw.exe', cfg_dir=Path(r'C:\Users\Test\.config\kas'), data_root=Path(r'C:\Users\Test\.local\share\kas'), remove_config=True, remove_data=True, browser_pid=4321, port=8765).encode('ascii'))"
+          foreach ($genFile in @("_gen_restart_stdlib.ps1", "_gen_restart_reopen.ps1", "_gen_uninstall.ps1")) {
+            $errs = $null
+            $tokens = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $genFile).Path, [ref]$tokens, [ref]$errs)
+            Remove-Item $genFile -Force -ErrorAction SilentlyContinue
+            if ($errs -and $errs.Count -gt 0) {
+              $errs | ForEach-Object { Write-Error "$genFile`: $($_.ToString())" }
+              exit 1
+            }
+            Write-Host "PowerShell 5.1 AST check PASSED (0 errors): $genFile"
+          }
       - name: Build CLI + Web UI standalone binary
         run: |
           python packaging/build_binary.py --mode cli

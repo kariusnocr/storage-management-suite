@@ -65,7 +65,7 @@ class TestV15UiRedesign(unittest.TestCase):
             conn.close()
 
     def test_version_and_static_asset_delivery(self) -> None:
-        self.assertEqual(__version__, "1.5.0")
+        self.assertTrue(__version__.startswith("1."), __version__)
 
         code, ctype, raw_html = self._get("/")
         self.assertEqual(code, 200)

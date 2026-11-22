@@ -6,6 +6,7 @@ import contextlib
 import http.server
 import io
 import json
+import os
 import threading
 import time
 import urllib.parse
@@ -16,6 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from karius_academic_system import APP_NAME, APP_SHORT, __version__
 from karius_academic_system import core as sc
+from karius_academic_system.web import lifecycle as lc
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 _TASKS: Dict[str, Dict[str, Any]] = {}
@@ -73,6 +75,8 @@ def _api_health_data() -> Dict[str, Any]:
         "app_name": APP_NAME,
         "app_short": APP_SHORT,
         "version": __version__,
+        "boot_id": lc.BOOT_ID,
+        "pid": os.getpid(),
         "has_vault": sc.has_configured_vault(),
         "vault_slug": vc.slug if vc else sc.VAULT_SLUG,
         "root_name": sc.ROOT_NAME,
@@ -379,7 +383,7 @@ def _api_uninstall_plan_data(
     )
 
 
-def _api_uninstall_run_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any], bool]:
+def _api_uninstall_run_data(body: Dict[str, Any], *, port: int = 8765) -> Tuple[int, Dict[str, Any], bool]:
     """Trả về `(status_code, payload, should_shutdown_server)`."""
     from karius_academic_system.ops.uninstaller import inspect_installation, schedule_detached_self_uninstall
 
@@ -398,7 +402,7 @@ def _api_uninstall_run_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any], 
             "message": "Chế độ xem trước (truyền confirm=true và dry_run=false để thực thi gỡ cài đặt thật).",
         }, False
 
-    res = schedule_detached_self_uninstall(remove_config=rm_cfg, remove_data=rm_data)
+    res = schedule_detached_self_uninstall(remove_config=rm_cfg, remove_data=rm_data, port=port)
     res["plan"] = plan
     return 200, res, True
 
@@ -434,6 +438,7 @@ def _api_update_apply_data(
         host=host,
         port=port,
         stdlib=stdlib,
+        reopen_window=(lc.get_runtime_ui_mode() == "pywebview"),
         shutdown_cb=shutdown_cb,
     )
 
@@ -1222,10 +1227,11 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     self._send_json(code, data)
                     return
                 if path == "/api/uninstall/run":
-                    code, data, should_stop = _api_uninstall_run_data(body)
+                    srv_port = int(self.server.server_address[1])
+                    code, data, should_stop = _api_uninstall_run_data(body, port=srv_port)
                     self._send_json(code, data)
                     if should_stop:
-                        threading.Thread(target=self.server.shutdown, daemon=True).start()
+                        lc.trigger_graceful_shutdown(delay_sec=0.45, close_windows=True)
                     return
                 if path == "/api/update/apply":
                     srv_host, srv_port = self.server.server_address[0], int(self.server.server_address[1])
@@ -1234,7 +1240,10 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                         host=str(srv_host),
                         port=srv_port,
                         stdlib=True,
-                        shutdown_cb=lambda: threading.Thread(target=self.server.shutdown, daemon=True).start(),
+                        shutdown_cb=lambda: lc.trigger_graceful_shutdown(
+                            delay_sec=0.35,
+                            close_windows=(lc.get_runtime_ui_mode() == "pywebview"),
+                        ),
                     )
                     self._send_json(code, data)
                     return
@@ -1248,15 +1257,26 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     self._send_json(code, data)
                     return
                 if path == "/api/shutdown":
-                    self._send_json(200, {"ok": True, "message": "Đang tắt máy chủ cục bộ..."})
-                    threading.Thread(target=self.server.shutdown, daemon=True).start()
+                    self._send_json(200, {"ok": True, "closing": True, "message": "Đang tắt máy chủ cục bộ..."})
+                    lc.trigger_graceful_shutdown(delay_sec=0.35, close_windows=True)
                     return
                 self._send_json(404, {"detail": f"Không tìm thấy đường dẫn: {path}"})
             except Exception as exc:
                 self._send_json(500, {"detail": str(exc)})
 
     http.server.ThreadingHTTPServer.allow_reuse_address = True
-    return http.server.ThreadingHTTPServer((host, port), _DashboardHandler)
+    httpd = http.server.ThreadingHTTPServer((host, port), _DashboardHandler)
+
+    def _stop_this_httpd() -> None:
+        try:
+            httpd.shutdown()
+            httpd.server_close()
+        except Exception:
+            pass
+
+    lc.register_shutdown_hook(_stop_this_httpd)
+    httpd._kas_stop_hook = _stop_this_httpd  # type: ignore[attr-defined]
+    return httpd
 
 
 def create_app():
@@ -1651,12 +1671,11 @@ def create_app():
         )
 
     @app.post("/api/uninstall/run")
-    def api_uninstall_run(body: Dict[str, Any] = Body(default={})):
-        code, data, should_stop = _api_uninstall_run_data(body)
+    def api_uninstall_run(request: Request, body: Dict[str, Any] = Body(default={})):
+        port = int(request.url.port or 8765)
+        code, data, should_stop = _api_uninstall_run_data(body, port=port)
         if should_stop:
-            stop_cb = getattr(app.state, "stop_callback", None)
-            if callable(stop_cb):
-                threading.Thread(target=stop_cb, daemon=True).start()
+            lc.trigger_graceful_shutdown(delay_sec=0.45, close_windows=True)
         return JSONResponse(data, status_code=code)
 
     @app.get("/api/update/status")
@@ -1671,13 +1690,15 @@ def create_app():
     def api_update_apply(request: Request, body: Dict[str, Any] = Body(default={})):
         host = request.url.hostname or "127.0.0.1"
         port = int(request.url.port or 8765)
-        stop_cb = getattr(app.state, "stop_callback", None)
         code, data = _api_update_apply_data(
             body,
             host=host,
             port=port,
             stdlib=False,
-            shutdown_cb=(lambda: threading.Thread(target=stop_cb, daemon=True).start()) if callable(stop_cb) else None,
+            shutdown_cb=lambda: lc.trigger_graceful_shutdown(
+                delay_sec=0.35,
+                close_windows=(lc.get_runtime_ui_mode() == "pywebview"),
+            ),
         )
         if code != 200:
             raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi khởi chạy cập nhật"))
@@ -1721,10 +1742,8 @@ def create_app():
 
     @app.post("/api/shutdown")
     def api_shutdown() -> Dict[str, Any]:
-        stop_cb = getattr(app.state, "stop_callback", None)
-        if callable(stop_cb):
-            threading.Thread(target=stop_cb, daemon=True).start()
-        return {"ok": True, "message": "Đang tắt máy chủ cục bộ..."}
+        lc.trigger_graceful_shutdown(delay_sec=0.35, close_windows=True)
+        return {"ok": True, "closing": True, "message": "Đang tắt máy chủ cục bộ..."}
 
     return app
 
@@ -1743,14 +1762,21 @@ def start_embedded_server(
             app = create_app()
             config = uvicorn.Config(app, host=host, port=port, log_level="warning")
             server = uvicorn.Server(config)
-            app.state.stop_callback = lambda: setattr(server, "should_exit", True)
+
+            def _stop_uvicorn() -> None:
+                server.should_exit = True
+                lc.unregister_shutdown_hook(_stop_uvicorn)
+
+            app.state.stop_callback = _stop_uvicorn
+            lc.register_shutdown_hook(_stop_uvicorn)
             th = threading.Thread(target=server.run, daemon=True)
             th.start()
             deadline = time.monotonic() + 5.0
             while not server.started and th.is_alive() and time.monotonic() < deadline:
                 time.sleep(0.05)
             if server.started:
-                return th, lambda: setattr(server, "should_exit", True), "fastapi+uvicorn"
+                return th, _stop_uvicorn, "fastapi+uvicorn"
+            lc.unregister_shutdown_hook(_stop_uvicorn)
         except (ImportError, OSError, RuntimeError):
             pass
 
@@ -1759,6 +1785,9 @@ def start_embedded_server(
     th.start()
 
     def _stop() -> None:
+        hook = getattr(httpd, "_kas_stop_hook", None)
+        if callable(hook):
+            lc.unregister_shutdown_hook(hook)
         try:
             httpd.shutdown()
             httpd.server_close()
@@ -1777,8 +1806,10 @@ def run_web_server(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--stdlib", action="store_true", help="Dùng máy chủ HTTP thuần Python (không nạp .pyd/.dll ngoài)")
     args = ap.parse_args(argv)
 
+    lc.set_process_exit_allowed(True)
     url = f"http://{args.host}:{args.port}"
     th, stop_fn, engine = start_embedded_server(host=args.host, port=args.port, prefer_stdlib=args.stdlib)
+    lc.register_runtime(host=args.host, port=args.port, stdlib=(engine == "stdlib-http"), mode="ui")
     sc.log(f"{APP_NAME} ({APP_SHORT}) UI v{__version__} ({engine}) đang chạy tại {url}")
     try:
         from karius_academic_system.ops.updater import maybe_start_background_update_check
@@ -1793,8 +1824,10 @@ def run_web_server(argv: Optional[List[str]] = None) -> int:
             pass
     try:
         while th.is_alive():
-            time.sleep(0.5)
+            time.sleep(0.35)
     except KeyboardInterrupt:
         sc.log("Đang dừng máy chủ Web UI...")
         stop_fn()
+    finally:
+        lc.clear_runtime(only_if_self=True)
     return 0
