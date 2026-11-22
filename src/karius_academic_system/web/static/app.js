@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Karius Academic System (KAS) v1.6.0 — Frontend Workspace Engine
-   Modular Vanilla JS · Zero External Dependencies · Offline & SAC Safe
+   Karius Academic System (KAS) v1.7.0 — Frontend Workspace & Android Engine
+   Modular Vanilla JS · Zero External Dependencies · Offline, Mobile & SAC Safe
    ========================================================================== */
 
 const fmt = (n) => Number(n || 0).toLocaleString('vi-VN');
@@ -207,6 +207,7 @@ async function toggleTheme() {
 function openTab(tabName) {
   const meta = NAV_META[tabName] || NAV_META.overview;
   document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tabName));
+  document.querySelectorAll('.mobile-nav-item').forEach((b) => b.classList.toggle('active', b.dataset.mobileTab === tabName));
   document.querySelectorAll('.section').forEach((s) => s.classList.remove('active'));
   const el = document.getElementById('tab-' + tabName);
   if (el) el.classList.add('active');
@@ -2426,9 +2427,24 @@ function renderExplorerEntries(statsObj) {
       </div>`;
   }
 
+  const isTouchUi = Boolean(window.KASAndroid)
+    || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches)
+    || ('ontouchstart' in window && window.innerWidth <= 920);
+
   box.querySelectorAll('[data-entry-idx]').forEach((node) => {
     const idx = Number(node.getAttribute('data-entry-idx'));
-    node.addEventListener('click', () => selectExplorerIndex(idx));
+    node.addEventListener('click', () => {
+      const entry = _expState.entries[idx];
+      if (isTouchUi && entry && entry.is_folder) {
+        activateExplorerEntry(idx);
+        return;
+      }
+      selectExplorerIndex(idx);
+      if (window.innerWidth <= 860 && entry && !entry.is_folder) {
+        const pv = document.getElementById('explorerPreviewPane');
+        if (pv) pv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
     node.addEventListener('dblclick', () => activateExplorerEntry(idx));
   });
 }
@@ -2678,6 +2694,135 @@ async function copyPreviewText() {
   }
 }
 
+/* ==================== ANDROID ECOSYSTEM & NATIVE APK BRIDGE (v1.7.0) ==================== */
+
+let _androidInfoCache = null;
+
+async function loadAndroidEcosystemInfo() {
+  const badge = document.getElementById('androidRuntimeBadge');
+  const lanEl = document.getElementById('androidLanUrlText');
+  const termuxEl = document.getElementById('androidTermuxCmdText');
+  const nativeCtrl = document.getElementById('androidNativeControls');
+
+  if (nativeCtrl && window.KASAndroid) {
+    nativeCtrl.style.display = 'flex';
+  }
+
+  const { ok, data } = await apiFetch('/api/android/info');
+  if (!ok || !data) return null;
+  _androidInfoCache = data;
+
+  if (badge) {
+    if (window.KASAndroid || data.runtime_flavor === 'chaquopy_apk') {
+      badge.className = 'pill ok';
+      badge.textContent = 'Ứng dụng Android Gốc · Đang chạy';
+    } else if (data.runtime_flavor === 'termux') {
+      badge.className = 'pill ok';
+      badge.textContent = 'Android Termux · Đang chạy';
+    } else {
+      badge.className = 'pill info';
+      badge.textContent = 'Máy chủ Máy tính · Sẵn sàng ghép nối';
+    }
+  }
+  if (lanEl && data.primary_lan_url) {
+    lanEl.textContent = data.primary_lan_url;
+  }
+  if (termuxEl && data.downloads && data.downloads.termux_one_liner) {
+    termuxEl.textContent = data.downloads.termux_one_liner;
+  }
+  return data;
+}
+
+function downloadAndroidApk() {
+  const url = (_androidInfoCache && _androidInfoCache.downloads && _androidInfoCache.downloads.apk_latest_url)
+    || 'https://github.com/kariusnocr/storage-management-suite/releases/latest/download/kas-android.apk';
+  window.open(url, '_blank', 'noopener');
+}
+
+async function initAndroidLocalVault() {
+  const { ok, data } = await apiFetch('/api/android/init-vault', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Kho Tài Liệu Android', create_starter_files: true }),
+  });
+  if (!ok) {
+    showToast((data && data.detail) || 'Không thể khởi tạo Kho Tài Liệu Android', 'err');
+    return;
+  }
+  showToast(`Đã khởi tạo & kích hoạt Kho Tài Liệu Android tại: ${data.vault_path || ''}`, 'ok');
+  await loadVaults();
+  await loadOverview();
+  await openExplorerAt('');
+}
+
+async function copyAndroidLanUrl() {
+  const txt = document.getElementById('androidLanUrlText')?.textContent || window.location.origin;
+  try {
+    await navigator.clipboard.writeText(txt);
+    showToast(`Đã sao chép địa chỉ ghép nối LAN: ${txt}`, 'ok');
+  } catch (_) {
+    showToast(`Địa chỉ LAN: ${txt}`, 'info');
+  }
+}
+
+async function copyAndroidTermuxCmd() {
+  const txt = document.getElementById('androidTermuxCmdText')?.textContent || '';
+  if (!txt) return;
+  try {
+    await navigator.clipboard.writeText(txt);
+    showToast('Đã sao chép lệnh cài đặt KAS 1 dòng cho Android Termux.', 'ok');
+  } catch (_) {
+    showToast('Hãy bôi đen dòng lệnh Termux và sao chép.', 'warn');
+  }
+}
+
+function openAndroidServerSwitcher() {
+  if (window.KASAndroid && typeof window.KASAndroid.showServerSwitcher === 'function') {
+    window.KASAndroid.showServerSwitcher();
+  } else {
+    showToast('Chức năng này dành cho ứng dụng Android gốc (kas-android.apk).', 'info');
+  }
+}
+
+function requestAndroidStoragePermission() {
+  if (window.KASAndroid && typeof window.KASAndroid.requestStorageAccess === 'function') {
+    window.KASAndroid.requestStorageAccess();
+  } else {
+    showToast('Chức năng cấp quyền bộ nhớ hệ thống dành cho ứng dụng Android gốc.', 'info');
+  }
+}
+
+// Hàm được gọi từ nút Back vật lý / cử chỉ vuốt cạnh trên Android (MainActivity.onBackPressed)
+window.kasHandleAndroidBack = function () {
+  const cOv = document.getElementById('confirmOverlay');
+  if (cOv && cOv.classList.contains('open')) {
+    closeConfirmModal(false);
+    return true;
+  }
+  const pOv = document.getElementById('paletteOverlay');
+  if (pOv && pOv.classList.contains('open')) {
+    closeCommandPalette();
+    return true;
+  }
+  const shell = document.getElementById('appShell');
+  if (shell && shell.classList.contains('mobile-nav-open')) {
+    closeMobileNav();
+    return true;
+  }
+  const expSec = document.getElementById('tab-explorer');
+  if (expSec && expSec.classList.contains('active')) {
+    if (_expState.historyIdx > 0) {
+      explorerGoBack();
+      return true;
+    }
+    if (_expState.parentPath !== null && _expState.parentPath !== undefined) {
+      explorerGoUp();
+      return true;
+    }
+  }
+  return false;
+};
+
 /* ==================== BOOTSTRAP & KEYBOARD SHORTCUTS ==================== */
 
 async function refreshAll() {
@@ -2686,6 +2831,7 @@ async function refreshAll() {
   const s = await loadAppSettings();
   const v = await loadVaults();
   await loadOverview();
+  loadAndroidEcosystemInfo().catch(() => {});
   if (s && s.auto_check_updates) {
     checkUpdates(false).catch(() => {});
   }
@@ -2701,6 +2847,10 @@ async function refreshAll() {
 document.addEventListener('DOMContentLoaded', () => {
   restoreSidebarState();
   updateThemeButton(document.documentElement.getAttribute('data-theme') || 'dark');
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
 
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => openTab(btn.dataset.tab));

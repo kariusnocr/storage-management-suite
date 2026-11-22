@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Cai dat Karius Academic System (KAS) v1.6.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
+    Cai dat Karius Academic System (KAS) v1.7.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
 .DESCRIPTION
     100% pure 7-bit ASCII (tuong thich tuyet doi Windows PowerShell 5.1 & PowerShell 7 khong loi ma hoa).
     Khong dung tep .exe chua ky so hay pip.exe. Chay truc tiep qua trinh thong dich Python chinh thuc
@@ -9,7 +9,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.6.0",
+    [string]$Version = "1.7.0",
     [string]$WheelPath = "",
     [string]$GitHubToken = "",
     [string]$Repo = "kariusnocr/storage-management-suite",
@@ -27,7 +27,7 @@ if ($Version -eq "latest") {
         $relLatest = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ "User-Agent" = "KAS-Installer"; Accept = "application/vnd.github+json" }
         if ($relLatest.tag_name) { $Version = $relLatest.tag_name.ToString().TrimStart("v", "V") }
     } catch {
-        $Version = "1.6.0"
+        $Version = "1.7.0"
     }
 }
 

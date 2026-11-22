@@ -614,6 +614,86 @@ def _cmd_browse(argv: List[str]) -> int:
         return 1
 
 
+def _cmd_android(argv: List[str]) -> int:
+    from karius_academic_system.web import android_bridge
+
+    ap = argparse.ArgumentParser(
+        prog="kas android",
+        description="Quản lý & vận hành Karius Academic System (KAS) trên hệ điều hành Android (APK, Termux, Ghép nối Wi-Fi/LAN).",
+    )
+    sub = ap.add_subparsers(dest="action")
+
+    p_info = sub.add_parser("info", help="Xem trạng thái Android, liên kết tải APK, lệnh Termux & địa chỉ ghép nối LAN")
+    p_info.add_argument("--port", type=int, default=8765, help="Cổng HTTP dự kiến (mặc định 8765)")
+    p_info.add_argument("--json", action="store_true", dest="as_json", help="Xuất định dạng JSON")
+
+    p_init = sub.add_parser("init-vault", help="Khởi tạo và kích hoạt kho tài liệu cục bộ trên bộ nhớ Android")
+    p_init.add_argument("path", nargs="?", default="", help="Đường dẫn thư mục tùy chọn (vd: /storage/emulated/0/Documents/KAS)")
+    p_init.add_argument("--ten", "--name", dest="name", default="Kho Tài Liệu Android", help="Tên hiển thị của kho")
+    p_init.add_argument("--json", action="store_true", dest="as_json", help="Xuất định dạng JSON")
+
+    p_serve = sub.add_parser("serve", help="Mở máy chủ KAS qua mạng Wi-Fi/LAN để điện thoại Android kết nối")
+    p_serve.add_argument("--host", default="0.0.0.0", help="Địa chỉ lắng nghe (mặc định 0.0.0.0 cho toàn mạng LAN)")
+    p_serve.add_argument("--port", type=int, default=8765, help="Cổng HTTP (mặc định 8765)")
+    p_serve.add_argument("--stdlib", action="store_true", help="Dùng máy chủ HTTP thuần Python")
+
+    args = ap.parse_args(argv or ["info"])
+    act = args.action or "info"
+
+    if act == "info":
+        info = android_bridge.detect_android_environment(port=getattr(args, "port", 8765))
+        if getattr(args, "as_json", False):
+            print(json.dumps(info, ensure_ascii=False, indent=2))
+            return 0
+        sc.log(f"=== {APP_NAME} ({APP_SHORT}) v{__version__} — HỆ SINH THÁI ANDROID ===")
+        sc.log(f"  Môi trường hiện tại : {info['runtime_flavor']} (is_android={info['is_android']})")
+        sc.log(f"  Mã gói Android APK  : {info['package_id']}")
+        sc.log(f"  Tải APK (Latest)    : {info['downloads']['apk_latest_url']}")
+        sc.log(f"  Cài trên Termux     : {info['downloads']['termux_one_liner']}")
+        if info["lan_urls"]:
+            sc.log("  Địa chỉ ghép nối Wi-Fi / LAN cho điện thoại Android:")
+            for u in info["lan_urls"]:
+                sc.log(f"    • {u}")
+        else:
+            sc.log(f"  Địa chỉ cục bộ      : {info['local_url']}")
+        sc.log("  Đường dẫn lưu trữ Android khả dụng:")
+        for sp in info["storage_candidates"]:
+            st_tag = "Sẵn sàng" if (sp["exists"] or sp["writable"]) else "Cần cấp quyền"
+            sc.log(f"    • [{st_tag}] {sp['label']}: {sp['path']}")
+        return 0
+
+    if act == "init-vault":
+        res = android_bridge.bootstrap_android_vault(
+            preferred_dir=args.path,
+            vault_name=args.name,
+            create_starter_files=True,
+            force_new=True,
+        )
+        if args.as_json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+            return 0
+        v = res["vault"]
+        sc.log(f"[ANDROID] Đã khởi tạo & kích hoạt kho `{v['slug']}` ('{v['name']}') tại: {res['vault_path']}")
+        return 0
+
+    if act == "serve":
+        info = android_bridge.detect_android_environment(port=args.port)
+        sc.log("=== CHẾ ĐỘ MÁY CHỦ GHÉP NỐI ANDROID QUA WI-FI / LAN ===")
+        for u in info["lan_urls"]:
+            sc.log(f"  → Mở trên điện thoại Android (ứng dụng KAS hoặc trình duyệt): {u}")
+        if not sc.is_app_lock_enabled():
+            sc.log("  [GỢI Ý BẢO MẬT] Khi mở mạng LAN, bạn nên bật Khóa Ứng Dụng bằng `kas account lock on`.")
+        from karius_academic_system.web.app import run_web_server
+
+        srv_args = ["--host", args.host, "--port", str(args.port)]
+        if args.stdlib:
+            srv_args.append("--stdlib")
+        return run_web_server(srv_args)
+
+    ap.print_help()
+    return 1
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -641,6 +721,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "vault",
         "duyet",
         "browse",
+        "android",
         "rules",
         "ai",
         "mcp",
@@ -685,6 +766,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _cmd_vault(rest)
     if cmd in {"duyet", "browse"}:
         return _cmd_browse(rest)
+    if cmd == "android":
+        return _cmd_android(rest)
     if cmd == "rules":
         return _cmd_rules(rest)
     if cmd == "settings":

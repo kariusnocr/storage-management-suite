@@ -64,6 +64,8 @@ def validate_console_argv(argv: List[str]) -> Tuple[bool, str]:
         return False, "Hãy dùng `ai ask \"<câu hỏi>\"` trong Dòng Lệnh, hoặc trò chuyện trực tiếp tại tab **Trợ Lý AI & Agent**."
     if cmd == "mcp" and rest and rest[0] == "serve":
         return False, "`mcp serve` là máy chủ stdio dành cho Claude Desktop/Cursor. Trong ứng dụng hãy dùng `mcp config` hoặc `mcp tools`."
+    if cmd == "android" and rest and rest[0] == "serve":
+        return False, "Máy chủ giao diện đã chạy sẵn. Trong Console bạn có thể dùng `android info` hoặc `android init-vault`."
     if cmd in {"uninstall", "go-cai-dat"} and any(a in {"--thuc-thi", "--execute"} for a in rest):
         return False, "Để gỡ cài đặt thật khi ứng dụng đang mở, hãy vào tab **Cài Đặt → Gỡ Cài Đặt Phần Mềm** (hoặc chạy `kas uninstall --thuc-thi` ngoài PowerShell/Terminal). Trong Console bạn vẫn có thể chạy `uninstall` để xem trước."
     return True, ""
@@ -219,6 +221,7 @@ def get_console_job(job_id: str) -> Optional[Dict[str, Any]]:
 QUICK_COMMANDS: List[Dict[str, str]] = [
     {"label": "Phiên bản & Kho hiện tại", "cmd": "version", "group": "Hệ thống"},
     {"label": "Chẩn đoán Doctor", "cmd": "doctor", "group": "Hệ thống"},
+    {"label": "Thông tin & Ghép nối Android", "cmd": "android info", "group": "Hệ thống"},
     {"label": "Kiểm tra cập nhật KAS", "cmd": "update --check", "group": "Hệ thống"},
     {"label": "Tự động cài công cụ & thư viện", "cmd": "setup", "group": "Hệ thống"},
     {"label": "Danh sách kho", "cmd": "vault list", "group": "Kho dữ liệu"},

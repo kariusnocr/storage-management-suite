@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+android {
+    namespace 'io.github.kariusnocr.kas'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "io.github.kariusnocr.kas"
+        minSdk 26
+        targetSdk 34
+        versionCode 10700
+        versionName "1.7.0"
+
+        ndk {
+            abiFilters "arm64-v8a", "x86_64"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+        debug {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        version "3.11"
+        extractPackages "karius_academic_system"
+        pyc {
+            src false
+            pip false
+        }
+    }
+}
+
+dependencies {
+}

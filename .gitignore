@@ -46,3 +46,10 @@ runs/
 *.db-shm
 *.tmp
 *.bak
+
+# Android Gradle build & staged Python package
+packaging/android/.gradle/
+packaging/android/local.properties
+packaging/android/app/build/
+packaging/android/app/src/main/python/karius_academic_system/
+

@@ -52,10 +52,13 @@ jobs:
       - name: Chạy bộ kiểm thử tự động ngoại tuyến (pytest)
         run: pytest -v --cov=karius_academic_system --cov-report=term-missing
 
-      - name: Kiểm chứng đóng gói Wheel, Sdist & Windows SAC-safe ZIP
+      - name: Kiểm chứng đóng gói Wheel, Sdist, Windows SAC-safe ZIP & Android Staging
         run: |
           python3 -m build
           python3 packaging/build_sac_bundle.py --dist-dir dist --out dist/kas-windows-sac-safe.zip
+          bash -n packaging/android/install_android_termux.sh
+          python3 packaging/build_android_apk.py --stage-only --clean-staged
           ls -lh dist/
           kas version
+          kas android info
           kas doctor || true
