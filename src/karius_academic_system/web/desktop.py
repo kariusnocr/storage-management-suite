@@ -101,6 +101,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         srv_thread, stop_fn, engine = start_embedded_server(host=host, port=port, prefer_stdlib=args.stdlib)
 
     sc.log(f"{APP_NAME} ({APP_SHORT}) Desktop v{__version__} ({engine}) sẵn sàng tại {url}")
+    try:
+        from karius_academic_system.ops.updater import maybe_start_background_update_check
+
+        maybe_start_background_update_check()
+    except Exception:
+        pass
 
     if not args.browser:
         try:

@@ -219,6 +219,7 @@ def get_console_job(job_id: str) -> Optional[Dict[str, Any]]:
 QUICK_COMMANDS: List[Dict[str, str]] = [
     {"label": "Phiên bản & Kho hiện tại", "cmd": "version", "group": "Hệ thống"},
     {"label": "Chẩn đoán Doctor", "cmd": "doctor", "group": "Hệ thống"},
+    {"label": "Kiểm tra cập nhật KAS", "cmd": "update --check", "group": "Hệ thống"},
     {"label": "Tự động cài công cụ & thư viện", "cmd": "setup", "group": "Hệ thống"},
     {"label": "Danh sách kho", "cmd": "vault list", "group": "Kho dữ liệu"},
     {"label": "Quét chỉ mục kho", "cmd": "quet", "group": "Kho dữ liệu"},

@@ -18,6 +18,7 @@ VALID_LANGUAGES = ("vi", "en")
 VALID_DEFAULT_TABS = ("vaults", "overview", "search", "console", "rules", "ai", "account", "settings")
 VALID_BACKENDS = ("auto", "api", "cli", "local")
 VALID_CATALOG_MODES = ("smart", "full")
+VALID_UPDATE_CHANNELS = ("stable", "prerelease")
 
 
 @dataclass
@@ -37,6 +38,9 @@ class AppSettings:
     data_dir_override: str = ""
     github_repo: str = "kariusnocr/storage-management-suite"
     auto_check_updates: bool = True
+    auto_install_updates: bool = False
+    update_channel: str = "stable"
+    update_check_interval_hours: int = 6
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -57,6 +61,8 @@ class AppSettings:
             base["drive_backend"] = "auto"
         if base["catalog_default_mode"] not in VALID_CATALOG_MODES:
             base["catalog_default_mode"] = "smart"
+        if base["update_channel"] not in VALID_UPDATE_CHANNELS:
+            base["update_channel"] = "stable"
         try:
             base["scan_workers"] = max(1, min(64, int(base["scan_workers"])))
         except (TypeError, ValueError):
@@ -65,9 +71,14 @@ class AppSettings:
             base["ui_port"] = max(1024, min(65535, int(base["ui_port"])))
         except (TypeError, ValueError):
             base["ui_port"] = 8765
+        try:
+            base["update_check_interval_hours"] = max(1, min(168, int(base["update_check_interval_hours"])))
+        except (TypeError, ValueError):
+            base["update_check_interval_hours"] = 6
         base["scan_incremental_default"] = bool(base["scan_incremental_default"])
         base["open_browser_on_start"] = bool(base["open_browser_on_start"])
         base["auto_check_updates"] = bool(base["auto_check_updates"])
+        base["auto_install_updates"] = bool(base["auto_install_updates"])
         base["ui_host"] = str(base.get("ui_host") or "127.0.0.1").strip() or "127.0.0.1"
         base["data_dir_override"] = str(base.get("data_dir_override") or "").strip()
         base["github_repo"] = str(base.get("github_repo") or "kariusnocr/storage-management-suite").strip()

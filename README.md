@@ -1,14 +1,18 @@
-# Karius Academic System (KAS) `v1.3.0`
+# Karius Academic System (KAS) `v1.4.0`
 
-**Karius Academic System (KAS)** là phần mềm quản trị tri thức, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
+**Karius Academic System (KAS)** là phần mềm quản trị tri thức, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
 
 - **Thư mục cục bộ trên máy tính / Ổ cứng rời / NAS / Thư mục đồng bộ OneDrive · iCloud · Google Drive for Desktop** (`LocalFSBackend` — chạy 100% ngoại tuyến, không cần đăng nhập).
 - **Mọi thư mục hoặc Shared Drive trên Google Drive** (`GoogleDriveAPIClient` OAuth 2.0 đăng nhập ngay trong giao diện phần mềm & `GDriveCLIClient` trên cloud VM).
 
 ---
 
-## 1. Tính năng Nổi bật (`v1.3.0`)
+## 1. Tính năng Nổi bật (`v1.4.0`)
 
+- **Cơ Chế Tự Động Cập Nhật Phần Mềm Xác Thực SHA-256 (`kas update` / `kas cap-nhat` & Trung Tâm Cập Nhật trong Tab *Cài Đặt*)**:
+  - Tự động kiểm tra bản phát hành mới từ GitHub Releases ngay khi khởi động (chu kỳ đệm tùy chỉnh 1–168 giờ, hỗ trợ kênh **Ổn định / Thử nghiệm** & chế độ **Auto-Install**), hiển thị thanh thông báo đầu trang cùng nút **Cập nhật tự động ngay** / **Bỏ qua bản này**.
+  - Tự tải gói `.whl`, **kiểm chứng toàn vẹn mật mã `SHA256SUMS.txt`** (tự hủy nếu sai băm), cài nâng cấp trực tiếp, đồng bộ số phiên bản trong *Windows Installed Apps*, tự khởi động lại máy chủ nền và tự tải lại cửa sổ ứng dụng sang phiên bản mới.
+  - Lưu đầy đủ **Lịch sử cập nhật** và hỗ trợ **Quay về phiên bản trước (Rollback)** 1 bấm hoặc bằng `kas update --rollback`.
 - **Cơ Chế Gỡ Cài Đặt Phần Mềm An Toàn & Chuẩn Hệ Điều Hành (`kas uninstall` / `kas go-cai-dat` & Tab *Cài Đặt*)**:
   - Hỗ trợ **4 cách gỡ sạch sẽ**: (1) trực tiếp trong **Windows Settings → Apps → Installed Apps** (đăng ký tự động không cần quyền Admin), (2) trong giao diện KAS **Tab Cài Đặt → Gỡ Cài Đặt Phần Mềm**, (3) nhấp đúp **`Go_Cai_Dat_KAS_Windows11.cmd`** / lối tắt Start Menu, hoặc (4) 1 lệnh PowerShell (`irm .../uninstall_windows_sac_safe.ps1 | iex`) / CLI `kas uninstall --thuc-thi`.
   - Tự dừng máy chủ nền, gỡ gói Python, xóa lối tắt Desktop/Start Menu, dọn `User PATH` & khóa Registry; tùy chọn giữ lại hoặc xóa sạch `~/.config/kas` & `~/.local/share/kas` — **bảo toàn 100% thư mục tài liệu của bạn và dữ liệu trên Google Drive**.

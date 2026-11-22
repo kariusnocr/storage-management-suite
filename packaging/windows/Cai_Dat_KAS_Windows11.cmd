@@ -1,9 +1,9 @@
 @echo off
 setlocal
-title Cai dat Karius Academic System (KAS) v1.3.0 - Windows 11 Smart App Control Safe
+title Cai dat Karius Academic System (KAS) v1.4.0 - Windows 11 Smart App Control Safe
 
 echo ========================================================================
-echo   KARIUS ACADEMIC SYSTEM (KAS) v1.3.0 - TRINH CAI DAT 1 NHAP DUP
+echo   KARIUS ACADEMIC SYSTEM (KAS) v1.4.0 - TRINH CAI DAT 1 NHAP DUP
 echo   Thu muc cai dat: "%~dp0"
 echo ========================================================================
 echo.
