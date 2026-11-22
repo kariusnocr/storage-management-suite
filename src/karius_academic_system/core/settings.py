@@ -15,7 +15,7 @@ from karius_academic_system.core import config as _cfg
 
 VALID_THEMES = ("dark", "light")
 VALID_LANGUAGES = ("vi", "en")
-VALID_DEFAULT_TABS = ("vaults", "overview", "search", "console", "rules", "ai", "account", "settings")
+VALID_DEFAULT_TABS = ("vaults", "overview", "explorer", "search", "console", "rules", "ai", "account", "settings")
 VALID_BACKENDS = ("auto", "api", "cli", "local")
 VALID_CATALOG_MODES = ("smart", "full")
 VALID_UPDATE_CHANNELS = ("stable", "prerelease")

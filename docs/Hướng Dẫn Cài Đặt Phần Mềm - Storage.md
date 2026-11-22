@@ -1,4 +1,4 @@
-# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.5.1`)
+# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.6.0`)
 
 ## 1. Chọn Phương thức Cài đặt & Cập nhật
 
@@ -7,7 +7,7 @@
 > [!IMPORTANT]
 > **Windows 11 Smart App Control (SAC)** chặn các tệp `.exe` chưa ký số thương mại và không có nút *Run anyway*. Bạn **KHÔNG cần tắt Smart App Control** — bộ cài KAS dùng Python chính chủ + máy chủ thuần chuẩn (`--stdlib`) + cửa sổ **Microsoft Edge (`--app`)** đã ký số bởi Microsoft.
 
-**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.5.1`):**
+**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.6.0`):**
 Mở **PowerShell** và dán 1 dòng duy nhất:
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
@@ -15,14 +15,14 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
 *(Nếu máy đã cài KAS `v1.4.0+`, bạn chỉ cần bấm **Cập nhật tự động ngay** trong giao diện hoặc chạy `kas update`.)*
 
 **Cách A2 — Tải ZIP & Nhấp đúp (Hoạt động cả khi không có Internet):**
-1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.5.1`** hoặc từ Google Drive:
+1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.6.0`** hoặc từ Google Drive:
    `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-windows-sac-safe.zip`.
 2. Giải nén toàn bộ vào một thư mục (ví dụ: `Downloads\kas-windows-sac-safe`).
 3. **Nhấp đúp `Cai_Dat_KAS_Windows11.cmd`** ngay trong thư mục vừa giải nén.
 4. Sau khi xong, nhấp đúp biểu tượng **Karius Academic System (KAS)** trên Desktop!
 
 ### Cách B — Tải Binary Độc lập (macOS / Linux / Windows không bật SAC)
-1. Tải tệp từ **GitHub Releases `v1.5.1`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
+1. Tải tệp từ **GitHub Releases `v1.6.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
 2. Kiểm tra mã băm trong `SHA256SUMS.txt`.
 3. Chạy `kas doctor` hoặc `kas desktop`.
 
@@ -118,26 +118,43 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
 
 ---
 
-## 5. Tự Động Cập Nhật Phần Mềm (Auto-Update · SHA-256 Verified · `v1.4.0`)
+## 5. Tự Động Cập Nhật Phần Mềm (Auto-Update · SHA-256 Verified · `v1.4.0+`)
 
 - **Ngay trong giao diện ứng dụng KAS**:
   - KAS tự động kiểm tra bản phát hành mới từ GitHub Releases khi khởi động (theo chu kỳ tùy chỉnh 1–168 giờ) và hiện thanh thông báo đầu trang kèm nút **Cập nhật tự động ngay** / **Bỏ qua bản này**.
   - Vào tab **Cài Đặt → Trung Tâm Cập Nhật Tự Động** để bật chế độ **Tự động tải & cài (Auto-Install)**, đổi kênh **Ổn định (Stable)** / **Thử nghiệm (Prerelease)**, xem Release Notes, theo dõi lịch sử và **Quay về bản trước (Rollback)** 1 bấm.
-  - Mọi gói tải về đều được **kiểm chứng toàn vẹn mật mã `SHA256SUMS.txt`** trước khi cài và tự khởi động lại máy chủ sang phiên bản mới.
+  - Mọi gói tải về đều được **kiểm chứng toàn vẹn mật mã `SHA256SUMS.txt`** trước khi cài và tự đóng/khởi động lại máy chủ sang phiên bản mới.
 - **Qua dòng lệnh (`kas update` / `kas cap-nhat`)**:
   ```bash
   kas update --check                  # Kiểm tra phiên bản mới nhất
   kas update                          # Tự tải, xác thực SHA-256 và nâng cấp ngay
   kas update --rollback               # Quay về phiên bản trước đó trong lịch sử
-  kas update --version v1.5.1         # Cài một phiên bản cụ thể
+  kas update --version v1.6.0         # Cài một phiên bản cụ thể
   kas update --history                # Xem lịch sử cập nhật
   ```
 
 ---
 
-## 6. Giao Diện Desktop Workspace Shell & Phím Tắt (`v1.5.1`)
+## 6. Giao Diện Desktop Workspace Shell & Phím Tắt (`v1.5.0+`)
 
 - **Bố cục Thanh bên thu gọn (Collapsible Sidebar Rail)**: 4 nhóm chức năng rõ ràng (*Kho Tri Thức*, *Quản trị & Chuẩn hóa*, *Trợ Lý & Công cụ*, *Hệ thống*), hỗ trợ thu gọn còn thanh biểu tượng `68px` bằng nút góc dưới thanh bên hoặc phím tắt **`Ctrl+B`** (`Cmd+B`).
 - **Bảng Lệnh Toàn Cục (`Ctrl+K` / `Cmd+K` — Command Palette)**: Tìm nhanh tệp tin theo thời gian thực qua SQLite FTS5, chuyển kho dữ liệu, mở màn hình chức năng, kích hoạt quét chỉ mục / cập nhật / đổi Sáng-Tối hoặc thực thi trực tiếp lệnh `kas ...`.
 - **Hai chủ đề màu sắc học thuật**: **Obsidian Ink (Tối)** và **Archival Paper (Sáng)**, đi kèm thanh biểu đồ phân bố dung lượng nhánh trên trang Tổng quan, hộp thoại xác nhận tùy biến và thông báo Toast.
+
+---
+
+## 7. Duyệt Thư Mục & Xem Trước Tệp Trực Tiếp (`Duyệt Kho` & `kas duyet` · `v1.6.0`)
+
+- **Trong ứng dụng KAS (Tab *Duyệt Kho*)**:
+  - **Cây thư mục bên trái**: Bấm `▸`/`▾` để mở rộng nhánh con theo nhu cầu, bấm tên thư mục để chuyển tức thì.
+  - **Thanh điều hướng**: Nút **Lùi (`Alt+←`)**, **Tiến (`Alt+→`)**, **Lên cấp (`Backspace` / `Alt+↑`)**, đường dẫn **Breadcrumb**, **lọc không dấu tức thì**, **sắp xếp** và chuyển đổi **Danh sách / Lưới thẻ**.
+  - **Khung Xem Trước bên phải**: Bấm 1 lần vào mục để xem trước trực tiếp (Ảnh, PDF, Audio/Video tua mượt, Văn bản/Mã nguồn, DOCX/XLSX/PPTX/EPUB/ZIP, hoặc bấm **Tải & xem nội dung** cho tệp Google Drive); bấm đúp hoặc nhấn **`Enter`** để vào thư mục / mở bằng ứng dụng mặc định trên máy tính.
+  - **Nhảy thẳng từ Tìm kiếm & Tổng quan**: Bấm vào bất kỳ nhánh nào ở trang *Tổng quan*, bấm **Duyệt vị trí** từ *Tìm kiếm FTS5* hoặc chọn tệp từ `Ctrl+K` để mở thẳng thư mục chứa tệp.
+- **Qua dòng lệnh (`kas duyet` / `kas browse`)**:
+  ```bash
+  kas duyet                                           # Liệt kê thư mục gốc kho hiện hành
+  kas duyet "[01] HỌC THUẬT" --sort size --desc       # Duyệt thư mục con, sắp xếp theo dung lượng
+  kas duyet "[01] HỌC THUẬT/de-cuong.md" --xem        # Xem trước nội dung & siêu dữ liệu tệp
+  ```
+
 
