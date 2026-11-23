@@ -1,13 +1,13 @@
 /* ==========================================================================
-   Karius Academic System (KAS) v1.7.0 — Android & Desktop PWA Service Worker
+   Karius Academic System (KAS) v1.8.0 — Android & Desktop PWA Service Worker
    Network-first for /api/* · Stale-while-revalidate for /static/* & shell
    ========================================================================== */
 
-const CACHE_NAME = 'kas-pwa-v1.7.0';
+const CACHE_NAME = 'kas-pwa-v1.8.0';
 const SHELL_ASSETS = [
   '/',
-  '/static/styles.css?v=1.7.0',
-  '/static/app.js?v=1.7.0',
+  '/static/styles.css?v=1.8.0',
+  '/static/app.js?v=1.8.0',
   '/static/icon.svg',
   '/manifest.webmanifest',
 ];

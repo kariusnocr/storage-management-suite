@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Karius Academic System (KAS) v1.5.0 — Design System & Desktop Shell
+   Karius Academic System (KAS) v1.8.0 — Design System, Desktop & Android M3 Shell
    Obsidian Ink (Dark) & Archival Paper (Light) — Zero external dependencies
    ========================================================================== */
 
@@ -1408,43 +1408,156 @@ pre.console {
 .preview-meta-list dt { color: var(--muted); font-weight: 600; }
 .preview-meta-list dd { color: var(--text-2); word-break: break-word; }
 
+/* ==========================================================================
+   ANDROID MATERIAL 3 SHELL, BOTTOM SHEETS & TOUCH ERGONOMICS (v1.8.0)
+   ========================================================================== */
+
+.android-mode-chip {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(14, 165, 233, 0.34);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 140ms, border-color 140ms;
+}
+.android-mode-chip:hover { border-color: var(--accent); }
+.android-mode-chip.is-remote {
+  border-color: rgba(245, 158, 11, 0.42);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.android-mode-chip.is-remote .vault-dot { background: var(--warn); }
+
+.android-drawer-quick {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exp-tree-toggle-btn {
+  display: none;
+}
+
+.explorer-tree-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.explorer-tree-close {
+  display: none;
+}
+
+.explorer-sheet-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 13, 0.56);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 62;
+  opacity: 0;
+  transition: opacity 200ms var(--ease);
+}
+.explorer-sheet-backdrop.open {
+  display: block;
+  opacity: 1;
+}
+
+.preview-sheet-bar {
+  display: none;
+}
+
+.preview-sheet-handle {
+  display: block;
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  margin: 0 auto 8px;
+}
+
+.preview-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.explorer-mobile-sub {
+  display: none;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.explorer-row-chevron {
+  display: none;
+  color: var(--subtle);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 /* Mobile Sidebar Backdrop */
 .sidebar-backdrop {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.52);
+  background: rgba(5, 8, 13, 0.58);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 35;
 }
 
-/* Android Mobile Bottom Navigation Bar */
+/* Android Material 3 Bottom Navigation Bar */
 .mobile-bottom-nav {
   display: none;
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 60px;
-  padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+  min-height: 66px;
+  padding: 6px 8px calc(8px + env(safe-area-inset-bottom, 0px));
   background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-top: 1px solid var(--border-strong);
-  box-shadow: 0 -6px 22px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 -8px 26px rgba(0, 0, 0, 0.24);
   z-index: 32;
   align-items: stretch;
   justify-content: space-around;
-  gap: 2px;
+  gap: 4px;
 }
 
 .mobile-nav-item {
   flex: 1 1 0;
-  min-height: 48px;
+  min-height: 52px;
   border: none;
   background: transparent;
   color: var(--muted);
   font-family: inherit;
   font-size: 11px;
   font-weight: 550;
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1452,34 +1565,76 @@ pre.console {
   gap: 3px;
   cursor: pointer;
   user-select: none;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: color 130ms, background 130ms;
+  transition: color 160ms var(--ease), transform 120ms var(--ease);
 }
 
-.mobile-nav-item svg {
-  width: 19px;
-  height: 19px;
+.mobile-nav-pill {
+  width: 54px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 180ms var(--ease), transform 160ms var(--ease);
 }
 
-.mobile-nav-item:hover,
+.mobile-nav-pill svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 160ms var(--ease);
+}
+
 .mobile-nav-item:active {
-  color: var(--text);
+  transform: scale(0.95);
+}
+
+.mobile-nav-item:active .mobile-nav-pill {
   background: var(--surface-2);
 }
 
 .mobile-nav-item.active {
   color: var(--accent-hover);
+  font-weight: 680;
+}
+
+.mobile-nav-item.active .mobile-nav-pill {
   background: var(--accent-soft);
-  font-weight: 650;
+  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.24);
+}
+
+.mobile-nav-item.active .mobile-nav-pill svg {
+  color: var(--accent);
+  transform: scale(1.06);
 }
 
 /* ==========================================================================
-   RESPONSIVE BREAKPOINTS
+   RESPONSIVE BREAKPOINTS (TABLET & ANDROID SMARTPHONE)
    ========================================================================== */
 
 @media (max-width: 1200px) {
   .explorer-layout { grid-template-columns: minmax(0, 1fr) 340px; }
-  .explorer-tree { display: none; }
+  .exp-tree-toggle-btn { display: inline-flex; }
+  .explorer-tree-close { display: inline-flex; }
+  .explorer-tree {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(84vw, 310px);
+    max-height: none;
+    border-radius: 0 22px 22px 0;
+    z-index: 66;
+    transform: translateX(-106%);
+    transition: transform 240ms var(--ease);
+    padding: 16px 12px calc(24px + env(safe-area-inset-bottom, 0px));
+    box-shadow: var(--shadow-lg);
+  }
+  .explorer-tree.drawer-open {
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 1024px) {
@@ -1489,24 +1644,282 @@ pre.console {
 
 @media (max-width: 860px) {
   .explorer-layout { grid-template-columns: 1fr; }
-  .explorer-preview { position: static; max-height: none; }
+  .explorer-list-wrap, .explorer-grid { max-height: none; }
+
+  /* Material 3 Modal Preview Bottom Sheet */
+  .explorer-preview {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    max-height: 85dvh;
+    z-index: 70;
+    border-radius: 22px 22px 0 0;
+    border-bottom: none;
+    padding: 0 16px calc(22px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -14px 44px rgba(0, 0, 0, 0.48);
+    transform: translateY(108%);
+    pointer-events: none;
+    transition: transform 260ms var(--ease);
+  }
+  .explorer-preview.sheet-open {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .preview-sheet-bar {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    background: var(--surface);
+    padding: 10px 0 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    touch-action: none;
+  }
+
+  /* Mobile Navigation Drawer */
   .sidebar {
     position: fixed;
     left: 0;
     top: 0;
     bottom: 0;
-    transform: translateX(-100%);
-    width: var(--sidebar-w) !important;
+    transform: translateX(-104%);
+    width: min(84vw, 290px) !important;
+    border-radius: 0 24px 24px 0;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar .tab-btn {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+    border-radius: 10px;
   }
   .app-shell.mobile-nav-open .sidebar { transform: translateX(0); }
   .app-shell.mobile-nav-open .sidebar-backdrop { display: block; }
   .mobile-menu-btn { display: inline-flex; }
   .mobile-bottom-nav { display: flex; }
-  .toast-stack { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); }
-  .topbar { padding: 0 14px; }
-  main.content { padding: 18px 14px calc(86px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Compact Android Top App Bar */
+  .topbar {
+    height: 56px;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .topbar .breadcrumb > span:first-child,
+  .topbar .breadcrumb-sep,
+  .topbar .kbd,
+  .topbar .topbar-refresh-btn,
+  .topbar #headerAccountBtn {
+    display: none;
+  }
+  .topbar .breadcrumb strong {
+    font-size: 15px;
+  }
   .palette-trigger-text { display: none; }
-  .palette-trigger { flex: 0 0 auto; padding: 0 10px; }
+  .palette-trigger {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 10px;
+  }
+  .vault-switcher {
+    height: 34px;
+    padding: 0 8px;
+    max-width: 148px;
+  }
+  .vault-switcher select {
+    max-width: 118px;
+    font-size: 12px;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  /* Explorer mobile toolbar */
+  .explorer-toolbar {
+    padding: 10px;
+    gap: 8px;
+  }
+  .explorer-crumbs {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 6px 10px;
+  }
+  .explorer-crumbs::-webkit-scrollbar { display: none; }
+  .explorer-controls {
+    width: 100%;
+  }
+  .explorer-controls input[type="text"] {
+    flex: 1 1 140px;
+    width: auto;
+  }
+  .explorer-foot-hint { display: none; }
+
+  .toast-stack {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+  main.content {
+    padding: 16px 12px calc(92px + env(safe-area-inset-bottom, 0px));
+  }
 }
+
+@media (max-width: 640px) {
+  .page-header {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .page-title {
+    font-size: 18.5px;
+  }
+  .page-sub {
+    font-size: 12.5px;
+  }
+  .card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  /* 2x2 Compact KPI Cards & Zero-Overflow 1-Col Grids */
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .kpi-grid .card {
+    padding: 12px 13px;
+  }
+  .kpi-grid .card-val {
+    font-size: 20px;
+    margin-top: 4px;
+  }
+  .vault-grid,
+  .preset-grid,
+  .two-col,
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .form-grid > .form-field {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* Touch-friendly controls & prevent WebView focus auto-zoom */
+  input[type="text"],
+  input[type="password"],
+  input[type="number"],
+  input[type="email"],
+  select,
+  textarea {
+    font-size: 15px;
+    min-height: 44px;
+  }
+  .btn {
+    min-height: 40px;
+    padding: 9px 14px;
+    border-radius: 10px;
+  }
+  .btn.sm {
+    min-height: 36px;
+    padding: 6px 11px;
+    font-size: 12.5px;
+  }
+
+  /* 2-Line Mobile Explorer Rows (Zero Horizontal Scroll) */
+  .explorer-table thead,
+  .explorer-table td:nth-child(2),
+  .explorer-table td:nth-child(3),
+  .explorer-table td:nth-child(4) {
+    display: none;
+  }
+  .explorer-table td:first-child {
+    padding: 10px 12px;
+  }
+  .explorer-row {
+    touch-action: manipulation;
+    transition: background 120ms, transform 120ms;
+  }
+  .explorer-row:active {
+    background: var(--surface-2);
+    transform: scale(0.992);
+  }
+  .explorer-row .entry-name-cell {
+    min-height: 36px;
+  }
+  .explorer-row .entry-name-cell strong {
+    max-width: none !important;
+    font-size: 13.5px;
+  }
+  .explorer-mobile-sub {
+    display: block;
+  }
+  .explorer-row-chevron {
+    display: inline-flex;
+  }
+  .explorer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 10px;
+  }
+  .explorer-tile {
+    padding: 11px 10px;
+    touch-action: manipulation;
+  }
+  .explorer-tile:active {
+    transform: scale(0.97);
+  }
+
+  /* Bottom-Sheet Modals & Command Palette */
+  .overlay,
+  .palette-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-card,
+  .palette-card {
+    max-width: 100%;
+    border-radius: 22px 22px 0 0;
+    border-bottom: none;
+    max-height: 88dvh;
+    overflow-y: auto;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .palette-list {
+    max-height: 55dvh;
+  }
+
+  /* AI Chatbox adaptive height for Android soft keyboard */
+  .chat-box {
+    height: calc(100dvh - 330px);
+    min-height: 250px;
+    max-height: 500px;
+    padding: 12px;
+  }
+  .chat-msg {
+    max-width: 92%;
+    font-size: 13.5px;
+  }
+  .vault-switcher {
+    max-width: 118px;
+  }
+  .vault-switcher select {
+    max-width: 92px;
+  }
+  .android-mode-chip {
+    padding: 0 8px;
+    font-size: 11px;
+  }
+}
+
 
 

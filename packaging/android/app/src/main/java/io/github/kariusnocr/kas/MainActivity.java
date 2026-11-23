@@ -9,16 +9,21 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsetsController;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
@@ -29,6 +34,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -40,85 +46,189 @@ import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 
+import org.json.JSONObject;
+
 import java.io.File;
 
 public class MainActivity extends Activity {
+    private static final String KAS_VERSION = "1.8.0";
     private static final String PREFS_NAME = "kas_android_prefs";
     private static final String KEY_SERVER_MODE = "server_mode";
     private static final String KEY_REMOTE_URL = "remote_url";
+    private static final String KEY_LAST_THEME = "last_theme";
     private static final int FILE_CHOOSER_REQ_CODE = 1001;
     private static final int STORAGE_PERM_REQ_CODE = 1002;
 
+    private static final int COLOR_DARK_BG = Color.parseColor("#0C0E12");
+    private static final int COLOR_DARK_NAV = Color.parseColor("#101319");
+    private static final int COLOR_LIGHT_BG = Color.parseColor("#F6F5F1");
+    private static final int COLOR_LIGHT_NAV = Color.parseColor("#FFFFFF");
+
+    private FrameLayout rootContainer;
     private WebView webView;
     private LinearLayout bootOverlay;
     private TextView bootStatusText;
     private ValueCallback<Uri[]> filePathCallback;
     private volatile String localServerUrl = "http://127.0.0.1:8765";
 
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        configureSystemBars();
 
-        FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.parseColor("#0B0F17"));
+        rootContainer = new FrameLayout(this);
+        rootContainer.setBackgroundColor(COLOR_DARK_BG);
 
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.parseColor("#0B0F17"));
+        webView.setBackgroundColor(COLOR_DARK_BG);
         configureWebView(webView);
-        root.addView(webView, new FrameLayout.LayoutParams(
+        rootContainer.addView(webView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
 
         bootOverlay = createBootOverlay();
-        root.addView(bootOverlay, new FrameLayout.LayoutParams(
+        rootContainer.addView(bootOverlay, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
 
-        setContentView(root);
+        setContentView(rootContainer);
+        applySystemBarsTheme(false);
         startEmbeddedKasEngineAsync();
     }
 
-    private void configureSystemBars() {
+    private void applySystemBarsTheme(boolean isLight) {
         try {
-            Window window = getWindow();
-            if (window != null) {
-                window.setStatusBarColor(Color.parseColor("#0B0F17"));
-                window.setNavigationBarColor(Color.parseColor("#0B0F17"));
+            int statusColor = isLight ? COLOR_LIGHT_BG : COLOR_DARK_BG;
+            int navColor = isLight ? COLOR_LIGHT_NAV : COLOR_DARK_NAV;
+
+            if (rootContainer != null) {
+                rootContainer.setBackgroundColor(statusColor);
             }
+            if (webView != null) {
+                webView.setBackgroundColor(statusColor);
+            }
+
+            Window window = getWindow();
+            if (window == null) {
+                return;
+            }
+            window.setStatusBarColor(statusColor);
+            window.setNavigationBarColor(navColor);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowInsetsController controller = window.getInsetsController();
+                if (controller != null) {
+                    int lightMask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                            | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+                    controller.setSystemBarsAppearance(isLight ? lightMask : 0, lightMask);
+                }
+            } else {
+                applyLegacySystemBarsAppearance(window, isLight);
+            }
+
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putString(KEY_LAST_THEME, isLight ? "light" : "dark")
+                    .apply();
         } catch (Exception ignored) {
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void applyLegacySystemBarsAppearance(Window window, boolean isLight) {
+        View decor = window.getDecorView();
+        if (decor == null) {
+            return;
+        }
+        int flags = decor.getSystemUiVisibility();
+        if (isLight) {
+            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        } else {
+            flags &= ~(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        }
+        decor.setSystemUiVisibility(flags);
     }
 
     private LinearLayout createBootOverlay() {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER);
-        box.setBackgroundColor(Color.parseColor("#0B0F17"));
-        box.setPadding(64, 64, 64, 64);
+        box.setBackgroundColor(COLOR_DARK_BG);
+        box.setPadding(dp(28), dp(36), dp(28), dp(36));
+
+        // Biểu tượng thương hiệu KAS dạng Material 3 bo góc với dải màu xanh Cerulean
+        GradientDrawable badgeBg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.parseColor("#2F81F7"), Color.parseColor("#58A6FF")}
+        );
+        badgeBg.setCornerRadius(dp(18));
+
+        TextView brandBadge = new TextView(this);
+        brandBadge.setText("KAS");
+        brandBadge.setTextColor(Color.WHITE);
+        brandBadge.setTextSize(22f);
+        brandBadge.setTypeface(Typeface.DEFAULT_BOLD);
+        brandBadge.setGravity(Gravity.CENTER);
+        brandBadge.setBackground(badgeBg);
+        LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(dp(72), dp(72));
+        badgeLp.bottomMargin = dp(20);
+        box.addView(brandBadge, badgeLp);
+
+        TextView title = new TextView(this);
+        title.setText("Karius Academic System");
+        title.setTextColor(Color.parseColor("#EEF2F6"));
+        title.setTextSize(20f);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        box.addView(title);
+
+        TextView versionSub = new TextView(this);
+        versionSub.setText("Phiên bản " + KAS_VERSION + " · Android");
+        versionSub.setTextColor(Color.parseColor("#58A6FF"));
+        versionSub.setTextSize(12.5f);
+        versionSub.setTypeface(Typeface.DEFAULT_BOLD);
+        versionSub.setGravity(Gravity.CENTER);
+        versionSub.setPadding(0, dp(4), 0, dp(24));
+        box.addView(versionSub);
 
         ProgressBar spinner = new ProgressBar(this);
-        box.addView(spinner, new LinearLayout.LayoutParams(
+        spinner.setIndeterminateTintList(ColorStateList.valueOf(Color.parseColor("#2F81F7")));
+        LinearLayout.LayoutParams spinLp = new LinearLayout.LayoutParams(dp(36), dp(36));
+        spinLp.bottomMargin = dp(16);
+        box.addView(spinner, spinLp);
+
+        bootStatusText = new TextView(this);
+        bootStatusText.setText("Đang khởi chạy máy chủ Python 3.11 & SQLite nội bộ...");
+        bootStatusText.setTextColor(Color.parseColor("#9AA4B2"));
+        bootStatusText.setTextSize(13.5f);
+        bootStatusText.setGravity(Gravity.CENTER);
+        bootStatusText.setPadding(dp(8), 0, dp(8), dp(26));
+        box.addView(bootStatusText);
+
+        // Nút phụ chuyển nhanh sang kết nối máy chủ PC qua Wi-Fi ngay từ màn hình khởi động
+        GradientDrawable btnBg = new GradientDrawable();
+        btnBg.setColor(Color.parseColor("#171C24"));
+        btnBg.setCornerRadius(dp(999));
+        btnBg.setStroke(dp(1), Color.parseColor("#2E3746"));
+
+        Button lanBtn = new Button(this);
+        lanBtn.setText("Kết nối PC qua Wi-Fi");
+        lanBtn.setAllCaps(false);
+        lanBtn.setTextColor(Color.parseColor("#EEF2F6"));
+        lanBtn.setTextSize(13.5f);
+        lanBtn.setBackground(btnBg);
+        lanBtn.setPadding(dp(20), dp(10), dp(20), dp(10));
+        lanBtn.setMinHeight(dp(44));
+        lanBtn.setOnClickListener(v -> showServerSwitcherDialog());
+        box.addView(lanBtn, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
-
-        TextView title = new TextView(this);
-        title.setText("Karius Academic System (KAS) v1.7.0");
-        title.setTextColor(Color.parseColor("#F1F5F9"));
-        title.setTextSize(17f);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 36, 0, 12);
-        box.addView(title);
-
-        bootStatusText = new TextView(this);
-        bootStatusText.setText("Đang khởi chạy máy chủ Python 3.11 & SQLite nội bộ trên Android...");
-        bootStatusText.setTextColor(Color.parseColor("#94A3B8"));
-        bootStatusText.setTextSize(13.5f);
-        bootStatusText.setGravity(Gravity.CENTER);
-        box.addView(bootStatusText);
 
         return box;
     }
@@ -134,7 +244,7 @@ public class MainActivity extends Activity {
         ws.setLoadsImagesAutomatically(true);
         ws.setMediaPlaybackRequiresUserGesture(false);
         ws.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        ws.setUserAgentString(ws.getUserAgentString() + " KASAndroid/1.7.0");
+        ws.setUserAgentString(ws.getUserAgentString() + " KASAndroid/" + KAS_VERSION);
 
         CookieManager cm = CookieManager.getInstance();
         cm.setAcceptCookie(true);
@@ -164,7 +274,11 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 if (bootOverlay != null && bootOverlay.getVisibility() == View.VISIBLE) {
-                    bootOverlay.setVisibility(View.GONE);
+                    bootOverlay.animate()
+                            .alpha(0f)
+                            .setDuration(220)
+                            .withEndAction(() -> bootOverlay.setVisibility(View.GONE))
+                            .start();
                 }
             }
         });
@@ -274,11 +388,12 @@ public class MainActivity extends Activity {
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(48, 32, 48, 16);
+        layout.setPadding(dp(22), dp(14), dp(22), dp(8));
 
         TextView hint = new TextView(this);
         hint.setText("Nhập địa chỉ LAN của máy chủ KAS trên máy tính (hoặc bấm 'Dùng Máy Chủ Nội Bộ' để chạy độc lập 100% trên điện thoại Android):");
-        hint.setTextSize(13f);
+        hint.setTextSize(13.5f);
+        hint.setPadding(0, 0, 0, dp(10));
         layout.addView(hint);
 
         final EditText input = new EditText(this);
@@ -385,7 +500,7 @@ public class MainActivity extends Activity {
     public class KasJsBridge {
         @JavascriptInterface
         public String getVersion() {
-            return "1.7.0";
+            return KAS_VERSION;
         }
 
         @JavascriptInterface
@@ -397,6 +512,53 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String getActiveServerUrl() {
             return getEffectiveTargetUrl();
+        }
+
+        @JavascriptInterface
+        public void syncSystemTheme(String theme) {
+            final boolean isLight = "light".equalsIgnoreCase(theme);
+            runOnUiThread(() -> applySystemBarsTheme(isLight));
+        }
+
+        @JavascriptInterface
+        public void hapticTick() {
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    webView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String getDeviceInfo() {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("manufacturer", Build.MANUFACTURER != null ? Build.MANUFACTURER : "");
+                obj.put("brand", Build.BRAND != null ? Build.BRAND : "");
+                obj.put("model", Build.MODEL != null ? Build.MODEL : "Android");
+                obj.put("release", Build.VERSION.RELEASE != null ? Build.VERSION.RELEASE : "");
+                obj.put("sdk_int", Build.VERSION.SDK_INT);
+                obj.put("app_version", KAS_VERSION);
+                obj.put("server_mode", getServerMode());
+                return obj.toString();
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+
+        @JavascriptInterface
+        public void openExternalUrl(String url) {
+            if (url == null) return;
+            final String trimmed = url.trim();
+            if (!trimmed.startsWith("https://") && !trimmed.startsWith("http://")) {
+                return;
+            }
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(trimmed)));
+                } catch (Exception ignored) {
+                }
+            });
         }
 
         @JavascriptInterface

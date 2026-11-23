@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Karius Academic System (KAS) v1.7.0 — Frontend Workspace & Android Engine
+   Karius Academic System (KAS) v1.8.0 — Desktop & Android Material 3 Engine
    Modular Vanilla JS · Zero External Dependencies · Offline, Mobile & SAC Safe
    ========================================================================== */
 
@@ -170,7 +170,10 @@ function toggleSidebar() {
 
 function toggleMobileNav() {
   const shell = document.getElementById('appShell');
-  if (shell) shell.classList.toggle('mobile-nav-open');
+  if (!shell) return;
+  const open = shell.classList.toggle('mobile-nav-open');
+  if (open) closeExplorerMobileSheets();
+  triggerAndroidHaptic();
 }
 
 function closeMobileNav() {
@@ -179,6 +182,7 @@ function closeMobileNav() {
 }
 
 function updateThemeButton(theme) {
+  syncAndroidSystemChrome(theme);
   const btn = document.getElementById('themeToggleBtn');
   if (!btn) return;
   const isLight = theme === 'light';
@@ -194,6 +198,7 @@ async function toggleTheme() {
   const next = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   h.setAttribute('data-theme', next);
   updateThemeButton(next);
+  triggerAndroidHaptic();
   const sTheme = document.getElementById('sTheme');
   if (sTheme) sTheme.value = next;
   await apiFetch('/api/settings', {
@@ -217,6 +222,8 @@ function openTab(tabName) {
   if (cg) cg.textContent = meta.group;
   if (ct) ct.textContent = meta.label;
   closeMobileNav();
+  closeExplorerMobileSheets();
+  if (window._kasInitialized) triggerAndroidHaptic();
 
   if (tabName === 'vaults') loadVaults();
   if (tabName === 'overview') loadOverview();
@@ -2322,6 +2329,8 @@ function renderExplorerTree() {
   });
   box.querySelectorAll('[data-tree-path]').forEach((row) => {
     row.addEventListener('click', () => {
+      closeExplorerMobileSheets();
+      triggerAndroidHaptic();
       loadExplorer(row.getAttribute('data-tree-path') || '', { pushHistory: true });
     });
   });
@@ -2400,27 +2409,36 @@ function renderExplorerEntries(statsObj) {
   } else {
     const rows = entries.map((it, idx) => {
       const sel = idx === _expState.selectedIdx ? 'selected' : '';
+      const catLabel = explorerCategoryLabel(it.category, it.ext);
       const subInfo = it.is_folder
         ? `${fmt(it.child_folders || 0)} thư mục, ${fmt(it.child_files || 0)} tệp`
         : esc(it.size_human || '0 B');
+      const mobileSub = it.is_folder
+        ? `${fmt(it.child_folders || 0)} thư mục · ${fmt(it.child_files || 0)} tệp`
+        : `${catLabel} · ${it.size_human || '0 B'}${it.modified_time ? ' · ' + fmtShortTime(it.modified_time).slice(0, 10) : ''}`;
+      const chevron = it.is_folder
+        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>'
+        : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
       return `
         <tr class="explorer-row ${sel}" data-entry-idx="${idx}">
           <td>
             <div class="entry-name-cell">
               <span class="entry-icon cat-${esc(it.category || 'other')}">${explorerCategoryIcon(it.category)}</span>
-              <div style="min-width:0;">
+              <div style="min-width:0; flex:1;">
                 <strong style="display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:340px;" title="${esc(it.name)}">${esc(it.name)}</strong>
+                <div class="explorer-mobile-sub">${esc(mobileSub)}</div>
               </div>
+              <span class="explorer-row-chevron" aria-hidden="true">${chevron}</span>
             </div>
           </td>
-          <td style="font-size:12px; color:var(--muted); white-space:nowrap;">${esc(explorerCategoryLabel(it.category, it.ext))}</td>
+          <td style="font-size:12px; color:var(--muted); white-space:nowrap;">${esc(catLabel)}</td>
           <td style="font-size:12px; color:var(--text-2); white-space:nowrap;">${subInfo}</td>
           <td style="font-size:11.5px; color:var(--muted); white-space:nowrap;">${esc(fmtShortTime(it.modified_time))}</td>
         </tr>`;
     }).join('');
     box.innerHTML = `
       <div class="explorer-list-wrap">
-        <table>
+        <table class="explorer-table">
           <thead><tr><th>Tên mục</th><th>Loại</th><th>Dung lượng / Mục con</th><th>Cập nhật</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -2436,13 +2454,13 @@ function renderExplorerEntries(statsObj) {
     node.addEventListener('click', () => {
       const entry = _expState.entries[idx];
       if (isTouchUi && entry && entry.is_folder) {
+        triggerAndroidHaptic();
         activateExplorerEntry(idx);
         return;
       }
       selectExplorerIndex(idx);
-      if (window.innerWidth <= 860 && entry && !entry.is_folder) {
-        const pv = document.getElementById('explorerPreviewPane');
-        if (pv) pv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (window.innerWidth <= 860 && entry) {
+        openExplorerPreviewSheet();
       }
     });
     node.addEventListener('dblclick', () => activateExplorerEntry(idx));
@@ -2664,7 +2682,10 @@ async function loadExplorerPreview(entry, { fetchDrive = false } = {}) {
     const b = pane.querySelector(`[data-pv-action="${act}"]`);
     if (b) b.addEventListener('click', fn);
   };
-  bind('enter-folder', () => loadExplorer(data.path || entry.path || '', { pushHistory: true }));
+  bind('enter-folder', () => {
+    closeExplorerPreviewSheet();
+    loadExplorer(data.path || entry.path || '', { pushHistory: true });
+  });
   bind('open-os', () => openItemExternal(data.id || entry.id || '', data.path || entry.path || '', false));
   bind('reveal-os', () => openItemExternal(data.id || entry.id || '', data.path || entry.path || '', true));
   bind('fetch-drive', () => loadExplorerPreview(entry, { fetchDrive: true }));
@@ -2694,18 +2715,156 @@ async function copyPreviewText() {
   }
 }
 
-/* ==================== ANDROID ECOSYSTEM & NATIVE APK BRIDGE (v1.7.0) ==================== */
+/* ==================== ANDROID MATERIAL 3 SHEETS, GESTURES & NATIVE BRIDGE (v1.8.0) ==================== */
 
 let _androidInfoCache = null;
+
+function syncAndroidSystemChrome(theme) {
+  const isLight = theme === 'light';
+  const meta = document.getElementById('themeColorMeta');
+  if (meta) {
+    meta.setAttribute('content', isLight ? '#f6f5f1' : '#0c0e12');
+  }
+  try {
+    if (window.KASAndroid && typeof window.KASAndroid.syncSystemTheme === 'function') {
+      window.KASAndroid.syncSystemTheme(isLight ? 'light' : 'dark');
+    }
+  } catch (_) {}
+}
+
+function triggerAndroidHaptic() {
+  try {
+    if (window.KASAndroid && typeof window.KASAndroid.hapticTick === 'function') {
+      window.KASAndroid.hapticTick();
+    }
+  } catch (_) {}
+}
+
+function openExplorerPreviewSheet() {
+  if (window.innerWidth > 860) return;
+  const sheet = document.getElementById('explorerPreviewSheet');
+  const tree = document.getElementById('explorerTreePanel');
+  const bd = document.getElementById('explorerSheetBackdrop');
+  if (tree) tree.classList.remove('drawer-open');
+  if (sheet) sheet.classList.add('sheet-open');
+  if (bd) bd.classList.add('open');
+}
+
+function closeExplorerPreviewSheet() {
+  const sheet = document.getElementById('explorerPreviewSheet');
+  const tree = document.getElementById('explorerTreePanel');
+  const bd = document.getElementById('explorerSheetBackdrop');
+  if (sheet) sheet.classList.remove('sheet-open');
+  if (bd && (!tree || !tree.classList.contains('drawer-open'))) {
+    bd.classList.remove('open');
+  }
+}
+
+function toggleExplorerTreeDrawer(forceState) {
+  const tree = document.getElementById('explorerTreePanel');
+  const sheet = document.getElementById('explorerPreviewSheet');
+  const bd = document.getElementById('explorerSheetBackdrop');
+  if (!tree) return;
+  const next = typeof forceState === 'boolean' ? forceState : !tree.classList.contains('drawer-open');
+  if (next && sheet) sheet.classList.remove('sheet-open');
+  tree.classList.toggle('drawer-open', next);
+  if (bd) {
+    const anyOpen = next || (sheet && sheet.classList.contains('sheet-open'));
+    bd.classList.toggle('open', Boolean(anyOpen));
+  }
+  triggerAndroidHaptic();
+}
+
+function closeExplorerMobileSheets() {
+  const tree = document.getElementById('explorerTreePanel');
+  const sheet = document.getElementById('explorerPreviewSheet');
+  const bd = document.getElementById('explorerSheetBackdrop');
+  if (tree) tree.classList.remove('drawer-open');
+  if (sheet) sheet.classList.remove('sheet-open');
+  if (bd) bd.classList.remove('open');
+}
+
+function initMobileTouchGestures() {
+  // 1. Vuốt xuống trên thanh kéo (drag handle) để đóng Preview Bottom Sheet
+  const handle = document.getElementById('explorerPreviewHandle');
+  if (handle) {
+    let startY = 0;
+    let tracking = false;
+    handle.addEventListener('touchstart', (e) => {
+      if (!e.touches || !e.touches.length) return;
+      startY = e.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+    handle.addEventListener('touchend', (e) => {
+      if (!tracking || !e.changedTouches || !e.changedTouches.length) return;
+      tracking = false;
+      const deltaY = e.changedTouches[0].clientY - startY;
+      if (deltaY > 65) {
+        closeExplorerPreviewSheet();
+        triggerAndroidHaptic();
+      }
+    }, { passive: true });
+  }
+
+  // 2. Vuốt sang trái trên thanh bên di động (Mobile Drawer) để đóng ngăn kéo
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) {
+    let startX = 0;
+    let startY = 0;
+    sidebar.addEventListener('touchstart', (e) => {
+      if (!e.touches || !e.touches.length) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    sidebar.addEventListener('touchend', (e) => {
+      if (!e.changedTouches || !e.changedTouches.length) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = Math.abs(e.changedTouches[0].clientY - startY);
+      if (dx < -55 && dy < 70) {
+        const shell = document.getElementById('appShell');
+        if (shell && shell.classList.contains('mobile-nav-open')) {
+          closeMobileNav();
+          triggerAndroidHaptic();
+        }
+      }
+    }, { passive: true });
+  }
+}
 
 async function loadAndroidEcosystemInfo() {
   const badge = document.getElementById('androidRuntimeBadge');
   const lanEl = document.getElementById('androidLanUrlText');
   const termuxEl = document.getElementById('androidTermuxCmdText');
   const nativeCtrl = document.getElementById('androidNativeControls');
+  const drawerQuick = document.getElementById('androidDrawerQuickBar');
+  const topbarModeBtn = document.getElementById('androidTopbarModeBtn');
+  const topbarModeLbl = document.getElementById('androidTopbarModeLabel');
 
-  if (nativeCtrl && window.KASAndroid) {
-    nativeCtrl.style.display = 'flex';
+  let nativeDeviceLabel = '';
+  if (window.KASAndroid) {
+    if (nativeCtrl) nativeCtrl.style.display = 'flex';
+    if (drawerQuick) drawerQuick.style.display = 'flex';
+    if (topbarModeBtn) {
+      topbarModeBtn.style.display = 'inline-flex';
+      try {
+        const mode = typeof window.KASAndroid.getServerMode === 'function'
+          ? String(window.KASAndroid.getServerMode() || 'local')
+          : 'local';
+        const isRemote = mode === 'remote';
+        topbarModeBtn.classList.toggle('is-remote', isRemote);
+        if (topbarModeLbl) topbarModeLbl.textContent = isRemote ? 'PC Wi-Fi' : 'Nội bộ';
+      } catch (_) {}
+    }
+    try {
+      if (typeof window.KASAndroid.getDeviceInfo === 'function') {
+        const rawDev = window.KASAndroid.getDeviceInfo();
+        const dev = typeof rawDev === 'string' ? JSON.parse(rawDev) : rawDev;
+        if (dev && dev.model) {
+          const osStr = dev.release ? `Android ${dev.release}` : 'Android';
+          nativeDeviceLabel = `${dev.model} (${osStr})`;
+        }
+      }
+    } catch (_) {}
   }
 
   const { ok, data } = await apiFetch('/api/android/info');
@@ -2715,7 +2874,9 @@ async function loadAndroidEcosystemInfo() {
   if (badge) {
     if (window.KASAndroid || data.runtime_flavor === 'chaquopy_apk') {
       badge.className = 'pill ok';
-      badge.textContent = 'Ứng dụng Android Gốc · Đang chạy';
+      badge.textContent = nativeDeviceLabel
+        ? `Android Gốc · ${nativeDeviceLabel}`
+        : 'Ứng dụng Android Gốc · Đang chạy';
     } else if (data.runtime_flavor === 'termux') {
       badge.className = 'pill ok';
       badge.textContent = 'Android Termux · Đang chạy';
@@ -2736,6 +2897,10 @@ async function loadAndroidEcosystemInfo() {
 function downloadAndroidApk() {
   const url = (_androidInfoCache && _androidInfoCache.downloads && _androidInfoCache.downloads.apk_latest_url)
     || 'https://github.com/kariusnocr/storage-management-suite/releases/latest/download/kas-android.apk';
+  if (window.KASAndroid && typeof window.KASAndroid.openExternalUrl === 'function') {
+    window.KASAndroid.openExternalUrl(url);
+    return;
+  }
   window.open(url, '_blank', 'noopener');
 }
 
@@ -2777,6 +2942,7 @@ async function copyAndroidTermuxCmd() {
 }
 
 function openAndroidServerSwitcher() {
+  triggerAndroidHaptic();
   if (window.KASAndroid && typeof window.KASAndroid.showServerSwitcher === 'function') {
     window.KASAndroid.showServerSwitcher();
   } else {
@@ -2785,6 +2951,7 @@ function openAndroidServerSwitcher() {
 }
 
 function requestAndroidStoragePermission() {
+  triggerAndroidHaptic();
   if (window.KASAndroid && typeof window.KASAndroid.requestStorageAccess === 'function') {
     window.KASAndroid.requestStorageAccess();
   } else {
@@ -2802,6 +2969,16 @@ window.kasHandleAndroidBack = function () {
   const pOv = document.getElementById('paletteOverlay');
   if (pOv && pOv.classList.contains('open')) {
     closeCommandPalette();
+    return true;
+  }
+  const pvSheet = document.getElementById('explorerPreviewSheet');
+  if (pvSheet && pvSheet.classList.contains('sheet-open')) {
+    closeExplorerPreviewSheet();
+    return true;
+  }
+  const treePanel = document.getElementById('explorerTreePanel');
+  if (treePanel && treePanel.classList.contains('drawer-open')) {
+    toggleExplorerTreeDrawer(false);
     return true;
   }
   const shell = document.getElementById('appShell');
@@ -2847,6 +3024,7 @@ async function refreshAll() {
 document.addEventListener('DOMContentLoaded', () => {
   restoreSidebarState();
   updateThemeButton(document.documentElement.getAttribute('data-theme') || 'dark');
+  initMobileTouchGestures();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -2892,6 +3070,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const pOv = document.getElementById('paletteOverlay');
       if (pOv && pOv.classList.contains('open')) {
         closeCommandPalette();
+        return;
+      }
+      const pvSheet = document.getElementById('explorerPreviewSheet');
+      const treePanel = document.getElementById('explorerTreePanel');
+      if ((pvSheet && pvSheet.classList.contains('sheet-open'))
+          || (treePanel && treePanel.classList.contains('drawer-open'))) {
+        closeExplorerMobileSheets();
       }
       return;
     }
@@ -2932,4 +3117,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
   refreshAll();
 });
+
 
