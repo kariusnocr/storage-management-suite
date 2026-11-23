@@ -43,9 +43,6 @@ jobs:
           - os: windows-latest
             os_label: windows-x64
             ext: ".exe"
-          - os: macos-latest
-            os_label: macos-arm64
-            ext: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -95,6 +92,33 @@ jobs:
           name: binary-${{ matrix.os_label }}
           path: dist/kas-${{ matrix.os_label }}${{ matrix.ext }}
 
+  build-macos-binary:
+    name: Build Standalone Binary (macos-arm64)
+    runs-on: macos-15
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install package & PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[media,web,drive-api]" pyinstaller
+      - name: Build CLI + Web UI standalone binary
+        run: |
+          python packaging/build_binary.py --mode cli
+      - name: Rename and smoke-test artifact
+        shell: bash
+        run: |
+          mv "dist/kas" "dist/kas-macos-arm64"
+          ./dist/kas-macos-arm64 version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary-macos-arm64
+          path: dist/kas-macos-arm64
+
   build-android-apk:
     name: Build Native Android APK (kas-android.apk)
     runs-on: ubuntu-latest
@@ -121,21 +145,31 @@ jobs:
 
   publish-release:
     name: Publish GitHub Release
-    needs: [build-wheel, build-binaries, build-android-apk]
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-wheel, build-binaries, build-android-apk, build-macos-binary]
+    if: >-
+      always() &&
+      startsWith(github.ref, 'refs/tags/v') &&
+      needs.build-wheel.result == 'success' &&
+      needs.build-binaries.result == 'success' &&
+      needs.build-android-apk.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: release_assets
           merge-multiple: true
-      - name: Generate SHA256SUMS.txt
+      - name: Verify core artifacts & Generate SHA256SUMS.txt
         run: |
           cd release_assets
+          test -f kas-android.apk
+          test -f kas-windows-x64.exe
+          test -f kas-linux-x64
+          test -f kas-windows-sac-safe.zip
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          make_latest: true
           files: release_assets/*
