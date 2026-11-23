@@ -1,4 +1,4 @@
-"""Cầu nối & Động cơ Khởi chạy Hệ điều hành Android (`kas android` & `kas-android.apk`) — KAS v1.7.0.
+"""Cầu nối & Động cơ Khởi chạy Hệ điều hành Android (`kas android` & `kas-android.apk`) — KAS v1.8.0.
 
 Hỗ trợ:
 1. Ứng dụng Android gốc (`kas-android.apk` / Chaquopy Python 3.11): khởi chạy máy chủ KAS nội bộ trên thiết bị

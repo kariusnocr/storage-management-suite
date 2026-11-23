@@ -1,4 +1,4 @@
-# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.7.0`)
+# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.8.0`)
 
 ## 1. Chọn Phương thức Cài đặt & Cập nhật
 
@@ -7,7 +7,7 @@
 > [!IMPORTANT]
 > **Windows 11 Smart App Control (SAC)** chặn các tệp `.exe` chưa ký số thương mại và không có nút *Run anyway*. Bạn **KHÔNG cần tắt Smart App Control** — bộ cài KAS dùng Python chính chủ + máy chủ thuần chuẩn (`--stdlib`) + cửa sổ **Microsoft Edge (`--app`)** đã ký số bởi Microsoft.
 
-**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.7.0`):**
+**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.8.0`):**
 Mở **PowerShell** và dán 1 dòng duy nhất:
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
@@ -15,21 +15,21 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
 *(Nếu máy đã cài KAS `v1.4.0+`, bạn chỉ cần bấm **Cập nhật tự động ngay** trong giao diện hoặc chạy `kas update`.)*
 
 **Cách A2 — Tải ZIP & Nhấp đúp (Hoạt động cả khi không có Internet):**
-1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.7.0`** hoặc từ Google Drive:
+1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.8.0`** hoặc từ Google Drive:
    `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-windows-sac-safe.zip`.
 2. Giải nén toàn bộ vào một thư mục (ví dụ: `Downloads\kas-windows-sac-safe`).
 3. **Nhấp đúp `Cai_Dat_KAS_Windows11.cmd`** ngay trong thư mục vừa giải nén.
 4. Sau khi xong, nhấp đúp biểu tượng **Karius Academic System (KAS)** trên Desktop!
 
 ### Cách B — Cài đặt trên Hệ điều hành Android (Điện thoại & Máy tính bảng · Android 8.0+)
-1. **Ứng dụng Android Gốc (`kas-android.apk`)**: Tải **`kas-android.apk`** từ **GitHub Releases `v1.7.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt (chạy độc lập 100% trên điện thoại với Python 3.11 + SQLite nhúng sẵn).
+1. **Ứng dụng Android Gốc (`kas-android.apk` · Giao diện Material 3 `v1.8.0`)**: Tải **`kas-android.apk`** từ **GitHub Releases `v1.8.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt (chạy độc lập 100% trên điện thoại với Python 3.11 + SQLite nhúng sẵn).
 2. **Hoặc cài trên Android Termux (1 lệnh)**:
    ```bash
    curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash
    ```
 
 ### Cách C — Tải Binary Độc lập (macOS / Linux / Windows không bật SAC)
-1. Tải tệp từ **GitHub Releases `v1.7.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
+1. Tải tệp từ **GitHub Releases `v1.8.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
 2. Kiểm tra mã băm trong `SHA256SUMS.txt`.
 3. Chạy `kas doctor` hoặc `kas desktop`.
 
@@ -130,7 +130,7 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
   kas update --check                  # Kiểm tra phiên bản mới nhất
   kas update                          # Tự tải, xác thực SHA-256 và nâng cấp ngay
   kas update --rollback               # Quay về phiên bản trước đó trong lịch sử
-  kas update --version v1.7.0         # Cài một phiên bản cụ thể
+  kas update --version v1.8.0         # Cài một phiên bản cụ thể
   kas update --history                # Xem lịch sử cập nhật
   ```
 
@@ -147,9 +147,9 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
 ## 7. Duyệt Thư Mục & Xem Trước Tệp Trực Tiếp (`Duyệt Kho` & `kas duyet` · `v1.6.0+`)
 
 - **Trong ứng dụng KAS (Tab *Duyệt Kho*)**:
-  - **Cây thư mục bên trái**: Bấm `▸`/`▾` để mở rộng nhánh con theo nhu cầu, bấm tên thư mục để chuyển tức thì.
+  - **Cây thư mục bên trái**: Bấm `▸`/`▾` để mở rộng nhánh con theo nhu cầu, bấm tên thư mục để chuyển tức thì (trên Android bấm nút cây thư mục để mở Ngăn Kéo trượt bên trái).
   - **Thanh điều hướng**: Nút **Lùi (`Alt+←`)**, **Tiến (`Alt+→`)**, **Lên cấp (`Backspace` / `Alt+↑`)**, đường dẫn **Breadcrumb**, **lọc không dấu tức thì**, **sắp xếp** và chuyển đổi **Danh sách / Lưới thẻ**.
-  - **Khung Xem Trước bên phải**: Bấm 1 lần vào mục để xem trước trực tiếp (Ảnh, PDF, Audio/Video tua mượt, Văn bản/Mã nguồn, DOCX/XLSX/PPTX/EPUB/ZIP, hoặc bấm **Tải & xem nội dung** cho tệp Google Drive); bấm đúp hoặc nhấn **`Enter`** (hoặc chạm 1 lần trên màn hình cảm ứng Android) để vào thư mục / mở bằng ứng dụng mặc định.
+  - **Khung Xem Trước bên phải (Bottom Sheet trên Android)**: Bấm 1 lần vào mục để xem trước trực tiếp (Ảnh, PDF, Audio/Video tua mượt, Văn bản/Mã nguồn, DOCX/XLSX/PPTX/EPUB/ZIP, hoặc bấm **Tải & xem nội dung** cho tệp Google Drive); bấm đúp hoặc nhấn **`Enter`** (hoặc chạm 1 lần trên màn hình cảm ứng Android) để vào thư mục / mở bằng ứng dụng mặc định.
   - **Nhảy thẳng từ Tìm kiếm & Tổng quan**: Bấm vào bất kỳ nhánh nào ở trang *Tổng quan*, bấm **Duyệt vị trí** từ *Tìm kiếm FTS5* hoặc chọn tệp từ `Ctrl+K` để mở thẳng thư mục chứa tệp.
 - **Qua dòng lệnh (`kas duyet` / `kas browse`)**:
   ```bash
@@ -160,17 +160,20 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
 
 ---
 
-## 8. Vận Hành KAS Trên Hệ Điều Hành Android (`kas-android.apk` & `kas android` · `v1.7.0`)
+## 8. Vận Hành & Giao Diện Material Design 3 Trên Android (`kas-android.apk` & `kas android` · `v1.8.0`)
 
-- **Ứng dụng Android Gốc (`kas-android.apk`)**:
-  - Chạy trực tiếp máy chủ Python 3.11 + SQLite trên điện thoại/tablet Android (`127.0.0.1:8765`), tự tạo sẵn **Kho Tài Liệu Android** (`[00] TỔNG QUAN`, `[01] HỌC THUẬT`, `[02] TƯ LIỆU`).
-  - Tại thẻ **Hệ Sinh Thái Android & Ghép Nối Di Động** (tab *Kho Dữ Liệu*), bạn có thể bấm **Đổi Máy Chủ (Nội bộ / PC Wi-Fi)** để chuyển giữa kho trên điện thoại và máy chủ KAS trên máy tính, hoặc bấm **Cấp quyền Bộ nhớ Android** để kết nối mọi thư mục trong `/storage/emulated/0/...`.
+- **Ứng dụng Android Gốc Material 3 (`kas-android.apk`)**:
+  - Khởi động mượt không nháy trắng với **Material 3 Splash Screen**, tự khởi chạy máy chủ Python 3.11 + SQLite trên điện thoại/tablet Android (`127.0.0.1:8765`) và tạo sẵn **Kho Tài Liệu Android** (`[00] TỔNG QUAN`, `[01] HỌC THUẬT`, `[02] TƯ LIỆU`).
+  - **Đồng bộ thanh trạng thái & điều hướng hệ thống**: Tự đổi màu `StatusBar` / `NavigationBar` và độ tương phản biểu tượng theo chủ đề **Obsidian Ink (Tối)** / **Archival Paper (Sáng)**, kèm phản hồi rung chạm nhẹ (Haptic Feedback).
+  - **Điều hướng cảm ứng chuẩn Android**: Thanh điều hướng đáy Material 3 có chỉ báo viên thuốc (*Active Pill*), **Chip Chuyển Máy Chủ 1 chạm** (`Nội bộ` / `PC Wi-Fi`) ngay trên Top App Bar & Ngăn kéo bên, **Ngăn kéo Cây thư mục** và **Bottom Sheet Xem trước tệp** (vuốt xuống thanh kéo để đóng, vuốt cạnh/bấm nút Back để đóng từng lớp và lùi thư mục).
+  - Tại thẻ **Hệ Sinh Thái Android & Ghép Nối Di Động** (tab *Kho Dữ Liệu*) hoặc ngay trong Ngăn kéo Menu, bấm **Đổi Máy Chủ (Nội bộ / PC Wi-Fi)** để chuyển giữa kho trên điện thoại và máy chủ KAS trên máy tính, hoặc bấm **Cấp quyền Bộ nhớ Android** để kết nối mọi thư mục trong `/storage/emulated/0/...`.
 - **Lệnh CLI `kas android`**:
   ```bash
   kas android info                    # Xem trạng thái Android, link tải APK & danh sách IP LAN
   kas android init-vault              # Khởi tạo & kích hoạt kho tài liệu cục bộ trên Android
   kas android serve --port 8765       # Mở máy chủ KAS qua Wi-Fi/LAN để điện thoại kết nối
   ```
+
 
 
 

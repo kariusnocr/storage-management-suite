@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Karius Academic System (KAS) v1.7.0 — Trình Cài Đặt 1 Lệnh Trên Android Termux
+# Karius Academic System (KAS) v1.8.0 — Trình Cài Đặt 1 Lệnh Trên Android Termux
 # Cú pháp:
 #   curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash
 # ==============================================================================
@@ -12,7 +12,7 @@ NO_LAUNCH="${KAS_NO_LAUNCH:-0}"
 
 echo ""
 echo "=================================================================="
-echo "  KARIUS ACADEMIC SYSTEM (KAS) v1.7.0 - TRINH CAI DAT ANDROID TERMUX"
+echo "  KARIUS ACADEMIC SYSTEM (KAS) v1.8.0 - TRINH CAI DAT ANDROID TERMUX"
 echo "=================================================================="
 echo ""
 

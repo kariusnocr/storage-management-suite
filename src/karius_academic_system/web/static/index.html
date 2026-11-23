@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0f17" />
+  <meta name="theme-color" id="themeColorMeta" content="#0c0e12" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="description" content="Karius Academic System (KAS) — Hệ thống quản trị tri thức học thuật, đa kho dữ liệu cục bộ & Google Drive, chuẩn hóa Danh Mục V7 và Trợ Lý AI / MCP trên Desktop & Android." />
-  <title>Karius Academic System (KAS) v1.7.0</title>
+  <title>Karius Academic System (KAS) v1.8.0</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="/static/icon.svg" />
-  <link rel="stylesheet" href="/static/styles.css?v=1.7.0" />
-  <script defer src="/static/app.js?v=1.7.0"></script>
+  <link rel="stylesheet" href="/static/styles.css?v=1.8.0" />
+  <script defer src="/static/app.js?v=1.8.0"></script>
 </head>
 <body>
   <!-- MÀN HÌNH KHÓA / ĐĂNG NHẬP KAS -->
@@ -93,7 +93,7 @@
           <div class="brand-mark">KAS</div>
           <div class="brand-text">
             <h1 class="brand-title">Karius Academic System</h1>
-            <span class="brand-ver" id="verTag">v1.7.0</span>
+            <span class="brand-ver" id="verTag">v1.8.0</span>
           </div>
         </div>
         <button type="button" class="icon-btn sidebar-collapse-btn" onclick="toggleSidebar()" title="Thu gọn thanh bên (Ctrl+B)" aria-label="Thu gọn thanh bên">
@@ -171,6 +171,14 @@
         </div>
       </nav>
 
+      <div class="android-drawer-quick" id="androidDrawerQuickBar" style="display:none;">
+        <div class="nav-group-label" style="padding-left:2px;">Điều khiển Android</div>
+        <div class="row-actions">
+          <button type="button" class="btn secondary sm" style="flex:1;" onclick="openAndroidServerSwitcher()">Đổi Máy Chủ</button>
+          <button type="button" class="btn secondary sm" style="flex:1;" onclick="requestAndroidStoragePermission()">Bộ nhớ</button>
+        </div>
+      </div>
+
       <div class="sidebar-foot">
         <span class="sidebar-foot-meta">Offline · SAC Safe</span>
         <button type="button" class="icon-btn" onclick="toggleSidebar()" title="Thu gọn / Mở rộng menu (Ctrl+B)" aria-label="Thu gọn hoặc mở rộng menu">
@@ -202,11 +210,15 @@
         </button>
 
         <div class="topbar-right">
+          <button type="button" class="android-mode-chip" id="androidTopbarModeBtn" onclick="openAndroidServerSwitcher()" style="display:none;" title="Chuyển chế độ Máy chủ Android (Nội bộ / PC Wi-Fi)">
+            <span class="vault-dot"></span>
+            <span id="androidTopbarModeLabel">Nội bộ</span>
+          </button>
           <div class="vault-switcher" title="Chọn kho dữ liệu đang làm việc">
             <span id="vaultDot" class="vault-dot"></span>
             <select id="vaultSelect" aria-label="Kho dữ liệu đang chọn" onchange="switchVault(this.value)"></select>
           </div>
-          <button type="button" class="icon-btn" onclick="refreshAll()" title="Làm mới dữ liệu" aria-label="Làm mới dữ liệu">
+          <button type="button" class="icon-btn topbar-refresh-btn" onclick="refreshAll()" title="Làm mới dữ liệu" aria-label="Làm mới dữ liệu">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           </button>
           <button type="button" class="icon-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Đổi giao diện Sáng / Tối" aria-label="Đổi giao diện Sáng hoặc Tối"></button>
@@ -367,6 +379,9 @@
 
           <div class="explorer-toolbar">
             <div class="explorer-nav-btns">
+              <button type="button" class="icon-btn exp-tree-toggle-btn" id="expTreeToggleBtn" onclick="toggleExplorerTreeDrawer()" title="Mở cây thư mục kho" aria-label="Mở cây thư mục kho">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="8" y1="13" x2="16" y2="13"/></svg>
+              </button>
               <button type="button" class="icon-btn" id="expBackBtn" onclick="explorerGoBack()" title="Quay lại (Alt+←)" aria-label="Quay lại" disabled>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
@@ -397,9 +412,16 @@
             </div>
           </div>
 
+          <div id="explorerSheetBackdrop" class="explorer-sheet-backdrop" onclick="closeExplorerMobileSheets()"></div>
+
           <div class="explorer-layout">
-            <aside class="explorer-tree" aria-label="Cây thư mục kho">
-              <div class="card-title" style="padding:2px 6px 8px;">Cây thư mục</div>
+            <aside class="explorer-tree" id="explorerTreePanel" aria-label="Cây thư mục kho">
+              <div class="explorer-tree-head">
+                <div class="card-title" style="padding:2px 6px;">Cây thư mục</div>
+                <button type="button" class="icon-btn explorer-tree-close" onclick="closeExplorerMobileSheets()" aria-label="Đóng cây thư mục">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
               <div id="explorerTree"></div>
             </aside>
 
@@ -407,13 +429,22 @@
               <div id="explorerEntries"></div>
               <div class="explorer-foot">
                 <span id="explorerFootStats">0 thư mục · 0 tệp</span>
-                <span>↑↓ chọn · Enter mở · Backspace lên cấp · Alt+←/→ lùi/tiến</span>
+                <span class="explorer-foot-hint">↑↓ chọn · Enter mở · Backspace lên cấp · Alt+←/→ lùi/tiến</span>
               </div>
             </div>
 
-            <aside class="explorer-preview" id="explorerPreviewPane" aria-label="Khung xem trước">
-              <div style="color:var(--muted); font-size:13px; padding:18px 4px; text-align:center;">
-                Chọn một thư mục hoặc tệp tin để xem chi tiết &amp; xem trước trực tiếp.
+            <aside class="explorer-preview" id="explorerPreviewSheet" aria-label="Khung xem trước">
+              <div class="preview-sheet-bar" id="explorerPreviewHandle">
+                <span class="preview-sheet-handle" aria-hidden="true"></span>
+                <div class="preview-sheet-head">
+                  <span class="card-title">Xem trước tệp</span>
+                  <button type="button" class="btn secondary sm" id="explorerPreviewCloseBtn" onclick="closeExplorerPreviewSheet()">Đóng</button>
+                </div>
+              </div>
+              <div id="explorerPreviewPane">
+                <div style="color:var(--muted); font-size:13px; padding:18px 4px; text-align:center;">
+                  Chọn một thư mục hoặc tệp tin để xem chi tiết &amp; xem trước trực tiếp.
+                </div>
               </div>
             </aside>
           </div>
@@ -1141,26 +1172,26 @@
         </section>
       </main>
 
-      <!-- THANH ĐIỀU HƯỚNG ĐÁY CHO THIẾT BỊ DI ĐỘNG ANDROID -->
+      <!-- THANH ĐIỀU HƯỚNG ĐÁY MATERIAL 3 CHO ANDROID -->
       <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Điều hướng nhanh trên Android">
         <button type="button" class="mobile-nav-item" data-mobile-tab="overview" onclick="openTab('overview')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          <span class="mobile-nav-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
           <span>Tổng quan</span>
         </button>
         <button type="button" class="mobile-nav-item" data-mobile-tab="explorer" onclick="openTab('explorer')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span class="mobile-nav-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
           <span>Duyệt Kho</span>
         </button>
         <button type="button" class="mobile-nav-item" data-mobile-tab="search" onclick="openTab('search')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="mobile-nav-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
           <span>Tìm kiếm</span>
         </button>
         <button type="button" class="mobile-nav-item" data-mobile-tab="ai" onclick="openTab('ai')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="mobile-nav-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
           <span>Trợ Lý AI</span>
         </button>
         <button type="button" class="mobile-nav-item" data-mobile-tab="menu" onclick="toggleMobileNav()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <span class="mobile-nav-pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span>
           <span>Menu</span>
         </button>
       </nav>

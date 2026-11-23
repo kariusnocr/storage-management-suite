@@ -1,21 +1,25 @@
-# Karius Academic System (KAS) `v1.7.0`
+# Karius Academic System (KAS) `v1.8.0`
 
-**Karius Academic System (KAS)** là phần mềm quản trị tri thức đa nền tảng (**Windows · macOS · Linux · Android**) với **Ứng dụng Android Gốc (`kas-android.apk`) nhúng Python 3.11 + SQLite chạy độc lập trên điện thoại/máy tính bảng**, **Trình Duyệt Kho & Xem Trước Tệp trực tiếp (Vault Explorer & Previewer)**, **giao diện Desktop Workspace & Mobile Touch Shell (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K` (Command Palette)**, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
+**Karius Academic System (KAS)** là phần mềm quản trị tri thức đa nền tảng (**Windows · macOS · Linux · Android**) với **Ứng dụng Android Gốc (`kas-android.apk`) giao diện Material Design 3 chuyên biệt cho màn hình cảm ứng (nhúng Python 3.11 + SQLite chạy độc lập)**, **Trình Duyệt Kho & Xem Trước Tệp trực tiếp (Vault Explorer & Previewer)**, **giao diện Desktop Workspace & Android Material 3 Shell (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K` (Command Palette)**, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
 
 - **Thư mục cục bộ trên máy tính / Điện thoại & Máy tính bảng Android / Ổ cứng rời / NAS / Thư mục đồng bộ OneDrive · iCloud · Google Drive for Desktop** (`LocalFSBackend` — chạy 100% ngoại tuyến, không cần đăng nhập).
 - **Mọi thư mục hoặc Shared Drive trên Google Drive** (`GoogleDriveAPIClient` OAuth 2.0 đăng nhập ngay trong giao diện phần mềm & `GDriveCLIClient` trên cloud VM).
 
 ---
 
-## 1. Tính năng Nổi bật (`v1.7.0`)
+## 1. Tính năng Nổi bật (`v1.8.0`)
 
-- **Hệ Sinh Thái KAS Trên Hệ Điều Hành Android (`kas-android.apk` · `kas android` · Termux · PWA — MỚI `v1.7.0`)**:
+- **Thiết Kế & Giao Diện Android Material Design 3 Hoàn Toàn Mới (`kas-android.apk` · MỚI `v1.8.0`)**:
+  - **Đồng bộ Thanh Trạng Thái & Điều Hướng Android theo Sáng/Tối**: Tự động đổi màu `StatusBar` + `NavigationBar` và độ tương phản biểu tượng hệ thống (`WindowInsetsController` / `SYSTEM_UI_FLAG_LIGHT_*`) tức thì khi chuyển giữa **Obsidian Ink (Tối)** và **Archival Paper (Sáng)**, cùng chủ đề khởi động không nháy trắng (`KasAppTheme` `#0C0E12`) và **Màn hình Khởi động Thương hiệu (Material 3 Splash Screen)** kèm nút tắt **Kết nối PC qua Wi-Fi**.
+  - **Thanh Điều Hướng Đáy Material 3 & Top App Bar Tối Giản**: Hiệu ứng viên thuốc (**Active Pill Indicator**), nền mờ kính, **phản hồi rung chạm nhẹ (Haptic Feedback)**, thanh Top App Bar `56px` gọn sạch trên di động cùng **Chip Chuyển Máy Chủ 1 chạm** (`Nội bộ` / `PC Wi-Fi`) ngay trên thanh đỉnh và ngăn kéo bên (hỗ trợ cử chỉ vuốt sang trái để đóng).
+  - **Trình Duyệt Kho Di Động Chuẩn Native (`#tab-explorer`)**: **Ngăn Kéo Cây Thư Mục (Folder Tree Drawer)** trượt từ trái, danh sách **2 dòng tối ưu màn hình dọc** (tên tệp + loại/dung lượng/ngày + mũi tên `›`, chống tràn ngang 100%), **Khung Xem Trước Dạng Bottom Sheet (Material 3 Modal Bottom Sheet)** trượt từ dưới lên với thanh kéo (hỗ trợ **vuốt xuống để đóng**) và chuỗi ưu tiên nút **Back Android** thông minh (Hộp thoại → Bảng lệnh → Bottom Sheet → Cây thư mục → Ngăn kéo Menu → Lùi/Lên cấp thư mục).
+  - **Bố Cục 100% Tương Thích Màn Hình Nhỏ (`<= 640px`)**: Lưới KPI **2×2 gọn gàng**, biểu mẫu & danh sách kho 1 cột không tràn ngang, nút & ô nhập chuẩn cảm ứng (`>= 44px`), hộp thoại/Bảng lệnh dạng Bottom Sheet và khung Trợ Lý AI co giãn mượt theo bàn phím ảo (`100dvh`).
+- **Hệ Sinh Thái KAS Trên Hệ Điều Hành Android (`kas-android.apk` · `kas android` · Termux · PWA · `v1.7.0+`)**:
   - **Ứng dụng Android Gốc (`kas-android.apk` · Android 8.0+ / API 26–35)**: Nhúng trực tiếp môi trường **Python 3.11 + SQLite + toàn bộ lõi `karius_academic_system`** bên trong tệp APK qua **Chaquopy** (`arm64-v8a` & `x86_64`), tự tạo sẵn **Kho Tài Liệu Android** trên bộ nhớ thiết bị và chạy độc lập 100% ngoại tuyến mà không cần máy tính.
-  - **Chế độ Kép (On-Device & Ghép nối PC qua Wi-Fi/LAN)**: Chuyển đổi 1 chạm ngay trong ứng dụng Android giữa **Máy chủ Nội bộ trên điện thoại (`127.0.0.1`)** và **Máy chủ KAS trên máy tính qua mạng Wi-Fi (`http://192.168.x.x:8765`)**, hỗ trợ nút Back vật lý / vuốt cạnh Android để lùi thư mục trong *Duyệt Kho*, chọn tệp gốc Android (`credentials.json`) và tải tệp trực tiếp về `Downloads`.
-  - **Giao diện Cảm ứng Di động & Progressive Web App (PWA)**: Thanh Điều Hướng Đáy (**Mobile Bottom Navigation Bar**: *Tổng quan, Duyệt Kho, Tìm kiếm, Trợ Lý AI, Menu*), chạm 1 lần mở thư mục trong *Duyệt Kho*, và hỗ trợ cài đặt PWA toàn màn hình (`manifest.webmanifest`, `sw.js`).
+  - **Chế độ Kép (On-Device & Ghép nối PC qua Wi-Fi/LAN)**: Chuyển đổi 1 chạm ngay trong ứng dụng Android giữa **Máy chủ Nội bộ trên điện thoại (`127.0.0.1`)** và **Máy chủ KAS trên máy tính qua mạng Wi-Fi (`http://192.168.x.x:8765`)**, hỗ trợ chọn tệp gốc Android (`credentials.json`), nhận diện thiết bị (`getDeviceInfo`) và tải tệp trực tiếp về `Downloads`.
   - **Trình cài đặt 1 lệnh cho Android Termux (`install_android_termux.sh`) & CLI `kas android`**: Tự cài đặt Python, Git, OCR Tiếng Việt (`tesseract` + `vie.traineddata`), `ffmpeg`, `7z`, `poppler`, tạo lối tắt *Termux:Widget* và cung cấp lệnh `kas android info|init-vault|serve`.
 - **Cơ Chế Di Chuyển Giữa Các Thư Mục/Tệp & Xem Trước Trực Tiếp (`Duyệt Kho` & `kas duyet` · `v1.6.0+`)**:
-  - **Không gian duyệt 3 khung chuyên nghiệp**: **Cây thư mục mở rộng lười (Lazy Folder Tree)** bên trái, **Danh sách / Lưới thẻ** ở giữa (chuyển đổi 1 bấm, lưu lựa chọn), và **Khung Xem Trước (Preview Inspector)** dính bên phải.
+  - **Không gian duyệt 3 khung chuyên nghiệp**: **Cây thư mục mở rộng lười (Lazy Folder Tree)** bên trái, **Danh sách / Lưới thẻ** ở giữa (chuyển đổi 1 bấm, lưu lựa chọn), và **Khung Xem Trước (Preview Inspector)** dính bên phải (tự chuyển thành Drawer + Bottom Sheet trên Android).
   - **Điều hướng nhanh chuẩn ứng dụng Desktop**: Thanh đường dẫn **Breadcrumb** nhấp nhảy cấp tức thì, lịch sử **Lùi (`Alt+←`) / Tiến (`Alt+→`) / Lên thư mục cha (`Backspace` / `Alt+↑`)**, di chuyển bằng bàn phím (**`↑`/`↓` chọn**, **`Enter` mở thư mục/tệp**), lọc không dấu tức thời trong thư mục và sắp xếp theo *Tên / Dung lượng / Ngày cập nhật / Loại tệp*.
   - **Xem trước trực tiếp đa định dạng ngay trong ứng dụng**: Ảnh (`PNG/JPG/WebP/SVG`), **PDF** (khung nhúng + trích xuất mục lục/văn bản), **Âm thanh & Video** (hỗ trợ phát tua mượt qua HTTP `206 Partial Content Range`), **Văn bản & Mã nguồn**, **DOCX / XLSX / PPTX / EPUB / ZIP** (trích xuất văn bản, mục lục, siêu dữ liệu), và nút **Mở ứng dụng ngoài / Hiện trong File Explorer** (kho cục bộ) hoặc **Tải & xem nội dung / Mở trên Google Drive** (kho Google Drive).
   - **Liên thông toàn hệ thống**: Bấm trực tiếp vào nhánh trong *Tổng quan*, bấm **Duyệt vị trí** từ kết quả *Tìm kiếm FTS5* hoặc chọn tệp trong *Bảng Lệnh `Ctrl+K`* để nhảy thẳng đến thư mục chứa và tự động mở bản xem trước tệp đó.
@@ -61,8 +65,8 @@
 
 ### Điện thoại & Máy tính bảng Android (Android 8.0+ — 3 cách cài đặt)
 
-1. **Cài Ứng dụng Android Gốc (`kas-android.apk` — Chạy độc lập 100% trên điện thoại)**:
-   - Tải **`kas-android.apk`** từ **GitHub Releases `v1.7.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt.
+1. **Cài Ứng dụng Android Gốc (`kas-android.apk` — Giao diện Material 3, chạy độc lập 100% trên điện thoại)**:
+   - Tải **`kas-android.apk`** từ **GitHub Releases `v1.8.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt.
 2. **Cài trọn bộ CLI + OCR Tiếng Việt trên Android Termux (1 lệnh)**:
    ```bash
    curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash
@@ -72,7 +76,7 @@
 
 ### Windows 11 có Smart App Control (Khuyến nghị — 1 lệnh PowerShell hoặc 1 nhấp đúp)
 
-**Cài mới hoặc cập nhật lên `v1.7.0` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
+**Cài mới hoặc cập nhật lên `v1.8.0` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
@@ -86,7 +90,7 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
 ```
 
 **Hoặc tải ZIP cài/gỡ offline 1 nhấp đúp:**
-1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.7.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
+1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.8.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
 2. Giải nén và nhấp đúp **`Cai_Dat_KAS_Windows11.cmd`** (để cài) hoặc **`Go_Cai_Dat_KAS_Windows11.cmd`** (để gỡ).
 
 ### Cài bằng Python (`pip`, Python 3.11+)

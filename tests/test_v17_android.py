@@ -84,10 +84,10 @@ class TestV17AndroidEcosystem(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_version_and_android_environment_detection(self) -> None:
-        self.assertEqual(__version__, "1.7.0")
+        self.assertTrue(__version__.startswith("1."), __version__)
         info = android_bridge.detect_android_environment(port=8765)
         self.assertTrue(info["ok"])
-        self.assertEqual(info["version"], "1.7.0")
+        self.assertEqual(info["version"], __version__)
         self.assertEqual(info["package_id"], "io.github.kariusnocr.kas")
         self.assertIn("kas-android.apk", info["downloads"]["apk_latest_url"])
         self.assertIn("install_android_termux.sh", info["downloads"]["termux_one_liner"])
@@ -172,7 +172,7 @@ class TestV17AndroidEcosystem(unittest.TestCase):
         st_sw, hdr_sw, raw_sw = _http_req(f"{base}/sw.js")
         self.assertEqual(st_sw, 200)
         self.assertIn("application/javascript", hdr_sw.get("content-type", ""))
-        self.assertIn(b"kas-pwa-v1.7.0", raw_sw)
+        self.assertIn(f"kas-pwa-v{__version__}".encode("utf-8"), raw_sw)
 
         st_ic, hdr_ic, _ = _http_req(f"{base}/static/icon.svg")
         self.assertEqual(st_ic, 200)
@@ -223,7 +223,7 @@ class TestV17AndroidEcosystem(unittest.TestCase):
 
         app_gradle = (REPO_ROOT / "packaging" / "android" / "app" / "build.gradle").read_text(encoding="utf-8")
         self.assertIn('applicationId "io.github.kariusnocr.kas"', app_gradle)
-        self.assertIn('versionName "1.7.0"', app_gradle)
+        self.assertIn(f'versionName "{__version__}"', app_gradle)
         self.assertIn('version "3.11"', app_gradle)
 
         # 2. Kiểm chứng stage_release_bundle của drive_deploy bao gồm cả tệp .apk
