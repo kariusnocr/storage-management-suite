@@ -1,4 +1,4 @@
-"""Tự động phát hiện công cụ CLI đa nền tảng & tự làm mới PATH trên Windows/macOS/Linux cho Karius Academic System (KAS)."""
+"""Tự động phát hiện công cụ CLI đa nền tảng & tự làm mới PATH trên Windows/Linux/Android cho Karius Academic System (KAS)."""
 
 from __future__ import annotations
 
@@ -29,7 +29,6 @@ _WINGET_PACKAGE_GLOBS: Sequence[tuple[str, str]] = (
 )
 
 _POSIX_EXTRA_DIRS: Sequence[str] = (
-    "/opt/homebrew/bin",
     "/usr/local/bin",
     "/opt/antigravity/bin",
 )
@@ -73,7 +72,7 @@ def _read_windows_registry_paths() -> List[str]:
 
 
 def discover_standard_tool_dirs() -> List[str]:
-    """Quét các thư mục cài đặt chuẩn trên hệ điều hành hiện tại (WinGet, Program Files, Scoop, Homebrew...)."""
+    """Quét các thư mục cài đặt chuẩn trên hệ điều hành hiện tại (WinGet, Program Files, Scoop, Linux/Termux)."""
     found: List[str] = []
     if os.name == "nt":
         local_app = os.environ.get("LOCALAPPDATA", "")

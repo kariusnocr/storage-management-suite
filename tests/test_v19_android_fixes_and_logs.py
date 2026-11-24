@@ -151,6 +151,33 @@ class TestV19ShortNameAndSigning(unittest.TestCase):
         ):
             self.assertIn(tok, main_java, f"Missing v1.9.0 feature in MainActivity.java: {tok}")
 
+    def test_supported_platforms_windows_linux_android_only(self) -> None:
+        release_yml = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        self.assertNotIn("build-macos-binary", release_yml)
+        self.assertNotIn("macos-", release_yml.lower())
+        self.assertIn("windows-x64", release_yml)
+        self.assertIn("linux-x64", release_yml)
+        self.assertIn("kas-android.apk", release_yml)
+
+        pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn("Operating System :: Microsoft :: Windows", pyproject)
+        self.assertIn("Operating System :: POSIX :: Linux", pyproject)
+        self.assertIn("Operating System :: Android", pyproject)
+        self.assertNotIn("MacOS", pyproject)
+
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("macos", readme.lower())
+        self.assertLess(len(readme), 9000, "README.md should stay streamlined and scannable on GitHub")
+        self.assertIn("Windows", readme)
+        self.assertIn("Linux", readme)
+        self.assertIn("Android", readme)
+        self.assertIn(EXPECTED_SHA1, readme)
+
+        from karius_academic_system.ops import uninstaller
+
+        posix_paths = [str(p) for p in uninstaller._posix_launchers()]
+        self.assertFalse(any(p.endswith(".app") for p in posix_paths))
+
 
 class TestV19WifiLanAndUdpDiscovery(unittest.TestCase):
     def test_ipv4_priority_prefers_real_wifi_over_virtualbox(self) -> None:

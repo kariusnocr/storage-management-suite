@@ -43,7 +43,6 @@ class SystemToolSpec:
     binaries: Tuple[str, ...]
     purpose: str
     winget_id: str
-    brew_pkg: str
     apt_pkg: str
 
 
@@ -60,12 +59,12 @@ PYTHON_PACKAGE_SPECS: Tuple[PythonPkgSpec, ...] = (
 )
 
 SYSTEM_TOOL_SPECS: Tuple[SystemToolSpec, ...] = (
-    SystemToolSpec("gh", ("gh",), "GitHub CLI (quản lý repo, PR, Releases)", "GitHub.cli", "gh", "gh"),
-    SystemToolSpec("git", ("git",), "Quản lý phiên bản Git", "Git.Git", "git", "git"),
-    SystemToolSpec("7z", ("7z",), "Kiểm tra tệp nén ZIP/RAR/7Z", "7zip.7zip", "p7zip", "p7zip-full"),
-    SystemToolSpec("ffmpeg", ("ffmpeg", "ffprobe"), "Xử lý & đọc metadata âm thanh/video", "Gyan.FFmpeg", "ffmpeg", "ffmpeg"),
-    SystemToolSpec("tesseract", ("tesseract",), "Nhận dạng chữ OCR (tiếng Việt & tiếng Anh)", "UB-Mannheim.TesseractOCR", "tesseract", "tesseract-ocr"),
-    SystemToolSpec("poppler", ("pdftotext", "pdfinfo", "pdftoppm"), "Đọc văn bản & kết xuất ảnh trang PDF", "oschwartz10612.Poppler", "poppler", "poppler-utils"),
+    SystemToolSpec("gh", ("gh",), "GitHub CLI (quản lý repo, PR, Releases)", "GitHub.cli", "gh"),
+    SystemToolSpec("git", ("git",), "Quản lý phiên bản Git", "Git.Git", "git"),
+    SystemToolSpec("7z", ("7z",), "Kiểm tra tệp nén ZIP/RAR/7Z", "7zip.7zip", "p7zip-full"),
+    SystemToolSpec("ffmpeg", ("ffmpeg", "ffprobe"), "Xử lý & đọc metadata âm thanh/video", "Gyan.FFmpeg", "ffmpeg"),
+    SystemToolSpec("tesseract", ("tesseract",), "Nhận dạng chữ OCR (tiếng Việt & tiếng Anh)", "UB-Mannheim.TesseractOCR", "tesseract-ocr"),
+    SystemToolSpec("poppler", ("pdftotext", "pdfinfo", "pdftoppm"), "Đọc văn bản & kết xuất ảnh trang PDF", "oschwartz10612.Poppler", "poppler-utils"),
 )
 
 _SETUP_LOCK = threading.Lock()
@@ -225,8 +224,6 @@ def install_python_packages(
 def _detect_pkg_manager() -> str:
     if os.name == "nt":
         return "winget" if find_cli_tool("winget") else ""
-    if sys.platform == "darwin":
-        return "brew" if find_cli_tool("brew") else ""
     if shutil.which("apt-get"):
         return "apt"
     return ""
@@ -245,8 +242,6 @@ def _tool_install_command(pkg_mgr: str, spec: SystemToolSpec) -> Optional[List[s
             "--disable-interactivity",
             "--silent",
         ]
-    if pkg_mgr == "brew" and spec.brew_pkg:
-        return ["brew", "install", spec.brew_pkg]
     if pkg_mgr == "apt" and spec.apt_pkg:
         if hasattr(os, "geteuid") and os.geteuid() == 0:
             return ["apt-get", "install", "-y", spec.apt_pkg]
@@ -288,7 +283,7 @@ def install_system_tools(
         }
 
     if not pkg_mgr:
-        msg = "Không tìm thấy trình quản lý gói tự động (winget/brew/apt). Vui lòng cài thủ công các công cụ còn thiếu."
+        msg = "Không tìm thấy trình quản lý gói tự động (winget/apt). Vui lòng cài thủ công các công cụ còn thiếu."
         emit(f"  ⚠ {msg}")
         return {
             "ok": False,
@@ -381,7 +376,6 @@ def build_setup_plan() -> Dict[str, Any]:
                 "missing_binaries": missing_bins,
                 "purpose": spec.purpose,
                 "winget_id": spec.winget_id,
-                "brew_pkg": spec.brew_pkg,
                 "apt_pkg": spec.apt_pkg,
             })
 

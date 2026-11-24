@@ -78,7 +78,6 @@ def _posix_launchers() -> List[Path]:
     home = Path.home()
     return [
         home / ".local" / "share" / "applications" / "karius-academic-system.desktop",
-        home / "Applications" / "Karius Academic System.app",
     ]
 
 
@@ -565,7 +564,6 @@ def schedule_detached_self_uninstall(
         "sleep 0.6",
         f'"{sys.executable}" -m pip uninstall -y karius-academic-system storage-management-suite >/dev/null 2>&1 || true',
         'rm -f "$HOME/.local/share/applications/karius-academic-system.desktop"',
-        'rm -rf "$HOME/Applications/Karius Academic System.app"',
     ]
     if remove_config:
         lines.append(f'rm -rf "{cfg_dir}"')

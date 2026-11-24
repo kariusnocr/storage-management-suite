@@ -104,7 +104,7 @@ def stage_release_bundle(repo_root: Path, staging_dir: Path) -> Path:
         _sh.copy2(readme, out_dir / "Giới Thiệu Phần Mềm - Storage.md")
     dist_src = repo_root / "dist"
     if dist_src.is_dir():
-        artifacts = sorted([p for p in dist_src.iterdir() if p.is_file() and p.suffix in {".whl", ".gz", ".zip", ".exe", ".dmg", ".apk"}])
+        artifacts = sorted([p for p in dist_src.iterdir() if p.is_file() and p.suffix in {".whl", ".gz", ".zip", ".exe", ".apk"}])
         if artifacts:
             rel_dir = staging_dir / "[02] GÓI PHÁT HÀNH"
             rel_dir.mkdir(parents=True, exist_ok=True)

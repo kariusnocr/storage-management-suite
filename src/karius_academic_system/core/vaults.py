@@ -54,7 +54,7 @@ def extract_drive_folder_id(raw: str) -> str:
 def detect_source_kind(source: str) -> Tuple[str, str]:
     """
     Nhận diện tự động nguồn kho dữ liệu:
-    - Trả về `("local", resolved_path)` nếu là thư mục cục bộ (Windows/macOS/Linux/NAS/OneDrive...).
+    - Trả về `("local", resolved_path)` nếu là thư mục cục bộ (Windows/Linux/Android/NAS/OneDrive...).
     - Trả về `("gdrive", folder_id)` nếu là URL hoặc Folder ID của Google Drive.
     """
     raw = (source or "").strip().strip('"').strip("'")

@@ -11,7 +11,6 @@ from __future__ import annotations
 import mimetypes
 import os
 import subprocess
-import sys
 import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -826,7 +825,7 @@ def preview_item(*, item_id: str = "", path: str = "", fetch_drive: bool = False
 
 
 def open_in_os(*, item_id: str = "", path: str = "", reveal: bool = False) -> Dict[str, Any]:
-    """Mở tệp bằng ứng dụng mặc định của hệ điều hành hoặc mở thư mục chứa trong File Explorer / Finder."""
+    """Mở tệp bằng ứng dụng mặc định của hệ điều hành hoặc mở thư mục chứa trong trình quản lý tệp (Windows/Linux)."""
     _, target = resolve_local_target(item_id=item_id, path=path)
     if not target.exists():
         raise FileNotFoundError(f"Không tìm thấy mục cục bộ: `{item_id or path}`")
@@ -836,11 +835,6 @@ def open_in_os(*, item_id: str = "", path: str = "", reveal: bool = False) -> Di
             subprocess.Popen(["explorer.exe", f"/select,{target}"])
         else:
             os.startfile(str(target))  # type: ignore[attr-defined]
-    elif sys.platform == "darwin":
-        if reveal and target.is_file():
-            subprocess.Popen(["open", "-R", str(target)])
-        else:
-            subprocess.Popen(["open", str(target)])
     else:
         dest = target.parent if (reveal and target.is_file()) else target
         subprocess.Popen(["xdg-open", str(dest)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

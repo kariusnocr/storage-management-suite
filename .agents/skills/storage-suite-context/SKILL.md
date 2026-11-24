@@ -8,6 +8,7 @@ description: Reference context for Karius Academic System (KAS) v1.9.0 (`kas`), 
 ## 1. Software Identity & Architecture
 
 - **Software Name**: **Karius Academic System (KAS)** (`v1.9.0`, short display label **`KAS`** on Windows Desktop `KAS.lnk`, Android Home Screen `strings.xml`, and PWA `manifest.webmanifest`)
+- **Supported Platforms**: **Windows, Linux, and Android ONLY** (macOS / Darwin / Homebrew / `.app` / `.dmg` are intentionally NOT supported or built in CI/Releases).
 - **Python Package & Android App**: `karius-academic-system` (`src/karius_academic_system/`, `tests/`, `docs/`, `packaging/`, `Dockerfile`) and `io.github.kariusnocr.kas` (`packaging/android/` → `kas-android.apk`, `versionCode 10900`)
 - **Permanent Android Release Certificate Fingerprints** (stored in GitHub Actions Secrets `KAS_ANDROID_KEYSTORE_*`, NEVER in git):
   - **SHA-1**: `FF:D4:BA:CE:3C:48:C1:53:AF:BC:44:B3:AD:FE:6D:5C:31:8B:61:BC`

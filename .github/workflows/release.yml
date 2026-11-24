@@ -168,32 +168,3 @@ jobs:
           generate_release_notes: true
           make_latest: true
           files: release_assets/*
-
-  build-macos-binary:
-    name: Build & Attach macOS Binary (macos-arm64)
-    needs: [publish-release]
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: macos-15
-    continue-on-error: true
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install package & PyInstaller
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[media,web,drive-api]" pyinstaller
-      - name: Build CLI + Web UI standalone binary
-        run: |
-          python packaging/build_binary.py --mode cli
-      - name: Rename and smoke-test artifact
-        shell: bash
-        run: |
-          mv "dist/kas" "dist/kas-macos-arm64"
-          ./dist/kas-macos-arm64 version
-      - name: Attach macOS binary to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/kas-macos-arm64
