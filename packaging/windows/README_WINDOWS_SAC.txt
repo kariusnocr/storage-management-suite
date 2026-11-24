@@ -1,4 +1,4 @@
-KARIUS ACADEMIC SYSTEM (KAS) v1.8.0 - GOI AN TOAN WINDOWS 11 SMART APP CONTROL
+KARIUS ACADEMIC SYSTEM (KAS) v1.9.0 - GOI AN TOAN WINDOWS 11 SMART APP CONTROL
 ===============================================================================
 
 HE THONG QUAN TRI TRI THUC, DA KHO DU LIEU VA KET NOI AI / AGENT:
@@ -17,7 +17,7 @@ Cach 1 - KHUYEN NGHI (1 NHAP DUP - KHONG BAO GIO BI LOI 404 PRIVATE REPO):
   2. Nhap dup vao tep:  Cai_Dat_KAS_Windows11.cmd
      (Hoac mo PowerShell NGAY TRONG thu muc vua giai nen va chay:
       powershell -NoProfile -ExecutionPolicy Bypass -File .\install_windows_sac_safe.ps1)
-  3. Sau khi xong, nhap dup bieu tuong "Karius Academic System (KAS)" tren Desktop!
+  3. Sau khi xong, nhap dup bieu tuong "KAS" tren Desktop!
 
 Cach 2 - 1 lenh PowerShell cho kho GitHub Private (neu may da cai & dang nhap `gh`):
   gh api repos/kariusnocr/storage-management-suite/contents/packaging/windows/install_windows_sac_safe.ps1 -H "Accept: application/vnd.github.raw" | iex

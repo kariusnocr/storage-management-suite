@@ -7,11 +7,11 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="description" content="Karius Academic System (KAS) — Hệ thống quản trị tri thức học thuật, đa kho dữ liệu cục bộ & Google Drive, chuẩn hóa Danh Mục V7 và Trợ Lý AI / MCP trên Desktop & Android." />
-  <title>Karius Academic System (KAS) v1.8.0</title>
+  <title>KAS — Karius Academic System v1.9.0</title>
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="/static/icon.svg" />
-  <link rel="stylesheet" href="/static/styles.css?v=1.8.0" />
-  <script defer src="/static/app.js?v=1.8.0"></script>
+  <link rel="stylesheet" href="/static/styles.css?v=1.9.0" />
+  <script defer src="/static/app.js?v=1.9.0"></script>
 </head>
 <body>
   <!-- MÀN HÌNH KHÓA / ĐĂNG NHẬP KAS -->
@@ -93,7 +93,7 @@
           <div class="brand-mark">KAS</div>
           <div class="brand-text">
             <h1 class="brand-title">Karius Academic System</h1>
-            <span class="brand-ver" id="verTag">v1.8.0</span>
+            <span class="brand-ver" id="verTag">v1.9.0</span>
           </div>
         </div>
         <button type="button" class="icon-btn sidebar-collapse-btn" onclick="toggleSidebar()" title="Thu gọn thanh bên (Ctrl+B)" aria-label="Thu gọn thanh bên">
@@ -294,7 +294,7 @@
               <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:12px;">
                 <div style="font-size:12.5px; font-weight:650; margin-bottom:6px;">1. Ứng dụng Android Gốc (<code>kas-android.apk</code>)</div>
                 <div style="font-size:12px; color:var(--text-2); line-height:1.5; margin-bottom:10px;">
-                  Tích hợp sẵn máy chủ Python 3.11 + SQLite trên điện thoại Android (Android 8.0+) — duyệt kho ngoại tuyến, kết nối Google Drive OAuth 2.0 hoặc chuyển sang máy chủ PC qua Wi-Fi.
+                  Tích hợp sẵn máy chủ Python 3.11 + SQLite trên điện thoại Android (Android 8.0+) — duyệt kho ngoại tuyến, cập nhật APK tự động, kết nối Google Drive OAuth 2.0 hoặc ghép nối PC qua Wi-Fi.
                 </div>
                 <div class="row-actions">
                   <button type="button" class="btn sm" id="androidApkBtn" onclick="downloadAndroidApk()">Tải kas-android.apk</button>
@@ -304,16 +304,30 @@
                   <button type="button" class="btn secondary sm" onclick="openAndroidServerSwitcher()">Đổi Máy Chủ (Nội bộ / PC Wi-Fi)</button>
                   <button type="button" class="btn secondary sm" onclick="requestAndroidStoragePermission()">Cấp quyền Bộ nhớ Android</button>
                 </div>
+                <div style="margin-top:10px; padding-top:8px; border-top:1px solid var(--border);">
+                  <div style="font-size:11.5px; color:var(--muted); margin-bottom:4px;">
+                    <strong>Google Auth · SHA-1 Certificate Fingerprint</strong> (<code>io.github.kariusnocr.kas</code>):
+                  </div>
+                  <div class="row-actions">
+                    <code id="androidSha1Text" style="font-size:11px; padding:4px 8px; border-radius:6px; background:var(--bg); border:1px solid var(--border); word-break:break-all; flex:1;">FF:D4:BA:CE:3C:48:C1:53:AF:BC:44:B3:AD:FE:6D:5C:31:8B:61:BC</code>
+                    <button type="button" class="btn secondary sm" id="androidCopySha1Btn" onclick="copyAndroidSha1()">Sao chép SHA-1</button>
+                  </div>
+                </div>
               </div>
               <div style="background:var(--surface-2); border:1px solid var(--border); border-radius:9px; padding:12px;">
-                <div style="font-size:12.5px; font-weight:650; margin-bottom:6px;">2. Ghép nối Wi-Fi / LAN &amp; Android Termux</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                  <div style="font-size:12.5px; font-weight:650;">2. Ghép nối PC ↔ Android qua Wi-Fi / LAN</div>
+                  <span class="pill warn" id="androidLanModePill">Chỉ cục bộ (127.0.0.1)</span>
+                </div>
                 <div style="font-size:12px; color:var(--text-2); margin-bottom:6px;">
-                  Địa chỉ LAN để mở từ ứng dụng KAS Android hoặc Chrome Android (cùng Wi-Fi):
+                  Bật chia sẻ Wi-Fi LAN trên PC, sau đó mở ứng dụng <strong>KAS</strong> trên điện thoại → <strong>Đổi Máy Chủ → Tự tìm PC cùng Wi-Fi</strong> hoặc nhập địa chỉ:
                 </div>
                 <div class="row-actions" style="margin-bottom:8px;">
                   <code id="androidLanUrlText" style="font-size:12px; padding:4px 8px; border-radius:6px; background:var(--bg); border:1px solid var(--border);">http://127.0.0.1:8765</code>
                   <button type="button" class="btn secondary sm" id="androidCopyLanBtn" onclick="copyAndroidLanUrl()">Sao chép URL LAN</button>
+                  <button type="button" class="btn sm" id="androidLanToggleBtn" onclick="togglePcLanSharing()">Bật Chia Sẻ Wi-Fi LAN</button>
                 </div>
+                <div id="androidLanHintText" style="font-size:11.5px; color:var(--muted); margin-bottom:8px;"></div>
                 <div style="font-size:11.5px; color:var(--muted); margin-bottom:4px;">Hoặc cài trọn bộ CLI + OCR Tiếng Việt trên <strong>Android Termux</strong> (1 lệnh):</div>
                 <div class="row-actions">
                   <code id="androidTermuxCmdText" style="font-size:11px; padding:4px 8px; border-radius:6px; background:var(--bg); border:1px solid var(--border); word-break:break-all; flex:1;">curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash</code>
@@ -802,7 +816,8 @@
                 <ol style="padding-left:18px; margin-top:6px; line-height:1.7;">
                   <li>Mở Google Cloud Console → Tạo dự án mới → vào <strong>APIs &amp; Services → Library</strong> → bật <strong>Google Drive API</strong>.</li>
                   <li>Vào <strong>OAuth consent screen</strong> → chọn External → thêm Gmail của bạn vào danh sách <em>Test users</em>.</li>
-                  <li>Vào <strong>Credentials → Create Credentials → OAuth client ID</strong> → chọn <strong>Desktop app</strong> → tải tệp JSON.</li>
+                  <li>Vào <strong>Credentials → Create Credentials → OAuth client ID</strong> → chọn <strong>Desktop app</strong> (dùng chung cho cả PC &amp; Android) → tải tệp JSON.</li>
+                  <li>Nếu bạn đăng ký thêm OAuth client loại <strong>Android</strong> trên Google Auth Platform: nhập Package <code>io.github.kariusnocr.kas</code> và SHA-1 <code>FF:D4:BA:CE:3C:48:C1:53:AF:BC:44:B3:AD:FE:6D:5C:31:8B:61:BC</code>.</li>
                   <li>Chọn tệp JSON ở ô trên → bấm <strong>Lưu credentials.json</strong> → bấm <strong>Đăng nhập Google Drive</strong>.</li>
                 </ol>
               </details>
@@ -986,7 +1001,9 @@
             <div class="row-actions" style="margin-bottom:10px;">
               <button class="btn secondary sm" onclick="checkUpdates(true)">Kiểm tra bản mới ngay</button>
               <button class="btn sm" id="btnApplyUpdate" onclick="triggerAutoUpdate(false)">Tải &amp; Cập nhật tự động ngay</button>
+              <button class="btn ok sm" id="btnInstallDownloadedApk" onclick="installDownloadedAndroidApk()" style="display:none;">Mở trình cài đặt APK</button>
               <button class="btn secondary sm" id="btnRollbackUpdate" onclick="triggerAutoUpdate(true)" style="display:none;">Quay về bản trước (Rollback)</button>
+              <button class="btn secondary sm" onclick="openLogsPanel()">Nhật kí &amp; Báo lỗi</button>
             </div>
             <div id="updateLogWrap" style="display:none; margin-top:8px;">
               <pre class="console" id="updateLogOut" style="max-height:220px;"></pre>
@@ -1160,6 +1177,38 @@
                   <tbody id="docCliBody"></tbody>
                 </table>
               </div>
+            </div>
+          </div>
+
+          <div class="card" id="systemLogsCard" style="margin-bottom:16px;">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Nhật Kí Hệ Thống &amp; Báo Lỗi (System Logs &amp; Crash Journal)</div>
+                <div style="font-size:12px; color:var(--muted);">Tự động ghi nhận mọi sự kiện, lỗi máy chủ, lỗi kết nối Wi-Fi, lỗi cập nhật &amp; lỗi giao diện (đã tự động ẩn token/mật khẩu khi xuất tệp).</div>
+              </div>
+              <div class="row-actions" id="logStatsSummary">
+                <span class="pill info">Đang tải...</span>
+              </div>
+            </div>
+            <div class="row-actions" style="margin-bottom:10px;">
+              <select id="logLevelFilter" aria-label="Lọc mức độ nhật kí" onchange="loadSystemLogs()">
+                <option value="">Tất cả mức độ</option>
+                <option value="ERROR">Chỉ Lỗi (ERROR / CRITICAL)</option>
+                <option value="WARNING">Cảnh báo (WARNING)</option>
+                <option value="INFO">Thông tin (INFO)</option>
+              </select>
+              <input type="text" id="logSearchInput" placeholder="Tìm từ khóa trong nhật kí..." oninput="onLogFilterInput()" style="flex:1; min-width:160px;" />
+              <button type="button" class="btn secondary sm" onclick="loadSystemLogs()">Làm mới</button>
+              <button type="button" class="btn sm" onclick="exportSystemLogs('txt')">Xuất tệp .TXT</button>
+              <button type="button" class="btn secondary sm" onclick="exportSystemLogs('json')">Xuất .JSON</button>
+              <button type="button" class="btn danger sm" onclick="clearSystemLogs()">Xóa nhật kí</button>
+            </div>
+            <div id="logDirMeta" style="font-size:11.5px; color:var(--muted); margin-bottom:8px;"></div>
+            <div class="table-wrap" style="max-height:360px; overflow-y:auto;">
+              <table>
+                <thead><tr><th>Thời gian (UTC)</th><th>Mức độ</th><th>Nguồn / Nhóm</th><th>Nội dung &amp; Chi tiết lỗi</th></tr></thead>
+                <tbody id="systemLogsBody"></tbody>
+              </table>
             </div>
           </div>
 

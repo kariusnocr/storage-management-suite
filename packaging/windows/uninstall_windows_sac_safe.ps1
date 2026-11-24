@@ -146,7 +146,7 @@ try {
             if ($gp -and $gp.MainWindowHandle -ne 0) { [void]$gp.CloseMainWindow() }
         }
     }
-    Get-Process msedge,chrome,brave -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like "Karius Academic System*" } | ForEach-Object { [void]$_.CloseMainWindow() }
+    Get-Process msedge,chrome,brave -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like "Karius Academic System*" -or $_.MainWindowTitle -like "KAS*" } | ForEach-Object { [void]$_.CloseMainWindow() }
     Start-Sleep -Milliseconds 1200
 } catch {}
 
@@ -164,6 +164,8 @@ $oneDriveDesktop = Join-Path $env:USERPROFILE "OneDrive\Desktop"
 $startMenuDir = Join-Path ([Environment]::GetFolderPath("Programs")) "Karius Academic System"
 
 foreach ($lnk in @(
+    (Join-Path $desktopDir "KAS.lnk"),
+    (Join-Path $oneDriveDesktop "KAS.lnk"),
     (Join-Path $desktopDir "Karius Academic System (KAS).lnk"),
     (Join-Path $oneDriveDesktop "Karius Academic System (KAS).lnk")
 )) {

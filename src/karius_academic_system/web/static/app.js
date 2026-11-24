@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Karius Academic System (KAS) v1.8.0 — Desktop & Android Material 3 Engine
+   Karius Academic System (KAS) v1.9.0 — Desktop & Android Material 3 Engine
    Modular Vanilla JS · Zero External Dependencies · Offline, Mobile & SAC Safe
    ========================================================================== */
 
@@ -19,6 +19,47 @@ let _chatHistory = [];
 let _cmdHistory = [];
 let _cmdHistIdx = -1;
 let _latestUpdateInfo = null;
+let _lastDownloadedApk = null;
+let _logFilterTimer = null;
+let _clientErrSent = 0;
+
+function reportClientLog(level, category, message, detail = '', tb = '') {
+  if (_clientErrSent >= 20) return;
+  _clientErrSent += 1;
+  try {
+    fetch('/api/logs/client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        level: level || 'ERROR',
+        category: category || 'frontend',
+        source: window.KASAndroid ? 'android-webview' : 'web-ui',
+        message: String(message || 'Lỗi giao diện không xác định').slice(0, 600),
+        detail: String(detail || '').slice(0, 800),
+        traceback: String(tb || '').slice(0, 3000),
+      }),
+    }).catch(() => {});
+  } catch (_e) {
+    // ignore logger transport failures
+  }
+}
+
+function installClientErrorLogger() {
+  if (window._kasErrLoggerInstalled) return;
+  window._kasErrLoggerInstalled = true;
+  window.addEventListener('error', (ev) => {
+    const msg = ev && ev.message ? ev.message : 'Uncaught window error';
+    const src = ev && ev.filename ? `${ev.filename}:${ev.lineno || 0}:${ev.colno || 0}` : '';
+    const stack = ev && ev.error && ev.error.stack ? String(ev.error.stack) : '';
+    reportClientLog('ERROR', 'frontend_error', msg, src, stack);
+  });
+  window.addEventListener('unhandledrejection', (ev) => {
+    const reason = ev && ev.reason;
+    const msg = reason instanceof Error ? reason.message : String(reason || 'Unhandled Promise rejection');
+    const stack = reason instanceof Error && reason.stack ? String(reason.stack) : '';
+    reportClientLog('ERROR', 'frontend_promise', msg, 'unhandledrejection', stack);
+  });
+}
 
 /* ==================== NAVIGATION METADATA ==================== */
 
@@ -1067,12 +1108,31 @@ function waitForServerReload(expectedVersion, oldBootId = '', oldPid = 0) {
   }, 900);
 }
 
+function installDownloadedAndroidApk() {
+  if (!_lastDownloadedApk) {
+    showToast('Chưa có tệp APK cập nhật nào được tải xuống. Hãy bấm "Tải & Cập nhật tự động ngay".', 'warn');
+    return;
+  }
+  const { path, url } = _lastDownloadedApk;
+  if (window.KASAndroid && typeof window.KASAndroid.installApkUpdate === 'function') {
+    window.KASAndroid.installApkUpdate(path || '', url || '');
+    showToast('Đang mở trình cài đặt gói APK của Android...', 'info', 3600);
+    return;
+  }
+  if (url) {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+
 async function triggerAutoUpdate(isRollback = false) {
+  const isNativeApk = Boolean(window.KASAndroid);
   const yes = await showConfirmModal({
     title: isRollback ? 'Quay về phiên bản trước (Rollback)' : 'Cập nhật tự động KAS (SHA-256 Verified)',
     message: isRollback
       ? 'Xác nhận quay về phiên bản trước đó? Máy chủ cục bộ KAS sẽ tự khởi động lại.'
-      : 'Tự động tải gói phát hành từ GitHub Releases, kiểm chứng toàn vẹn mật mã SHA-256, cài đặt và tự khởi động lại KAS?',
+      : (isNativeApk
+        ? 'Tự động tải gói kas-android.apk mới nhất từ GitHub Releases, kiểm chứng toàn vẹn mật mã SHA-256 và mở trình cài đặt Android?'
+        : 'Tự động tải gói phát hành từ GitHub Releases, kiểm chứng toàn vẹn mật mã SHA-256, cài đặt và tự khởi động lại KAS?'),
     confirmText: isRollback ? 'Thực hiện Rollback' : 'Cập nhật ngay',
   });
   if (!yes) return;
@@ -1080,10 +1140,12 @@ async function triggerAutoUpdate(isRollback = false) {
   const wrap = document.getElementById('updateLogWrap');
   const out = document.getElementById('updateLogOut');
   const btn = document.getElementById('btnApplyUpdate');
+  const apkBtn = document.getElementById('btnInstallDownloadedApk');
   const pill = document.getElementById('updateStatusPill');
   wrap.style.display = 'block';
   out.textContent = 'Đang khởi chạy tiến trình tự động cập nhật...';
   if (btn) btn.disabled = true;
+  if (apkBtn) apkBtn.style.display = 'none';
   if (pill) { pill.className = 'pill warn'; pill.textContent = 'Đang cập nhật...'; }
 
   let oldBootId = '';
@@ -1101,7 +1163,7 @@ async function triggerAutoUpdate(isRollback = false) {
   const { ok, data: job } = await apiFetch('/api/update/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rollback: !!isRollback, auto_restart: true }),
+    body: JSON.stringify({ rollback: !!isRollback, auto_restart: !isNativeApk }),
   });
   if (!ok || !job.id) {
     out.textContent = 'Lỗi: ' + (job.detail || 'Không thể khởi chạy cập nhật');
@@ -1115,7 +1177,7 @@ async function triggerAutoUpdate(isRollback = false) {
     try {
       const { ok: pok, data: cur } = await apiFetch('/api/update/jobs/' + encodeURIComponent(job.id));
       if (!pok) {
-        waitForServerReload(expectedVer, oldBootId, oldPid);
+        if (!isNativeApk) waitForServerReload(expectedVer, oldBootId, oldPid);
         return;
       }
       if (cur.to_version) expectedVer = cur.to_version;
@@ -1126,6 +1188,27 @@ async function triggerAutoUpdate(isRollback = false) {
         return;
       }
       if (btn) btn.disabled = false;
+      if (cur.requires_apk_install) {
+        _lastDownloadedApk = {
+          path: cur.apk_path || '',
+          url: cur.apk_url || '',
+          version: cur.to_version || expectedVer,
+        };
+        if (apkBtn) apkBtn.style.display = 'inline-flex';
+        if (pill) {
+          pill.className = 'pill ok';
+          pill.textContent = `APK v${cur.to_version || expectedVer} sẵn sàng cài đặt`;
+        }
+        showToast(
+          `Đã tải & xác thực SHA-256 cho kas-android.apk v${cur.to_version || expectedVer}. Đang mở trình cài đặt Android...`,
+          'ok',
+          5200
+        );
+        if (window.KASAndroid && typeof window.KASAndroid.installApkUpdate === 'function') {
+          window.KASAndroid.installApkUpdate(cur.apk_path || '', cur.apk_url || '');
+        }
+        return;
+      }
       if (cur.restarting) {
         if (pill) { pill.className = 'pill ok'; pill.textContent = `Đang khởi động lại → v${cur.to_version}...`; }
         showToast(`Đang khởi động lại sang KAS v${cur.to_version}...`, 'ok');
@@ -1137,10 +1220,14 @@ async function triggerAutoUpdate(isRollback = false) {
         await checkUpdates(false);
       } else {
         if (pill) { pill.className = 'pill err'; pill.textContent = 'Cập nhật thất bại'; }
-        showToast('Cập nhật gặp lỗi — kiểm tra nhật kí bên dưới.', 'err');
+        showToast('Cập nhật gặp lỗi — kiểm tra nhật kí bên dưới hoặc mục Nhật kí & Báo lỗi.', 'err', 5000);
       }
     } catch (_err) {
-      waitForServerReload(expectedVer, oldBootId, oldPid);
+      if (!isNativeApk) {
+        waitForServerReload(expectedVer, oldBootId, oldPid);
+      } else if (btn) {
+        btn.disabled = false;
+      }
     }
   };
   setTimeout(poll, 400);
@@ -1875,6 +1962,137 @@ async function loadDoctor() {
     const badge = t.ok ? '<span class="pill ok">✓ Đã cài</span>' : '<span class="pill warn">○ Chưa cài</span>';
     return `<tr><td><code>${esc(t.name)}</code></td><td style="font-size:12px;">${esc(t.purpose)}</td><td style="font-size:12px; color:var(--muted);">${badge} ${t.path ? `<code>${esc(t.path)}</code>` : ''}</td></tr>`;
   }).join('');
+
+  loadSystemLogs().catch(() => {});
+}
+
+/* ==================== NHẬT KÍ HỆ THỐNG & BÁO LỖI (v1.9.0) ==================== */
+
+function openLogsPanel() {
+  openTab('doctor');
+  setTimeout(() => {
+    const card = document.getElementById('systemLogsCard');
+    if (card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    loadSystemLogs().catch(() => {});
+  }, 80);
+}
+
+function onLogFilterInput() {
+  clearTimeout(_logFilterTimer);
+  _logFilterTimer = setTimeout(() => {
+    loadSystemLogs().catch(() => {});
+  }, 220);
+}
+
+async function loadSystemLogs() {
+  const level = document.getElementById('logLevelFilter')?.value || '';
+  const q = (document.getElementById('logSearchInput')?.value || '').trim();
+  const qs = new URLSearchParams({ limit: '200' });
+  if (level) qs.set('level', level);
+  if (q) qs.set('q', q);
+
+  const { ok, data } = await apiFetch('/api/logs?' + qs.toString());
+  if (!ok || !data) return;
+
+  const summary = document.getElementById('logStatsSummary');
+  const meta = document.getElementById('logDirMeta');
+  const body = document.getElementById('systemLogsBody');
+  const c = data.counts || {};
+
+  if (summary) {
+    summary.innerHTML = [
+      `<span class="pill info">Tổng: ${fmt(c.total || 0)}</span>`,
+      `<span class="pill ${c.errors ? 'err' : 'ok'}">Lỗi: ${fmt(c.errors || 0)}</span>`,
+      `<span class="pill ${c.warnings ? 'warn' : 'info'}">Cảnh báo: ${fmt(c.warnings || 0)}</span>`,
+    ].join('');
+  }
+  if (meta) {
+    const fileList = (data.files || []).map((f) => f.name).join(', ');
+    meta.textContent = `Thư mục lưu nhật kí: ${data.log_dir || '—'} · Hiển thị ${fmt(data.filtered_count || 0)}/${fmt(c.total || 0)} dòng${fileList ? ' · Tệp: ' + fileList : ''}`;
+  }
+  if (body) {
+    const entries = data.entries || [];
+    body.innerHTML = entries.map((e) => {
+      const lv = String(e.level || 'INFO').toUpperCase();
+      const cls = (lv === 'ERROR' || lv === 'CRITICAL') ? 'err' : (lv === 'WARNING' ? 'warn' : 'info');
+      const det = e.detail ? `<div style="font-size:11.5px; color:var(--muted); margin-top:2px; word-break:break-word;">${esc(e.detail)}</div>` : '';
+      const tb = e.traceback
+        ? `<details style="margin-top:4px;"><summary style="cursor:pointer; font-size:11px; color:var(--err);">Xem chi tiết stack trace</summary><pre class="console" style="margin-top:4px; max-height:180px; font-size:11px;">${esc(e.traceback)}</pre></details>`
+        : '';
+      return `
+        <tr>
+          <td style="font-size:11.5px; white-space:nowrap; color:var(--muted);">${esc(String(e.ts || '').replace('T', ' ').replace('Z', ''))}</td>
+          <td><span class="pill ${cls}">${esc(lv)}</span></td>
+          <td style="font-size:11.5px; white-space:nowrap;"><code>${esc(e.source || 'kas')}/${esc(e.category || 'system')}</code></td>
+          <td style="font-size:12px;"><div>${esc(e.message || '')}</div>${det}${tb}</td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:var(--muted); text-align:center; padding:16px;">Chưa có bản ghi nhật kí nào khớp bộ lọc.</td></tr>';
+  }
+}
+
+async function exportSystemLogs(fmtType = 'txt') {
+  const format = fmtType === 'json' ? 'json' : 'txt';
+  const level = document.getElementById('logLevelFilter')?.value || '';
+  const qs = new URLSearchParams({ format, limit: '1000' });
+  if (level) qs.set('level', level);
+
+  try {
+    const r = await fetch('/api/logs/export?' + qs.toString(), { cache: 'no-store' });
+    if (r.status === 401) {
+      const ov = document.getElementById('lockOverlay');
+      if (ov) ov.classList.add('open');
+      showToast('Vui lòng đăng nhập tài khoản KAS trước khi xuất nhật kí.', 'warn');
+      return;
+    }
+    if (!r.ok) {
+      showToast('Không thể xuất tệp nhật kí hệ thống.', 'err');
+      return;
+    }
+    const text = await r.text();
+    const cd = r.headers.get('Content-Disposition') || '';
+    const m = /filename="([^"]+)"/.exec(cd);
+    const fname = (m && m[1]) || `kas-logs-${new Date().toISOString().slice(0, 10)}.${format}`;
+
+    if (window.KASAndroid && typeof window.KASAndroid.shareExportedLog === 'function') {
+      window.KASAndroid.shareExportedLog(fname, text);
+      showToast(`Đã tạo tệp nhật kí ${fname} — đang mở bảng chia sẻ Android.`, 'ok', 3500);
+      return;
+    }
+
+    const blob = new Blob([text], {
+      type: format === 'json' ? 'application/json;charset=utf-8' : 'text/plain;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast(`Đã xuất tệp nhật kí: ${fname}`, 'ok', 3200);
+  } catch (err) {
+    showToast('Lỗi khi xuất tệp nhật kí: ' + err, 'err');
+  }
+}
+
+async function clearSystemLogs() {
+  const yes = await showConfirmModal({
+    title: 'Xóa nhật kí hệ thống cũ',
+    message: 'Xóa sạch toàn bộ bản ghi nhật kí và tệp xoay vòng cũ? Nhật kí hoàn tác (Undo Journal) và dữ liệu kho không bị ảnh hưởng.',
+    confirmText: 'Xóa nhật kí',
+    danger: true,
+  });
+  if (!yes) return;
+  const { ok, data } = await apiFetch('/api/logs/clear', { method: 'POST' });
+  if (!ok) {
+    showToast((data && data.detail) || 'Không thể xóa nhật kí.', 'err');
+    return;
+  }
+  showToast('Đã dọn sạch nhật kí hệ thống và khởi tạo phiên ghi mới.', 'ok');
+  await loadSystemLogs();
 }
 
 async function runAutoSetup(scope) {
@@ -2839,8 +3057,13 @@ async function loadAndroidEcosystemInfo() {
   const drawerQuick = document.getElementById('androidDrawerQuickBar');
   const topbarModeBtn = document.getElementById('androidTopbarModeBtn');
   const topbarModeLbl = document.getElementById('androidTopbarModeLabel');
+  const sha1El = document.getElementById('androidSha1Text');
+  const lanPill = document.getElementById('androidLanModePill');
+  const lanToggleBtn = document.getElementById('androidLanToggleBtn');
+  const lanHintEl = document.getElementById('androidLanHintText');
 
   let nativeDeviceLabel = '';
+  let liveSha1 = '';
   if (window.KASAndroid) {
     if (nativeCtrl) nativeCtrl.style.display = 'flex';
     if (drawerQuick) drawerQuick.style.display = 'flex';
@@ -2865,14 +3088,24 @@ async function loadAndroidEcosystemInfo() {
         }
       }
     } catch (_) {}
+    try {
+      if (typeof window.KASAndroid.getSigningInfo === 'function') {
+        const rawSig = window.KASAndroid.getSigningInfo();
+        const sig = typeof rawSig === 'string' ? JSON.parse(rawSig) : rawSig;
+        if (sig && sig.sha1) {
+          liveSha1 = String(sig.sha1).trim();
+        }
+      }
+    } catch (_) {}
   }
 
   const { ok, data } = await apiFetch('/api/android/info');
   if (!ok || !data) return null;
   _androidInfoCache = data;
 
+  const isNative = Boolean(window.KASAndroid) || data.runtime_flavor === 'chaquopy_apk';
   if (badge) {
-    if (window.KASAndroid || data.runtime_flavor === 'chaquopy_apk') {
+    if (isNative) {
       badge.className = 'pill ok';
       badge.textContent = nativeDeviceLabel
         ? `Android Gốc · ${nativeDeviceLabel}`
@@ -2885,13 +3118,112 @@ async function loadAndroidEcosystemInfo() {
       badge.textContent = 'Máy chủ Máy tính · Sẵn sàng ghép nối';
     }
   }
+  if (sha1El) {
+    const fp = liveSha1 || (data.signing && data.signing.sha1) || '';
+    if (fp) sha1El.textContent = fp;
+  }
   if (lanEl && data.primary_lan_url) {
     lanEl.textContent = data.primary_lan_url;
   }
   if (termuxEl && data.downloads && data.downloads.termux_one_liner) {
     termuxEl.textContent = data.downloads.termux_one_liner;
   }
+
+  const lanEnabled = Boolean(data.lan_enabled);
+  const effPort = Number(data.active_port || 8765);
+  if (lanPill) {
+    if (lanEnabled) {
+      lanPill.className = 'pill ok';
+      lanPill.textContent = `Đang mở Wi-Fi LAN (0.0.0.0:${effPort})`;
+    } else {
+      lanPill.className = 'pill warn';
+      lanPill.textContent = `Chỉ cục bộ (${data.listening_host || '127.0.0.1'})`;
+    }
+  }
+  if (lanToggleBtn) {
+    if (isNative) {
+      lanToggleBtn.style.display = 'none';
+    } else {
+      lanToggleBtn.style.display = 'inline-flex';
+      lanToggleBtn.className = lanEnabled ? 'btn secondary sm' : 'btn sm';
+      lanToggleBtn.textContent = lanEnabled ? 'Tắt Chia Sẻ Wi-Fi LAN' : 'Bật Chia Sẻ Wi-Fi LAN';
+    }
+  }
+  if (lanHintEl) {
+    if (isNative) {
+      lanHintEl.textContent = 'Trên điện thoại: bấm "Đổi Máy Chủ (Nội bộ / PC Wi-Fi)" ở bên trái → chọn "Tự tìm PC cùng Wi-Fi" để kết nối tự động.';
+    } else if (lanEnabled) {
+      const discStatus = data.lan_discovery_active
+        ? `Bộ tự khám phá UDP :${data.discovery_port || 8766} đang bật.`
+        : 'Hãy đảm bảo điện thoại và PC dùng chung mạng Wi-Fi.';
+      lanHintEl.textContent = `PC đang sẵn sàng nhận kết nối từ Android. ${discStatus} Nếu điện thoại không vào được, hãy bật mạng Private trên Windows Firewall cho cổng TCP ${effPort}.`;
+    } else {
+      lanHintEl.textContent = 'Hiện PC chỉ lắng nghe nội bộ (127.0.0.1) nên điện thoại chưa truy cập được. Bấm "Bật Chia Sẻ Wi-Fi LAN" để mở ghép nối với Android.';
+    }
+  }
   return data;
+}
+
+async function copyAndroidSha1() {
+  const txt = (document.getElementById('androidSha1Text')?.textContent || '').trim();
+  if (!txt) return;
+  try {
+    await navigator.clipboard.writeText(txt);
+    showToast(`Đã sao chép SHA-1: ${txt}`, 'ok', 3200);
+  } catch (_) {
+    showToast(`SHA-1: ${txt}`, 'info', 4000);
+  }
+}
+
+async function togglePcLanSharing() {
+  const curEnabled = Boolean(_androidInfoCache && _androidInfoCache.lan_enabled);
+  const nextEnabled = !curEnabled;
+  const yes = await showConfirmModal({
+    title: nextEnabled ? 'Bật chia sẻ máy chủ PC qua Wi-Fi LAN' : 'Tắt chia sẻ Wi-Fi LAN (về chỉ cục bộ)',
+    message: nextEnabled
+      ? 'KAS sẽ lưu cấu hình lắng nghe mạng Wi-Fi nội bộ (0.0.0.0), bật bộ tự tìm PC (UDP 8766), mở quy tắc Windows Firewall (nếu có quyền) và tự khởi động lại máy chủ trong vài giây.'
+      : 'KAS sẽ thu hồi quyền truy cập từ mạng Wi-Fi nội bộ và chỉ lắng nghe trên máy này (127.0.0.1). Máy chủ sẽ tự khởi động lại trong vài giây.',
+    confirmText: nextEnabled ? 'Bật Wi-Fi LAN ngay' : 'Tắt Wi-Fi LAN',
+  });
+  if (!yes) return;
+
+  let oldBootId = '';
+  let oldPid = 0;
+  try {
+    const { ok: hok, data: h } = await apiFetch('/api/health');
+    if (hok && h) {
+      oldBootId = h.boot_id || '';
+      oldPid = Number(h.pid || 0);
+    }
+  } catch (_e) {
+    // ignore
+  }
+
+  const { ok, data } = await apiFetch('/api/android/lan-mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: nextEnabled, restart: true }),
+  });
+  if (!ok) {
+    showToast((data && data.detail) || 'Không thể đổi chế độ chia sẻ Wi-Fi LAN.', 'err');
+    return;
+  }
+  if (data && data.restarting) {
+    showToast(
+      nextEnabled
+        ? 'Đang mở Wi-Fi LAN và khởi động lại máy chủ KAS...'
+        : 'Đang chuyển về chế độ cục bộ và khởi động lại máy chủ KAS...',
+      'ok',
+      3500
+    );
+    waitForServerReload('', oldBootId, oldPid);
+    return;
+  }
+  showToast(
+    nextEnabled ? 'Đã bật chia sẻ máy chủ PC qua Wi-Fi LAN.' : 'Đã tắt chia sẻ Wi-Fi LAN.',
+    'ok'
+  );
+  await loadAndroidEcosystemInfo();
 }
 
 function downloadAndroidApk() {
@@ -3022,6 +3354,7 @@ async function refreshAll() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  installClientErrorLogger();
   restoreSidebarState();
   updateThemeButton(document.documentElement.getAttribute('data-theme') || 'dark');
   initMobileTouchGestures();

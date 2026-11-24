@@ -190,6 +190,20 @@ def drive_url(item_id: str, mime_type: str = "") -> str:
 
 def log(msg: str) -> None:
     print(msg, flush=True)
+    try:
+        from karius_academic_system.core import logger as _klog
+
+        text = str(msg or "")
+        low = text.lower()
+        if "[lỗi]" in low or "[loi]" in low or "✗" in text or "traceback" in low:
+            lv = "ERROR"
+        elif "[cảnh báo]" in low or "[canh bao]" in low or "⚠" in text or "[!]" in text:
+            lv = "WARNING"
+        else:
+            lv = "INFO"
+        _klog.record_event(lv, "console", text, source="core")
+    except Exception:
+        pass
 
 
 def read_json(path: Path, default: Any = None) -> Any:

@@ -222,6 +222,7 @@ QUICK_COMMANDS: List[Dict[str, str]] = [
     {"label": "Phiên bản & Kho hiện tại", "cmd": "version", "group": "Hệ thống"},
     {"label": "Chẩn đoán Doctor", "cmd": "doctor", "group": "Hệ thống"},
     {"label": "Thông tin & Ghép nối Android", "cmd": "android info", "group": "Hệ thống"},
+    {"label": "Nhật kí & Báo lỗi gần đây", "cmd": "logs --limit 40", "group": "Hệ thống"},
     {"label": "Kiểm tra cập nhật KAS", "cmd": "update --check", "group": "Hệ thống"},
     {"label": "Tự động cài công cụ & thư viện", "cmd": "setup", "group": "Hệ thống"},
     {"label": "Danh sách kho", "cmd": "vault list", "group": "Kho dữ liệu"},

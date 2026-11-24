@@ -1,22 +1,30 @@
-# Karius Academic System (KAS) `v1.8.0`
+# Karius Academic System (KAS) `v1.9.0`
 
-**Karius Academic System (KAS)** là phần mềm quản trị tri thức đa nền tảng (**Windows · macOS · Linux · Android**) với **Ứng dụng Android Gốc (`kas-android.apk`) giao diện Material Design 3 chuyên biệt cho màn hình cảm ứng (nhúng Python 3.11 + SQLite chạy độc lập)**, **Trình Duyệt Kho & Xem Trước Tệp trực tiếp (Vault Explorer & Previewer)**, **giao diện Desktop Workspace & Android Material 3 Shell (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K` (Command Palette)**, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
+**Karius Academic System (KAS)** là phần mềm quản trị tri thức đa nền tảng (**Windows · macOS · Linux · Android**) với **Ứng dụng Android Gốc (`kas-android.apk`, tên hiển thị gọn `KAS`, ký số cố định SHA-1, tự động cập nhật APK xác thực SHA-256, ghép nối PC qua Wi-Fi LAN 1 chạm & tự khám phá UDP)**, **Hệ thống Nhật Kí & Báo Lỗi tập trung (`kas logs` + xuất `.TXT`/`.JSON` + chia sẻ gốc Android)**, **Trình Duyệt Kho & Xem Trước Tệp trực tiếp (Vault Explorer & Previewer)**, **giao diện Desktop Workspace & Android Material 3 Shell (*Obsidian Ink* & *Archival Paper*)**, **Bảng Lệnh toàn cục `Ctrl+K` (Command Palette)**, **đa kho dữ liệu (Multi-Vault)**, **tùy chỉnh quy tắc đặt tên linh hoạt**, **dòng lệnh tích hợp (Console)**, **tự động cập nhật phần mềm xác thực SHA-256 (`kas update`)**, **tự động cài đặt công cụ & thư viện (`kas setup`)**, **cơ chế gỡ cài đặt sạch sẽ chuẩn Windows (`kas uninstall`)**, **đăng nhập khóa phần mềm & kết nối bên thứ 3 (Google Drive OAuth 2.0, GitHub, AI, Webhook)** và **kết nối trực tiếp Chatbot AI / Agent (chuẩn MCP)** — hỗ trợ lập chỉ mục **SQLite WAL + FTS5**, kiểm toán, chuẩn hóa **Chuẩn V6 / Danh Mục V7**, chống trùng lặp, đọc/OCR tiếng Việt và phân tích đa phương tiện trên **mọi kho dữ liệu bất kỳ**:
 
 - **Thư mục cục bộ trên máy tính / Điện thoại & Máy tính bảng Android / Ổ cứng rời / NAS / Thư mục đồng bộ OneDrive · iCloud · Google Drive for Desktop** (`LocalFSBackend` — chạy 100% ngoại tuyến, không cần đăng nhập).
 - **Mọi thư mục hoặc Shared Drive trên Google Drive** (`GoogleDriveAPIClient` OAuth 2.0 đăng nhập ngay trong giao diện phần mềm & `GDriveCLIClient` trên cloud VM).
 
 ---
 
-## 1. Tính năng Nổi bật (`v1.8.0`)
+## 1. Tính năng Nổi bật (`v1.9.0`)
 
-- **Thiết Kế & Giao Diện Android Material Design 3 Hoàn Toàn Mới (`kas-android.apk` · MỚI `v1.8.0`)**:
+- **Bản Nâng Cấp Android Chuyên Sâu, Ký Số Cố Định SHA-1, Ghép Nối PC Wi-Fi & Nhật Kí Báo Lỗi (MỚI `v1.9.0`)**:
+  - **Chứng chỉ Ký Số Cố Định & Vân Tay SHA-1 (`io.github.kariusnocr.kas`)**: Từ `v1.9.0`, mọi bản phát hành `kas-android.apk` đều được ký bằng chứng chỉ cố định lâu dài để bạn đăng ký trực tiếp lên **Google Auth Platform / Google Cloud OAuth** và nâng cấp APK tại chỗ không cần gỡ bản cũ:
+    - **SHA-1**: `FF:D4:BA:CE:3C:48:C1:53:AF:BC:44:B3:AD:FE:6D:5C:31:8B:61:BC`
+    - **SHA-256**: `EC:65:9D:B8:08:53:33:6C:CE:BA:66:46:F2:3F:19:21:D6:2F:12:D3:DB:8B:6C:08:BE:7F:1F:51:14:1E:A0:96`
+  - **Sửa Triệt Để Kết Nối Máy Chủ PC ↔ Android Qua Wi-Fi LAN**: Nút **Bật / Tắt Chia Sẻ Wi-Fi LAN** 1 chạm ngay trên giao diện PC (tự lắng nghe `0.0.0.0`, mở tường lửa Windows Private & phát hiện IPv4 Wi-Fi thật), dịch vụ **Tự Khám Phá PC cùng Wi-Fi (UDP `8766`)**, tự kiểm tra `/api/health` trước khi chuyển trang trên Android và hộp thoại khôi phục tự động (không bao giờ kẹt trang lỗi trắng `ERR_CONNECTION_REFUSED`).
+  - **Cập Nhật Tự Động Trực Tiếp Trên Android APK (SHA-256 Verified)**: Sửa lỗi `pip` & chứng chỉ SSL Android 14+ (`certifi` + Conscrypt CA); trên Android, nút **Tải & Cập nhật tự động ngay** tự tải `kas-android.apk` mới nhất, kiểm chứng mã băm `SHA256SUMS.txt` và mở trực tiếp **Trình Cài Đặt Gói Android** qua `KasFileProvider` an toàn.
+  - **Hệ Thống Nhật Kí & Báo Lỗi Tập Trung (`kas logs` / `kas nhat-ki` & Tab *Chẩn đoán*)**: Tự xoay vòng tệp (`2 MB × 3`), tự động ẩn token/mật khẩu (`redact_secrets`), ghi lại mọi ngoại lệ Python (`sys.excepthook` / `threading.excepthook`), HTTP 500, lỗi giao diện JS (`window.onerror`/`unhandledrejection`) và `android_native.log`; lọc theo mức độ/từ khóa và **xuất tệp `.TXT` / `.JSON`** (tự mở bảng chia sẻ gốc trên Android).
+  - **Tên Hiển Thị Gọn Gàng `KAS`**: Rút gọn biểu tượng trên **Desktop Windows (`KAS.lnk`)**, **Màn hình chính Android (`KAS`)** và **PWA (`KAS`)** (tự động dọn lối tắt dài cũ `Karius Academic System (KAS).lnk` khi cài hoặc cập nhật).
+- **Thiết Kế & Giao Diện Android Material Design 3 (`kas-android.apk` · `v1.8.0+`)**:
   - **Đồng bộ Thanh Trạng Thái & Điều Hướng Android theo Sáng/Tối**: Tự động đổi màu `StatusBar` + `NavigationBar` và độ tương phản biểu tượng hệ thống (`WindowInsetsController` / `SYSTEM_UI_FLAG_LIGHT_*`) tức thì khi chuyển giữa **Obsidian Ink (Tối)** và **Archival Paper (Sáng)**, cùng chủ đề khởi động không nháy trắng (`KasAppTheme` `#0C0E12`) và **Màn hình Khởi động Thương hiệu (Material 3 Splash Screen)** kèm nút tắt **Kết nối PC qua Wi-Fi**.
   - **Thanh Điều Hướng Đáy Material 3 & Top App Bar Tối Giản**: Hiệu ứng viên thuốc (**Active Pill Indicator**), nền mờ kính, **phản hồi rung chạm nhẹ (Haptic Feedback)**, thanh Top App Bar `56px` gọn sạch trên di động cùng **Chip Chuyển Máy Chủ 1 chạm** (`Nội bộ` / `PC Wi-Fi`) ngay trên thanh đỉnh và ngăn kéo bên (hỗ trợ cử chỉ vuốt sang trái để đóng).
   - **Trình Duyệt Kho Di Động Chuẩn Native (`#tab-explorer`)**: **Ngăn Kéo Cây Thư Mục (Folder Tree Drawer)** trượt từ trái, danh sách **2 dòng tối ưu màn hình dọc** (tên tệp + loại/dung lượng/ngày + mũi tên `›`, chống tràn ngang 100%), **Khung Xem Trước Dạng Bottom Sheet (Material 3 Modal Bottom Sheet)** trượt từ dưới lên với thanh kéo (hỗ trợ **vuốt xuống để đóng**) và chuỗi ưu tiên nút **Back Android** thông minh (Hộp thoại → Bảng lệnh → Bottom Sheet → Cây thư mục → Ngăn kéo Menu → Lùi/Lên cấp thư mục).
   - **Bố Cục 100% Tương Thích Màn Hình Nhỏ (`<= 640px`)**: Lưới KPI **2×2 gọn gàng**, biểu mẫu & danh sách kho 1 cột không tràn ngang, nút & ô nhập chuẩn cảm ứng (`>= 44px`), hộp thoại/Bảng lệnh dạng Bottom Sheet và khung Trợ Lý AI co giãn mượt theo bàn phím ảo (`100dvh`).
 - **Hệ Sinh Thái KAS Trên Hệ Điều Hành Android (`kas-android.apk` · `kas android` · Termux · PWA · `v1.7.0+`)**:
   - **Ứng dụng Android Gốc (`kas-android.apk` · Android 8.0+ / API 26–35)**: Nhúng trực tiếp môi trường **Python 3.11 + SQLite + toàn bộ lõi `karius_academic_system`** bên trong tệp APK qua **Chaquopy** (`arm64-v8a` & `x86_64`), tự tạo sẵn **Kho Tài Liệu Android** trên bộ nhớ thiết bị và chạy độc lập 100% ngoại tuyến mà không cần máy tính.
-  - **Chế độ Kép (On-Device & Ghép nối PC qua Wi-Fi/LAN)**: Chuyển đổi 1 chạm ngay trong ứng dụng Android giữa **Máy chủ Nội bộ trên điện thoại (`127.0.0.1`)** và **Máy chủ KAS trên máy tính qua mạng Wi-Fi (`http://192.168.x.x:8765`)**, hỗ trợ chọn tệp gốc Android (`credentials.json`), nhận diện thiết bị (`getDeviceInfo`) và tải tệp trực tiếp về `Downloads`.
+  - **Chế độ Kép (On-Device & Ghép nối PC qua Wi-Fi/LAN)**: Chuyển đổi 1 chạm ngay trong ứng dụng Android giữa **Máy chủ Nội bộ trên điện thoại (`127.0.0.1`)** và **Máy chủ KAS trên máy tính qua mạng Wi-Fi (`http://192.168.x.x:8765`)**, hỗ trợ tự tìm PC qua UDP, chọn tệp gốc Android (`credentials.json`), nhận diện thiết bị (`getDeviceInfo`) và tải tệp trực tiếp về `Downloads`.
   - **Trình cài đặt 1 lệnh cho Android Termux (`install_android_termux.sh`) & CLI `kas android`**: Tự cài đặt Python, Git, OCR Tiếng Việt (`tesseract` + `vie.traineddata`), `ffmpeg`, `7z`, `poppler`, tạo lối tắt *Termux:Widget* và cung cấp lệnh `kas android info|init-vault|serve`.
 - **Cơ Chế Di Chuyển Giữa Các Thư Mục/Tệp & Xem Trước Trực Tiếp (`Duyệt Kho` & `kas duyet` · `v1.6.0+`)**:
   - **Không gian duyệt 3 khung chuyên nghiệp**: **Cây thư mục mở rộng lười (Lazy Folder Tree)** bên trái, **Danh sách / Lưới thẻ** ở giữa (chuyển đổi 1 bấm, lưu lựa chọn), và **Khung Xem Trước (Preview Inspector)** dính bên phải (tự chuyển thành Drawer + Bottom Sheet trên Android).
@@ -31,11 +39,11 @@
   - **Kiến trúc Frontend tách mô-đun (`index.html` + `static/styles.css` + `static/app.js`)**: phục vụ an toàn qua cả máy chủ thuần Python (`--stdlib`) lẫn FastAPI với lớp chặn Path Traversal tuyệt đối và luôn mở cho màn hình Khóa Ứng Dụng (App Lock).
 - **Cơ Chế Tự Động Cập Nhật Phần Mềm Xác Thực SHA-256 (`kas update` / `kas cap-nhat` & Trung Tâm Cập Nhật trong Tab *Cài Đặt*)**:
   - Tự động kiểm tra bản phát hành mới từ GitHub Releases ngay khi khởi động (chu kỳ đệm tùy chỉnh 1–168 giờ, hỗ trợ kênh **Ổn định / Thử nghiệm** & chế độ **Auto-Install**), hiển thị thanh thông báo đầu trang cùng nút **Cập nhật tự động ngay** / **Bỏ qua bản này**.
-  - Tự tải gói `.whl`, **kiểm chứng toàn vẹn mật mã `SHA256SUMS.txt`** (tự hủy nếu sai băm), cài nâng cấp trực tiếp, đồng bộ số phiên bản trong *Windows Installed Apps*, tự đóng/khởi động lại máy chủ nền và tự tải lại cửa sổ ứng dụng sang phiên bản mới.
+  - Tự tải gói `.whl` (trên PC/Termux) hoặc `kas-android.apk` (trên Android APK), **kiểm chứng toàn vẹn mật mã `SHA256SUMS.txt`** (tự hủy nếu sai băm), cài nâng cấp trực tiếp, đồng bộ số phiên bản trong *Windows Installed Apps*, tự rút gọn lối tắt Desktop thành `KAS.lnk`, tự đóng/khởi động lại máy chủ nền và tự tải lại cửa sổ ứng dụng sang phiên bản mới.
   - Lưu đầy đủ **Lịch sử cập nhật** và hỗ trợ **Quay về phiên bản trước (Rollback)** 1 bấm hoặc bằng `kas update --rollback`.
 - **Cơ Chế Gỡ Cài Đặt Phần Mềm An Toàn & Chuẩn Hệ Điều Hành (`kas uninstall` / `kas go-cai-dat` & Tab *Cài Đặt*)**:
   - Hỗ trợ **4 cách gỡ sạch sẽ**: (1) trực tiếp trong **Windows Settings → Apps → Installed Apps** (đăng ký tự động không cần quyền Admin), (2) trong giao diện KAS **Tab Cài Đặt → Gỡ Cài Đặt Phần Mềm**, (3) nhấp đúp **`Go_Cai_Dat_KAS_Windows11.cmd`** / lối tắt Start Menu, hoặc (4) 1 lệnh PowerShell (`irm .../uninstall_windows_sac_safe.ps1 | iex`) / CLI `kas uninstall --thuc-thi`.
-  - Tự dừng máy chủ nền & đóng cửa sổ ứng dụng, gỡ gói Python, xóa lối tắt Desktop/Start Menu, dọn `User PATH` & khóa Registry; tùy chọn giữ lại hoặc xóa sạch `~/.config/kas` & `~/.local/share/kas` — **bảo toàn 100% thư mục tài liệu của bạn và dữ liệu trên Google Drive**.
+  - Tự dừng máy chủ nền & đóng cửa sổ ứng dụng, gỡ gói Python, xóa lối tắt Desktop/Start Menu (`KAS.lnk` & lối tắt cũ), dọn `User PATH` & khóa Registry; tùy chọn giữ lại hoặc xóa sạch `~/.config/kas` & `~/.local/share/kas` — **bảo toàn 100% thư mục tài liệu của bạn và dữ liệu trên Google Drive**.
 - **Tự Động Cài Đặt Công Cụ, Thư Viện & OCR Tiếng Việt (`kas setup` & Tab *Chẩn đoán*)**:
   - Tự động cài các thư viện Python khuyến nghị (`Pillow`, `numpy`, `fastapi`, `uvicorn`) kèm cơ chế bảo vệ chống lỗi **Smart App Control** (bắt `OSError`, tự dự phòng thuần Python `--stdlib`).
   - Tự động cài công cụ hệ thống còn thiếu qua `winget` (Windows) / `brew` (macOS): **GitHub CLI (`gh`)**, **Git (`git`)**, **7-Zip (`7z`)**, **FFmpeg / FFprobe**, **Tesseract OCR**, **Poppler (`pdftotext`, `pdfinfo`, `pdftoppm`)** và tự động làm mới + lưu vào `User PATH` Windows (không cần khởi động lại máy).
@@ -65,18 +73,18 @@
 
 ### Điện thoại & Máy tính bảng Android (Android 8.0+ — 3 cách cài đặt)
 
-1. **Cài Ứng dụng Android Gốc (`kas-android.apk` — Giao diện Material 3, chạy độc lập 100% trên điện thoại)**:
-   - Tải **`kas-android.apk`** từ **GitHub Releases `v1.8.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt.
+1. **Cài Ứng dụng Android Gốc (`kas-android.apk` — Tên hiển thị `KAS`, ký số cố định SHA-1, tự cập nhật APK)**:
+   - Tải **`kas-android.apk`** từ **GitHub Releases `v1.9.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt *(nếu đang dùng bản `v1.8.0` trở xuống, hãy gỡ bản cũ 1 lần duy nhất trước khi cài `v1.9.0` để chuyển sang chứng chỉ ký số cố định; từ `v1.9.0+` trở đi mọi bản cập nhật đều nâng cấp tại chỗ tự động)*.
 2. **Cài trọn bộ CLI + OCR Tiếng Việt trên Android Termux (1 lệnh)**:
    ```bash
    curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash
    ```
 3. **Ghép nối với Máy chủ KAS trên Máy tính qua Wi-Fi / LAN (hoặc cài PWA)**:
-   - Trên máy tính chạy `kas android serve --port 8765`, sau đó mở địa chỉ `http://<IP-LAN>:8765` trên điện thoại Android (trong ứng dụng `kas-android.apk` hoặc Chrome Android → *Thêm vào màn hình chính*).
+   - Trên máy tính bấm **Bật Chia Sẻ Wi-Fi LAN** trong thẻ *Hệ Sinh Thái Android* (hoặc chạy `kas android serve --port 8765`), sau đó mở ứng dụng **KAS** trên điện thoại → **Đổi Máy Chủ → Tự tìm PC cùng Wi-Fi** (hoặc nhập địa chỉ `http://<IP-LAN>:8765`).
 
 ### Windows 11 có Smart App Control (Khuyến nghị — 1 lệnh PowerShell hoặc 1 nhấp đúp)
 
-**Cài mới hoặc cập nhật lên `v1.8.0` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
+**Cài mới hoặc cập nhật lên `v1.9.0` (1 lệnh PowerShell — tự cài toàn bộ công cụ & OCR Tiếng Việt):**
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
 ```
@@ -90,7 +98,7 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
 ```
 
 **Hoặc tải ZIP cài/gỡ offline 1 nhấp đúp:**
-1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.8.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
+1. Tải **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.9.0`** hoặc Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH`.
 2. Giải nén và nhấp đúp **`Cai_Dat_KAS_Windows11.cmd`** (để cài) hoặc **`Go_Cai_Dat_KAS_Windows11.cmd`** (để gỡ).
 
 ### Cài bằng Python (`pip`, Python 3.11+)

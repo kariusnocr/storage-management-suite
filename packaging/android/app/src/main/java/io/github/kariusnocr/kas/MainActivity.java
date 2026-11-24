@@ -8,12 +8,17 @@ import android.app.DownloadManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.content.pm.SigningInfo;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.DhcpInfo;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -30,6 +35,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -46,18 +52,43 @@ import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.TimeZone;
 
 public class MainActivity extends Activity {
-    private static final String KAS_VERSION = "1.8.0";
+    private static final String KAS_VERSION = "1.9.0";
     private static final String PREFS_NAME = "kas_android_prefs";
     private static final String KEY_SERVER_MODE = "server_mode";
     private static final String KEY_REMOTE_URL = "remote_url";
     private static final String KEY_LAST_THEME = "last_theme";
     private static final int FILE_CHOOSER_REQ_CODE = 1001;
     private static final int STORAGE_PERM_REQ_CODE = 1002;
+    private static final int LAN_DISCOVERY_PORT = 8766;
+    private static final String LAN_DISCOVERY_PROBE = "KAS_DISCOVER_V1";
+    private static final long MAX_NATIVE_LOG_BYTES = 512L * 1024L;
 
     private static final int COLOR_DARK_BG = Color.parseColor("#0C0E12");
     private static final int COLOR_DARK_NAV = Color.parseColor("#101319");
@@ -70,6 +101,9 @@ public class MainActivity extends Activity {
     private TextView bootStatusText;
     private ValueCallback<Uri[]> filePathCallback;
     private volatile String localServerUrl = "http://127.0.0.1:8765";
+    private volatile boolean userManuallyNavigated = false;
+    private volatile String pendingApkInstallPath = null;
+    private volatile boolean recoveryDialogShowing = false;
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
@@ -78,6 +112,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        installUncaughtCrashLogger();
+        appendNativeLog("INFO", "lifecycle", "Khoi dong KAS Android v" + KAS_VERSION + " (" + Build.MODEL + ", Android " + Build.VERSION.RELEASE + ")");
 
         rootContainer = new FrameLayout(this);
         rootContainer.setBackgroundColor(COLOR_DARK_BG);
@@ -99,6 +135,81 @@ public class MainActivity extends Activity {
         setContentView(rootContainer);
         applySystemBarsTheme(false);
         startEmbeddedKasEngineAsync();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (pendingApkInstallPath != null) {
+            if (getPackageManager().canRequestPackageInstalls()) {
+                String path = pendingApkInstallPath;
+                pendingApkInstallPath = null;
+                appendNativeLog("INFO", "updater", "Da cap quyen cai dat APK, tu dong mo trinh cai dat: " + path);
+                installApkFile(path, "");
+            }
+        }
+    }
+
+    private File getNativeLogFile() {
+        File dir = new File(getFilesDir(), "kas/data/logs");
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        return new File(dir, "android_native.log");
+    }
+
+    private synchronized void appendNativeLog(String level, String category, String message) {
+        try {
+            File logFile = getNativeLogFile();
+            if (logFile.exists() && logFile.length() > MAX_NATIVE_LOG_BYTES) {
+                File backup = new File(logFile.getParentFile(), "android_native.log.1");
+                if (backup.exists()) {
+                    backup.delete();
+                }
+                logFile.renameTo(backup);
+            }
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            String ts = sdf.format(new Date());
+            String cleanMsg = (message != null ? message : "").replace("\r", " ").replace("\n", " | ");
+            String line = "[" + ts + "] [" + level + "] [" + category + "] " + cleanMsg + "\n";
+            try (FileOutputStream fos = new FileOutputStream(logFile, true)) {
+                fos.write(line.getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String readNativeLogsText() {
+        try {
+            File logFile = getNativeLogFile();
+            if (!logFile.isFile()) {
+                return "";
+            }
+            byte[] raw = Files.readAllBytes(logFile.toPath());
+            String text = new String(raw, StandardCharsets.UTF_8);
+            if (text.length() > 60000) {
+                return text.substring(text.length() - 60000);
+            }
+            return text;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private void installUncaughtCrashLogger() {
+        final Thread.UncaughtExceptionHandler prev = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            try {
+                StringWriter sw = new StringWriter();
+                throwable.printStackTrace(new PrintWriter(sw));
+                appendNativeLog("CRITICAL", "android_crash", "Thread " + thread.getName() + ": " + sw.toString());
+            } catch (Exception ignored) {
+            }
+            if (prev != null) {
+                prev.uncaughtException(thread, throwable);
+            }
+        });
     }
 
     private void applySystemBarsTheme(boolean isLight) {
@@ -154,6 +265,16 @@ public class MainActivity extends Activity {
         decor.setSystemUiVisibility(flags);
     }
 
+    private void hideBootOverlaySmoothly() {
+        if (bootOverlay != null && bootOverlay.getVisibility() == View.VISIBLE) {
+            bootOverlay.animate()
+                    .alpha(0f)
+                    .setDuration(220)
+                    .withEndAction(() -> bootOverlay.setVisibility(View.GONE))
+                    .start();
+        }
+    }
+
     private LinearLayout createBootOverlay() {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -161,7 +282,6 @@ public class MainActivity extends Activity {
         box.setBackgroundColor(COLOR_DARK_BG);
         box.setPadding(dp(28), dp(36), dp(28), dp(36));
 
-        // Biểu tượng thương hiệu KAS dạng Material 3 bo góc với dải màu xanh Cerulean
         GradientDrawable badgeBg = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
                 new int[]{Color.parseColor("#2F81F7"), Color.parseColor("#58A6FF")}
@@ -180,15 +300,15 @@ public class MainActivity extends Activity {
         box.addView(brandBadge, badgeLp);
 
         TextView title = new TextView(this);
-        title.setText("Karius Academic System");
+        title.setText("KAS");
         title.setTextColor(Color.parseColor("#EEF2F6"));
-        title.setTextSize(20f);
+        title.setTextSize(22f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         title.setGravity(Gravity.CENTER);
         box.addView(title);
 
         TextView versionSub = new TextView(this);
-        versionSub.setText("Phiên bản " + KAS_VERSION + " · Android");
+        versionSub.setText("Karius Academic System · v" + KAS_VERSION);
         versionSub.setTextColor(Color.parseColor("#58A6FF"));
         versionSub.setTextSize(12.5f);
         versionSub.setTypeface(Typeface.DEFAULT_BOLD);
@@ -210,7 +330,6 @@ public class MainActivity extends Activity {
         bootStatusText.setPadding(dp(8), 0, dp(8), dp(26));
         box.addView(bootStatusText);
 
-        // Nút phụ chuyển nhanh sang kết nối máy chủ PC qua Wi-Fi ngay từ màn hình khởi động
         GradientDrawable btnBg = new GradientDrawable();
         btnBg.setColor(Color.parseColor("#171C24"));
         btnBg.setCornerRadius(dp(999));
@@ -273,12 +392,26 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                if (bootOverlay != null && bootOverlay.getVisibility() == View.VISIBLE) {
-                    bootOverlay.animate()
-                            .alpha(0f)
-                            .setDuration(220)
-                            .withEndAction(() -> bootOverlay.setVisibility(View.GONE))
-                            .start();
+                hideBootOverlaySmoothly();
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+                super.onReceivedError(view, request, error);
+                if (request == null || !request.isForMainFrame()) {
+                    return;
+                }
+                String failedUrl = request.getUrl() != null ? request.getUrl().toString() : "";
+                int code = error != null ? error.getErrorCode() : -1;
+                String desc = (error != null && error.getDescription() != null)
+                        ? error.getDescription().toString()
+                        : "Lỗi kết nối mạng";
+                appendNativeLog("ERROR", "webview_network", "Loi tai trang (" + code + "): " + desc + " | URL=" + failedUrl);
+                hideBootOverlaySmoothly();
+
+                boolean isLocal = failedUrl.startsWith("http://127.0.0.1") || failedUrl.startsWith("http://localhost");
+                if (!isLocal && !failedUrl.isEmpty()) {
+                    runOnUiThread(() -> showRemoteRecoveryDialog(failedUrl, desc));
                 }
             }
         });
@@ -301,6 +434,7 @@ public class MainActivity extends Activity {
                     startActivityForResult(Intent.createChooser(intent, "Chọn tệp cho KAS"), FILE_CHOOSER_REQ_CODE);
                     return true;
                 } catch (Exception e) {
+                    appendNativeLog("ERROR", "file_chooser", "Loi mo chon tep: " + e.getMessage());
                     MainActivity.this.filePathCallback = null;
                     return false;
                 }
@@ -316,7 +450,7 @@ public class MainActivity extends Activity {
                     req.setMimeType(mimeType);
                     req.addRequestHeader("User-Agent", userAgent);
                     req.setTitle(fileName);
-                    req.setDescription("Tải tệp từ Karius Academic System (KAS)");
+                    req.setDescription("Tải tệp từ KAS");
                     req.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
                     req.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
                     DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
@@ -325,6 +459,7 @@ public class MainActivity extends Activity {
                         Toast.makeText(MainActivity.this, "Đang tải về Downloads: " + fileName, Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception e) {
+                    appendNativeLog("WARNING", "download", "DownloadManager fallback: " + e.getMessage());
                     try {
                         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                     } catch (Exception ignored) {
@@ -332,6 +467,40 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    private void showRemoteRecoveryDialog(String failedUrl, String errorDesc) {
+        if (recoveryDialogShowing || isFinishing()) {
+            return;
+        }
+        recoveryDialogShowing = true;
+        new AlertDialog.Builder(this)
+                .setTitle("Không kết nối được Máy chủ PC qua Wi-Fi")
+                .setMessage(
+                        "Không thể truy cập: " + failedUrl + "\n"
+                                + "Chi tiết lỗi: " + errorDesc + "\n\n"
+                                + "Kiểm tra nhanh trên PC:\n"
+                                + "1. Mở KAS trên PC → Kho Dữ Liệu → bấm 'Bật Chia Sẻ Wi-Fi LAN' (hoặc chạy: kas android serve --port 8765).\n"
+                                + "2. Đảm bảo điện thoại và PC dùng chung mạng Wi-Fi.\n"
+                                + "3. Cho phép cổng TCP 8765 trong Windows Firewall (Private)."
+                )
+                .setCancelable(false)
+                .setPositiveButton("Quay về Máy chủ Nội bộ (Android)", (d, w) -> {
+                    recoveryDialogShowing = false;
+                    SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                    prefs.edit().putString(KEY_SERVER_MODE, "local").apply();
+                    userManuallyNavigated = true;
+                    webView.loadUrl(localServerUrl);
+                })
+                .setNeutralButton("Đổi địa chỉ / Tự tìm PC", (d, w) -> {
+                    recoveryDialogShowing = false;
+                    showServerSwitcherDialog();
+                })
+                .setNegativeButton("Thử lại", (d, w) -> {
+                    recoveryDialogShowing = false;
+                    webView.loadUrl(failedUrl);
+                })
+                .show();
     }
 
     private void startEmbeddedKasEngineAsync() {
@@ -351,20 +520,18 @@ public class MainActivity extends Activity {
                     if (urlObj != null) {
                         localServerUrl = urlObj.toString();
                     }
+                    appendNativeLog("INFO", "boot", "May chu Python noi bo san sang tai: " + localServerUrl);
                 } catch (final Exception e) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (bootStatusText != null) {
-                                bootStatusText.setText("Lỗi khởi chạy nội bộ: " + e.getMessage());
-                            }
+                    appendNativeLog("ERROR", "boot", "Loi khoi chay Chaquopy Python: " + e.getMessage());
+                    runOnUiThread(() -> {
+                        if (bootStatusText != null) {
+                            bootStatusText.setText("Lỗi khởi chạy nội bộ: " + e.getMessage());
                         }
                     });
                 }
 
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
+                runOnUiThread(() -> {
+                    if (!userManuallyNavigated) {
                         webView.loadUrl(getEffectiveTargetUrl());
                     }
                 });
@@ -382,8 +549,203 @@ public class MainActivity extends Activity {
         return localServerUrl;
     }
 
+    private String normalizeServerUrl(String rawInput) {
+        String s = rawInput == null ? "" : rawInput.trim();
+        if (s.isEmpty()) {
+            return "";
+        }
+        if (!s.startsWith("http://") && !s.startsWith("https://")) {
+            s = "http://" + s;
+        }
+        while (s.endsWith("/")) {
+            s = s.substring(0, s.length() - 1);
+        }
+        try {
+            Uri u = Uri.parse(s);
+            if (u.getHost() != null && u.getPort() == -1 && "http".equalsIgnoreCase(u.getScheme())) {
+                s = "http://" + u.getHost() + ":8765" + (u.getPath() != null ? u.getPath() : "");
+            }
+        } catch (Exception ignored) {
+        }
+        return s;
+    }
+
+    private InetAddress computeWifiBroadcastAddress() {
+        try {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm == null) return null;
+            DhcpInfo dhcp = wm.getDhcpInfo();
+            if (dhcp == null || dhcp.ipAddress == 0) return null;
+            int broadcast = (dhcp.ipAddress & dhcp.netmask) | ~dhcp.netmask;
+            byte[] quads = new byte[4];
+            for (int k = 0; k < 4; k++) {
+                quads[k] = (byte) ((broadcast >> (k * 8)) & 0xFF);
+            }
+            return InetAddress.getByAddress(quads);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private List<String> discoverLanPcServersBlocking() {
+        Set<String> found = new LinkedHashSet<>();
+        DatagramSocket sock = null;
+        try {
+            sock = new DatagramSocket();
+            sock.setBroadcast(true);
+            sock.setSoTimeout(450);
+
+            byte[] probe = LAN_DISCOVERY_PROBE.getBytes(StandardCharsets.UTF_8);
+            List<InetAddress> targets = new ArrayList<>();
+            targets.add(InetAddress.getByName("255.255.255.255"));
+            InetAddress subnetBcast = computeWifiBroadcastAddress();
+            if (subnetBcast != null) {
+                targets.add(subnetBcast);
+            }
+            for (InetAddress target : targets) {
+                try {
+                    DatagramPacket pkt = new DatagramPacket(probe, probe.length, target, LAN_DISCOVERY_PORT);
+                    sock.send(pkt);
+                } catch (Exception ignored) {
+                }
+            }
+
+            long deadline = System.currentTimeMillis() + 2100L;
+            byte[] buf = new byte[2048];
+            while (System.currentTimeMillis() < deadline) {
+                try {
+                    DatagramPacket resp = new DatagramPacket(buf, buf.length);
+                    sock.receive(resp);
+                    String body = new String(resp.getData(), 0, resp.getLength(), StandardCharsets.UTF_8);
+                    JSONObject obj = new JSONObject(body);
+                    int httpPort = obj.optInt("port", 8765);
+                    String senderIp = resp.getAddress() != null ? resp.getAddress().getHostAddress() : "";
+                    if (senderIp != null && !senderIp.isEmpty() && !senderIp.startsWith("127.")) {
+                        found.add("http://" + senderIp + ":" + httpPort);
+                    }
+                    String primary = obj.optString("primary_url", "");
+                    if (!primary.isEmpty()) {
+                        found.add(primary);
+                    }
+                    JSONArray urls = obj.optJSONArray("urls");
+                    if (urls != null) {
+                        for (int i = 0; i < urls.length(); i++) {
+                            String u = urls.optString(i, "");
+                            if (!u.isEmpty()) found.add(u);
+                        }
+                    }
+                } catch (Exception timeoutOrParse) {
+                    // continue listening until deadline
+                }
+            }
+        } catch (Exception e) {
+            appendNativeLog("WARNING", "wifi_discovery", "Loi quet UDP LAN: " + e.getMessage());
+        } finally {
+            if (sock != null) {
+                try {
+                    sock.close();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        return new ArrayList<>(found);
+    }
+
+    private void connectToRemotePcWithCheck(final String rawInput) {
+        final String targetUrl = normalizeServerUrl(rawInput);
+        if (targetUrl.isEmpty()) {
+            Toast.makeText(this, "Vui lòng nhập địa chỉ máy chủ PC (vd: 192.168.1.10:8765).", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this, "Đang kiểm tra kết nối tới " + targetUrl + "...", Toast.LENGTH_SHORT).show();
+        appendNativeLog("INFO", "wifi_connect", "Dang kiem tra ket noi PC: " + targetUrl);
+
+        new Thread(() -> {
+            String errReason = "";
+            boolean ok = false;
+            HttpURLConnection conn = null;
+            try {
+                URL healthUrl = new URL(targetUrl + "/api/health");
+                conn = (HttpURLConnection) healthUrl.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(4500);
+                conn.setReadTimeout(4500);
+                conn.setRequestProperty("User-Agent", "KASAndroid/" + KAS_VERSION);
+                int status = conn.getResponseCode();
+                if (status == 200) {
+                    StringBuilder sb = new StringBuilder();
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            sb.append(line);
+                        }
+                    }
+                    String body = sb.toString();
+                    if (body.contains("KAS") || body.contains("\"status\"")) {
+                        ok = true;
+                    } else {
+                        errReason = "Máy chủ phản hồi không phải KAS (HTTP 200 nhưng thiếu dữ liệu /api/health).";
+                    }
+                } else {
+                    errReason = "Máy chủ phản hồi mã HTTP " + status;
+                }
+            } catch (Exception e) {
+                errReason = e.getClass().getSimpleName() + ": " + (e.getMessage() != null ? e.getMessage() : "Không thể kết nối");
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.disconnect();
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+
+            final boolean reachable = ok;
+            final String finalErr = errReason;
+            runOnUiThread(() -> {
+                if (reachable) {
+                    SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                    prefs.edit()
+                            .putString(KEY_SERVER_MODE, "remote")
+                            .putString(KEY_REMOTE_URL, targetUrl)
+                            .apply();
+                    userManuallyNavigated = true;
+                    hideBootOverlaySmoothly();
+                    webView.loadUrl(targetUrl);
+                    appendNativeLog("INFO", "wifi_connect", "Ket noi PC thanh cong: " + targetUrl);
+                    Toast.makeText(MainActivity.this, "Đã kết nối máy chủ PC: " + targetUrl, Toast.LENGTH_SHORT).show();
+                } else {
+                    appendNativeLog("ERROR", "wifi_connect", "Khong ket noi duoc PC " + targetUrl + " -> " + finalErr);
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Chưa kết nối được tới PC")
+                            .setMessage(
+                                    "Địa chỉ: " + targetUrl + "\n"
+                                            + "Nguyên nhân: " + finalErr + "\n\n"
+                                            + "Cách khắc phục nhanh:\n"
+                                            + "1. Trên PC, mở KAS → tab Kho Dữ Liệu → bấm 'Bật Chia Sẻ Wi-Fi LAN' (hoặc chạy: kas android serve --port 8765).\n"
+                                            + "2. Kiểm tra điện thoại & PC đang dùng chung một mạng Wi-Fi.\n"
+                                            + "3. Nếu Windows Firewall chặn, mở cổng TCP 8765 (Private) trên PC."
+                            )
+                            .setPositiveButton("Đóng (Giữ chế độ hiện tại)", null)
+                            .setNeutralButton("Vẫn thử mở URL này", (d, w) -> {
+                                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                                prefs.edit()
+                                        .putString(KEY_SERVER_MODE, "remote")
+                                        .putString(KEY_REMOTE_URL, targetUrl)
+                                        .apply();
+                                userManuallyNavigated = true;
+                                hideBootOverlaySmoothly();
+                                webView.loadUrl(targetUrl);
+                            })
+                            .show();
+                }
+            });
+        }, "kas-wifi-check").start();
+    }
+
     public void showServerSwitcherDialog() {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String currentMode = prefs.getString(KEY_SERVER_MODE, "local");
         String currentRemote = prefs.getString(KEY_REMOTE_URL, "http://192.168.1.10:8765");
 
         LinearLayout layout = new LinearLayout(this);
@@ -391,41 +753,181 @@ public class MainActivity extends Activity {
         layout.setPadding(dp(22), dp(14), dp(22), dp(8));
 
         TextView hint = new TextView(this);
-        hint.setText("Nhập địa chỉ LAN của máy chủ KAS trên máy tính (hoặc bấm 'Dùng Máy Chủ Nội Bộ' để chạy độc lập 100% trên điện thoại Android):");
-        hint.setTextSize(13.5f);
+        hint.setText(
+                "Chế độ hiện tại: " + ("remote".equals(currentMode) ? "PC Wi-Fi (" + currentRemote + ")" : "Nội bộ trên Android")
+                        + "\n\nBấm 'Tự tìm PC cùng Wi-Fi' hoặc nhập địa chỉ IP LAN của PC (trên PC cần bật 'Chia sẻ Wi-Fi LAN' hoặc chạy `kas android serve`):"
+        );
+        hint.setTextSize(13f);
         hint.setPadding(0, 0, 0, dp(10));
         layout.addView(hint);
 
         final EditText input = new EditText(this);
         input.setText(currentRemote);
-        input.setHint("http://192.168.1.x:8765");
+        input.setHint("192.168.1.x:8765");
         input.setSingleLine(true);
         layout.addView(input);
 
-        new AlertDialog.Builder(this)
-                .setTitle("Chế độ Máy chủ KAS trên Android")
-                .setView(layout)
-                .setPositiveButton("Kết nối PC qua Wi-Fi", (dialog, which) -> {
-                    String raw = input.getText().toString().trim();
-                    if (!raw.isEmpty()) {
-                        if (!raw.startsWith("http://") && !raw.startsWith("https://")) {
-                            raw = "http://" + raw;
-                        }
-                        prefs.edit()
-                                .putString(KEY_SERVER_MODE, "remote")
-                                .putString(KEY_REMOTE_URL, raw)
-                                .apply();
-                        webView.loadUrl(raw);
-                        Toast.makeText(MainActivity.this, "Đã chuyển sang máy chủ LAN: " + raw, Toast.LENGTH_SHORT).show();
+        final TextView scanStatus = new TextView(this);
+        scanStatus.setTextSize(12f);
+        scanStatus.setTextColor(Color.parseColor("#2F81F7"));
+        scanStatus.setPadding(0, dp(6), 0, dp(4));
+        layout.addView(scanStatus);
+
+        final Button scanBtn = new Button(this);
+        scanBtn.setText("Tự tìm PC cùng Wi-Fi");
+        scanBtn.setAllCaps(false);
+        scanBtn.setOnClickListener(v -> {
+            scanBtn.setEnabled(false);
+            scanStatus.setText("Đang quét máy chủ KAS trong mạng Wi-Fi (2 giây)...");
+            new Thread(() -> {
+                List<String> urls = discoverLanPcServersBlocking();
+                runOnUiThread(() -> {
+                    scanBtn.setEnabled(true);
+                    if (urls.isEmpty()) {
+                        scanStatus.setText("Chưa tìm thấy PC nào đang bật Chia sẻ Wi-Fi LAN (cổng 8765/8766). Hãy bật trên PC hoặc nhập IP thủ công.");
+                    } else {
+                        input.setText(urls.get(0));
+                        scanStatus.setText("Đã tìm thấy PC KAS: " + urls.get(0) + (urls.size() > 1 ? " (+" + (urls.size() - 1) + " IP khác)" : ""));
                     }
-                })
-                .setNeutralButton("Dùng Máy Chủ Nội Bộ (Android)", (dialog, which) -> {
+                });
+            }, "kas-lan-scan").start();
+        });
+        layout.addView(scanBtn);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Kết nối Máy chủ KAS (Android / PC Wi-Fi)")
+                .setView(layout)
+                .setPositiveButton("Kết nối PC qua Wi-Fi", (dialog, which) -> connectToRemotePcWithCheck(input.getText().toString()))
+                .setNeutralButton("Dùng Máy Chủ Nội Bộ", (dialog, which) -> {
                     prefs.edit().putString(KEY_SERVER_MODE, "local").apply();
+                    userManuallyNavigated = true;
+                    hideBootOverlaySmoothly();
                     webView.loadUrl(localServerUrl);
+                    appendNativeLog("INFO", "wifi_connect", "Chuyen ve may chu noi bo Android: " + localServerUrl);
                     Toast.makeText(MainActivity.this, "Đang dùng máy chủ KAS nội bộ trên Android.", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Đóng", null)
                 .show();
+    }
+
+    public void installApkFile(final String localApkPath, final String fallbackUrl) {
+        try {
+            File apkFile = (localApkPath != null && !localApkPath.trim().isEmpty()) ? new File(localApkPath.trim()) : null;
+            if (apkFile == null || !apkFile.isFile() || !apkFile.getName().toLowerCase(Locale.US).endsWith(".apk")) {
+                appendNativeLog("WARNING", "updater", "Khong tim thay tep APK cuc bo, chuyen sang tai qua trinh duyet: " + localApkPath);
+                if (fallbackUrl != null && (fallbackUrl.startsWith("https://") || fallbackUrl.startsWith("http://"))) {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl)));
+                } else {
+                    Toast.makeText(this, "Không tìm thấy gói APK cập nhật.", Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+
+            if (!getPackageManager().canRequestPackageInstalls()) {
+                pendingApkInstallPath = apkFile.getAbsolutePath();
+                appendNativeLog("INFO", "updater", "Yeu cau quyen REQUEST_INSTALL_PACKAGES tu nguoi dung");
+                new AlertDialog.Builder(this)
+                        .setTitle("Cấp quyền cài đặt bản cập nhật KAS")
+                        .setMessage("Android yêu cầu bật quyền 'Cho phép từ nguồn này' cho KAS để cài đặt tự động bản cập nhật mới. Sau khi bật và quay lại, KAS sẽ tự mở trình cài đặt ngay.")
+                        .setPositiveButton("Mở Cài đặt Android", (d, w) -> {
+                            try {
+                                Intent permIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+                                permIntent.setData(Uri.parse("package:" + getPackageName()));
+                                startActivity(permIntent);
+                            } catch (Exception e) {
+                                appendNativeLog("ERROR", "updater", "Khong mo duoc man hinh cap quyen cai dat APK: " + e.getMessage());
+                            }
+                        })
+                        .setNegativeButton("Để sau", (d, w) -> pendingApkInstallPath = null)
+                        .show();
+                return;
+            }
+
+            Uri contentUri = KasFileProvider.buildUriForFile(this, apkFile);
+            Intent installIntent = new Intent(Intent.ACTION_VIEW);
+            installIntent.setDataAndType(contentUri, "application/vnd.android.package-archive");
+            installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(installIntent);
+            appendNativeLog("INFO", "updater", "Da mo trinh cai dat Android APK thanh cong: " + apkFile.getName());
+        } catch (Exception e) {
+            appendNativeLog("ERROR", "updater", "Loi mo trinh cai dat APK: " + e.getMessage());
+            Toast.makeText(this, "Lỗi mở trình cài đặt APK: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            if (fallbackUrl != null && (fallbackUrl.startsWith("https://") || fallbackUrl.startsWith("http://"))) {
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl)));
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    public void shareExportedLogFile(final String filename, final String content) {
+        try {
+            String safeName = (filename == null || filename.trim().isEmpty()) ? "kas-logs.txt" : filename.trim();
+            safeName = safeName.replaceAll("[^A-Za-z0-9._-]", "_");
+            if (!safeName.endsWith(".txt") && !safeName.endsWith(".json") && !safeName.endsWith(".log")) {
+                safeName = safeName + ".txt";
+            }
+            File dir = new File(getFilesDir(), "kas/data/logs");
+            if (!dir.exists()) {
+                dir.mkdirs();
+            }
+            File out = new File(dir, safeName);
+            try (FileOutputStream fos = new FileOutputStream(out, false)) {
+                fos.write((content != null ? content : "").getBytes(StandardCharsets.UTF_8));
+            }
+            Uri uri = KasFileProvider.buildUriForFile(this, out);
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType(safeName.endsWith(".json") ? "application/json" : "text/plain");
+            share.putExtra(Intent.EXTRA_STREAM, uri);
+            share.putExtra(Intent.EXTRA_SUBJECT, "Nhật kí chẩn đoán KAS v" + KAS_VERSION);
+            share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(share, "Xuất / Chia sẻ tệp nhật kí KAS"));
+            appendNativeLog("INFO", "logs", "Da xuat & chia se tep nhat ki: " + safeName);
+        } catch (Exception e) {
+            appendNativeLog("ERROR", "logs", "Loi chia se tep nhat ki: " + e.getMessage());
+            Toast.makeText(this, "Không thể chia sẻ tệp nhật kí: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private String computeSigningInfoJson() {
+        JSONObject obj = new JSONObject();
+        try {
+            obj.put("package_name", getPackageName());
+            obj.put("sha1", "");
+            obj.put("sha256", "");
+            Signature[] sigs = null;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES);
+                SigningInfo si = pi.signingInfo;
+                if (si != null) {
+                    sigs = si.hasMultipleSigners() ? si.getApkContentsSigners() : si.getSigningCertificateHistory();
+                }
+            } else {
+                PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), PackageManager.GET_SIGNATURES);
+                sigs = pi.signatures;
+            }
+            if (sigs != null && sigs.length > 0) {
+                byte[] certBytes = sigs[0].toByteArray();
+                obj.put("sha1", digestHexColon(certBytes, "SHA-1"));
+                obj.put("sha256", digestHexColon(certBytes, "SHA-256"));
+            }
+        } catch (Exception e) {
+            appendNativeLog("WARNING", "signing", "Khong doc duoc van tay chung chi APK: " + e.getMessage());
+        }
+        return obj.toString();
+    }
+
+    private static String digestHexColon(byte[] data, String alg) throws Exception {
+        MessageDigest md = MessageDigest.getInstance(alg);
+        byte[] digest = md.digest(data);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < digest.length; i++) {
+            if (i > 0) sb.append(':');
+            sb.append(String.format(Locale.US, "%02X", digest[i] & 0xFF));
+        }
+        return sb.toString();
     }
 
     public void requestAndroidStoragePermissionFlow() {
@@ -454,6 +956,7 @@ public class MainActivity extends Activity {
                 }
             }
         } catch (Exception e) {
+            appendNativeLog("ERROR", "storage_perm", "Loi yeu cau quyen bo nho: " + e.getMessage());
             Toast.makeText(this, "Không thể mở màn hình cấp quyền: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
@@ -544,6 +1047,26 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 return "{}";
             }
+        }
+
+        @JavascriptInterface
+        public String getSigningInfo() {
+            return computeSigningInfoJson();
+        }
+
+        @JavascriptInterface
+        public void installApkUpdate(String localApkPath, String fallbackUrl) {
+            runOnUiThread(() -> installApkFile(localApkPath, fallbackUrl));
+        }
+
+        @JavascriptInterface
+        public String getNativeLogs() {
+            return readNativeLogsText();
+        }
+
+        @JavascriptInterface
+        public void shareExportedLog(String filename, String content) {
+            runOnUiThread(() -> shareExportedLogFile(filename, content));
         }
 
         @JavascriptInterface

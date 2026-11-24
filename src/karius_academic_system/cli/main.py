@@ -648,6 +648,13 @@ def _cmd_android(argv: List[str]) -> int:
         sc.log(f"=== {APP_NAME} ({APP_SHORT}) v{__version__} — HỆ SINH THÁI ANDROID ===")
         sc.log(f"  Môi trường hiện tại : {info['runtime_flavor']} (is_android={info['is_android']})")
         sc.log(f"  Mã gói Android APK  : {info['package_id']}")
+        signing = info.get("signing") or {}
+        if signing.get("sha1"):
+            sc.log(f"  Chứng chỉ SHA-1     : {signing['sha1']}")
+            sc.log(f"  Chứng chỉ SHA-256   : {signing.get('sha256', '')}")
+        sc.log(
+            f"  Chế độ Wi-Fi LAN    : {'Đang MỞ (0.0.0.0)' if info.get('lan_enabled') else 'Chỉ cục bộ (127.0.0.1 — chạy `kas android serve` hoặc bật trong UI)'}"
+        )
         sc.log(f"  Tải APK (Latest)    : {info['downloads']['apk_latest_url']}")
         sc.log(f"  Cài trên Termux     : {info['downloads']['termux_one_liner']}")
         if info["lan_urls"]:
@@ -677,10 +684,16 @@ def _cmd_android(argv: List[str]) -> int:
         return 0
 
     if act == "serve":
-        info = android_bridge.detect_android_environment(port=args.port)
+        info = android_bridge.detect_android_environment(port=args.port, listening_host=args.host)
+        fw = android_bridge.try_open_windows_firewall_ports(http_port=args.port)
         sc.log("=== CHẾ ĐỘ MÁY CHỦ GHÉP NỐI ANDROID QUA WI-FI / LAN ===")
+        if fw.get("attempted"):
+            sc.log(f"  [Firewall] {fw.get('message')}")
+            if not fw.get("ok") and fw.get("manual_cmd"):
+                sc.log(f"  [Gợi ý mở Firewall Admin]: {fw['manual_cmd']}")
         for u in info["lan_urls"]:
             sc.log(f"  → Mở trên điện thoại Android (ứng dụng KAS hoặc trình duyệt): {u}")
+        sc.log(f"  → Tự khám phá cùng Wi-Fi (UDP Auto-Discovery): cổng {android_bridge.LAN_DISCOVERY_PORT}")
         if not sc.is_app_lock_enabled():
             sc.log("  [GỢI Ý BẢO MẬT] Khi mở mạng LAN, bạn nên bật Khóa Ứng Dụng bằng `kas account lock on`.")
         from karius_academic_system.web.app import run_web_server
@@ -694,6 +707,70 @@ def _cmd_android(argv: List[str]) -> int:
     return 1
 
 
+def _cmd_logs(argv: List[str]) -> int:
+    ap = argparse.ArgumentParser(
+        prog="kas logs",
+        description="Xem, lọc, dọn dẹp và xuất tệp Nhật kí Hệ thống & Báo lỗi KAS.",
+    )
+    sub = ap.add_subparsers(dest="action")
+
+    p_show = sub.add_parser("show", help="Xem các dòng nhật kí mới nhất (mặc định)")
+    p_show.add_argument("--level", default="", help="Lọc theo mức độ: ERROR, WARNING, INFO")
+    p_show.add_argument("--category", default="", help="Lọc theo phân nhóm (vd: updater, android_lan, web_http)")
+    p_show.add_argument("--q", default="", help="Tìm kiếm từ khóa trong nội dung nhật kí")
+    p_show.add_argument("--limit", type=int, default=60, help="Số dòng tối đa (mặc định 60)")
+    p_show.add_argument("--json", action="store_true", dest="as_json", help="Xuất định dạng JSON")
+
+    p_exp = sub.add_parser("export", help="Xuất gói báo cáo nhật kí & chẩn đoán ra tệp (.txt / .json)")
+    p_exp.add_argument("--out", default="", help="Đường dẫn tệp xuất (mặc định tự đặt tên trong thư mục hiện tại)")
+    p_exp.add_argument("--format", choices=["txt", "json"], default="txt", help="Định dạng tệp xuất")
+    p_exp.add_argument("--level", default="", help="Lọc theo mức độ trước khi xuất")
+    p_exp.add_argument("--limit", type=int, default=1000, help="Số dòng tối đa khi xuất")
+
+    sub.add_parser("clear", help="Xóa sạch các tệp nhật kí cũ")
+
+    eff_argv = list(argv or ["show"])
+    if eff_argv and eff_argv[0].startswith("-"):
+        eff_argv = ["show", *eff_argv]
+    args = ap.parse_args(eff_argv)
+    act = args.action or "show"
+
+    if act == "show":
+        data = sc.list_logs(level=args.level, category=args.category, query=args.q, limit=args.limit)
+        if args.as_json:
+            print(json.dumps(data, ensure_ascii=False, indent=2))
+            return 0
+        c = data["counts"]
+        sc.log(
+            f"=== NHẬT KÍ HỆ THỐNG KAS v{__version__} === "
+            f"Tổng: {c['total']} | Lỗi: {c['errors']} | Cảnh báo: {c['warnings']} | Thư mục: {data['log_dir']}"
+        )
+        for e in data["entries"]:
+            print(
+                f"[{e.get('ts', '')}] [{str(e.get('level', 'INFO')):<7}] "
+                f"[{e.get('source', '')}/{e.get('category', '')}] {e.get('message', '')}"
+            )
+            if e.get("detail") and e.get("detail") != e.get("message"):
+                print(f"    Chi tiết: {e['detail']}")
+        return 0
+
+    if act == "export":
+        fname, _ctype, raw = sc.export_logs_bundle(fmt=args.format, level=args.level, limit=args.limit)
+        out_path = Path(args.out).expanduser() if args.out else (Path.cwd() / fname)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(raw)
+        sc.log(f"[LOGS] Đã xuất tệp nhật kí chẩn đoán ({sc.human_size(len(raw))}): {out_path.resolve()}")
+        return 0
+
+    if act == "clear":
+        res = sc.clear_logs()
+        sc.log(f"[LOGS] Đã xóa {res['removed_files']} tệp nhật kí cũ trong {res['log_dir']}.")
+        return 0
+
+    ap.print_help()
+    return 1
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -702,6 +779,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             except Exception:
                 pass
 
+    sc.install_global_exception_hooks()
     sc.refresh_system_path()
     raw_args = list(sys.argv[1:] if argv is None else argv)
 
@@ -722,6 +800,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "duyet",
         "browse",
         "android",
+        "logs",
+        "nhat-ki",
         "rules",
         "ai",
         "mcp",
@@ -768,6 +848,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         return _cmd_browse(rest)
     if cmd == "android":
         return _cmd_android(rest)
+    if cmd in {"logs", "nhat-ki"}:
+        return _cmd_logs(rest)
     if cmd == "rules":
         return _cmd_rules(rest)
     if cmd == "settings":

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Karius Academic System</string>
+    <string name="app_name">KAS</string>
+    <string name="app_full_name">Karius Academic System</string>
 </resources>

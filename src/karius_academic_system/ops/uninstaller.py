@@ -63,6 +63,8 @@ def _windows_shortcuts() -> List[Path]:
     onedrive_desktop = user_prof / "OneDrive" / "Desktop"
     start_menu_dir = appdata / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Karius Academic System"
     candidates = [
+        desktop / "KAS.lnk",
+        onedrive_desktop / "KAS.lnk",
         desktop / "Karius Academic System (KAS).lnk",
         onedrive_desktop / "Karius Academic System (KAS).lnk",
         start_menu_dir,
@@ -492,6 +494,8 @@ def _generate_windows_detached_ps1(
         "$desktop = [Environment]::GetFolderPath('Desktop')",
         "$oneDriveDesktop = Join-Path $env:USERPROFILE 'OneDrive\\Desktop'",
         "$startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Karius Academic System'",
+        "Remove-Item -Path (Join-Path $desktop 'KAS.lnk') -Force -ErrorAction SilentlyContinue",
+        "Remove-Item -Path (Join-Path $oneDriveDesktop 'KAS.lnk') -Force -ErrorAction SilentlyContinue",
         "Remove-Item -Path (Join-Path $desktop 'Karius Academic System (KAS).lnk') -Force -ErrorAction SilentlyContinue",
         "Remove-Item -Path (Join-Path $oneDriveDesktop 'Karius Academic System (KAS).lnk') -Force -ErrorAction SilentlyContinue",
         "Remove-Item -Path $startMenu -Recurse -Force -ErrorAction SilentlyContinue",

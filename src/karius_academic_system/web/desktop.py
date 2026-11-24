@@ -117,10 +117,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = ap.parse_args(argv)
 
     set_process_exit_allowed(True)
+    sc.install_global_exception_hooks()
 
-    host = st.ui_host or "127.0.0.1"
+    host = (st.ui_host or "127.0.0.1").strip()
+    browser_host = "127.0.0.1" if host in {"", "0.0.0.0", "::"} else host
     port = args.port if args.port > 0 else _find_free_port(host)
-    url = f"http://{host}:{port}"
+    url = f"http://{browser_host}:{port}"
 
     if args.port > 0:
         existing = _probe_running_kas(url)
@@ -137,11 +139,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         srv_thread, stop_fn, engine = start_embedded_server(host=host, port=port, prefer_stdlib=args.stdlib)
     except OSError:
         port = _find_free_port(host)
-        url = f"http://{host}:{port}"
+        url = f"http://{browser_host}:{port}"
         srv_thread, stop_fn, engine = start_embedded_server(host=host, port=port, prefer_stdlib=args.stdlib)
 
     is_stdlib = engine == "stdlib-http"
-    sc.log(f"{APP_NAME} ({APP_SHORT}) Desktop v{__version__} ({engine}) sẵn sàng tại {url}")
+    sc.log(f"{APP_NAME} ({APP_SHORT}) Desktop v{__version__} ({engine}) sẵn sàng tại {url} (bind={host}:{port})")
 
     try:
         if not args.browser:

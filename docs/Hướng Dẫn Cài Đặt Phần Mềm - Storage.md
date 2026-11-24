@@ -1,4 +1,4 @@
-# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.8.0`)
+# HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG — KARIUS ACADEMIC SYSTEM (KAS `v1.9.0`)
 
 ## 1. Chọn Phương thức Cài đặt & Cập nhật
 
@@ -7,7 +7,7 @@
 > [!IMPORTANT]
 > **Windows 11 Smart App Control (SAC)** chặn các tệp `.exe` chưa ký số thương mại và không có nút *Run anyway*. Bạn **KHÔNG cần tắt Smart App Control** — bộ cài KAS dùng Python chính chủ + máy chủ thuần chuẩn (`--stdlib`) + cửa sổ **Microsoft Edge (`--app`)** đã ký số bởi Microsoft.
 
-**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.8.0`):**
+**Cách A1 — 1 lệnh PowerShell (Nhanh nhất — cài mới hoặc cập nhật lên `v1.9.0`):**
 Mở **PowerShell** và dán 1 dòng duy nhất:
 ```powershell
 irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/windows/install_windows_sac_safe.ps1 | iex
@@ -15,21 +15,21 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
 *(Nếu máy đã cài KAS `v1.4.0+`, bạn chỉ cần bấm **Cập nhật tự động ngay** trong giao diện hoặc chạy `kas update`.)*
 
 **Cách A2 — Tải ZIP & Nhấp đúp (Hoạt động cả khi không có Internet):**
-1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.8.0`** hoặc từ Google Drive:
+1. Tải tệp **`kas-windows-sac-safe.zip`** từ **GitHub Releases `v1.9.0`** hoặc từ Google Drive:
    `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-windows-sac-safe.zip`.
 2. Giải nén toàn bộ vào một thư mục (ví dụ: `Downloads\kas-windows-sac-safe`).
 3. **Nhấp đúp `Cai_Dat_KAS_Windows11.cmd`** ngay trong thư mục vừa giải nén.
-4. Sau khi xong, nhấp đúp biểu tượng **Karius Academic System (KAS)** trên Desktop!
+4. Sau khi xong, nhấp đúp biểu tượng **KAS** trên Desktop!
 
 ### Cách B — Cài đặt trên Hệ điều hành Android (Điện thoại & Máy tính bảng · Android 8.0+)
-1. **Ứng dụng Android Gốc (`kas-android.apk` · Giao diện Material 3 `v1.8.0`)**: Tải **`kas-android.apk`** từ **GitHub Releases `v1.8.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt (chạy độc lập 100% trên điện thoại với Python 3.11 + SQLite nhúng sẵn).
+1. **Ứng dụng Android Gốc (`kas-android.apk` · Tên hiển thị `KAS` · Ký số cố định SHA-1 `v1.9.0`)**: Tải **`kas-android.apk`** từ **GitHub Releases `v1.9.0`** hoặc từ Google Drive `[A] STORAGE / [00] TỔNG QUAN / [03] QUẢN LÝ / [02] GÓI PHÁT HÀNH / kas-android.apk` và chạm để cài đặt *(nếu đang dùng bản `v1.8.0` trở xuống, hãy gỡ bản cũ 1 lần duy nhất trước khi cài `v1.9.0`; từ `v1.9.0+` trở đi mọi bản cập nhật đều tự nâng cấp tại chỗ)*.
 2. **Hoặc cài trên Android Termux (1 lệnh)**:
    ```bash
    curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash
    ```
 
 ### Cách C — Tải Binary Độc lập (macOS / Linux / Windows không bật SAC)
-1. Tải tệp từ **GitHub Releases `v1.8.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
+1. Tải tệp từ **GitHub Releases `v1.9.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
 2. Kiểm tra mã băm trong `SHA256SUMS.txt`.
 3. Chạy `kas doctor` hoặc `kas desktop`.
 
@@ -130,9 +130,10 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
   kas update --check                  # Kiểm tra phiên bản mới nhất
   kas update                          # Tự tải, xác thực SHA-256 và nâng cấp ngay
   kas update --rollback               # Quay về phiên bản trước đó trong lịch sử
-  kas update --version v1.8.0         # Cài một phiên bản cụ thể
+  kas update --version v1.9.0         # Cài một phiên bản cụ thể
   kas update --history                # Xem lịch sử cập nhật
   ```
+  - **Trên ứng dụng Android (`kas-android.apk`)**: bấm **Tải & Cập nhật tự động ngay** trong tab *Cài Đặt* — KAS tự tải tệp `kas-android.apk` mới nhất, kiểm chứng mã băm `SHA256SUMS.txt` và mở trực tiếp **Trình Cài Đặt Gói Android** (yêu cầu bật quyền *Cho phép từ nguồn này* 1 lần đầu tiên).
 
 ---
 
@@ -160,18 +161,35 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
 
 ---
 
-## 8. Vận Hành & Giao Diện Material Design 3 Trên Android (`kas-android.apk` & `kas android` · `v1.8.0`)
+## 8. Vận Hành Android, Vân Tay SHA-1 & Ghép Nối PC Wi-Fi (`kas-android.apk` & `kas android` · `v1.9.0`)
 
-- **Ứng dụng Android Gốc Material 3 (`kas-android.apk`)**:
-  - Khởi động mượt không nháy trắng với **Material 3 Splash Screen**, tự khởi chạy máy chủ Python 3.11 + SQLite trên điện thoại/tablet Android (`127.0.0.1:8765`) và tạo sẵn **Kho Tài Liệu Android** (`[00] TỔNG QUAN`, `[01] HỌC THUẬT`, `[02] TƯ LIỆU`).
-  - **Đồng bộ thanh trạng thái & điều hướng hệ thống**: Tự đổi màu `StatusBar` / `NavigationBar` và độ tương phản biểu tượng theo chủ đề **Obsidian Ink (Tối)** / **Archival Paper (Sáng)**, kèm phản hồi rung chạm nhẹ (Haptic Feedback).
-  - **Điều hướng cảm ứng chuẩn Android**: Thanh điều hướng đáy Material 3 có chỉ báo viên thuốc (*Active Pill*), **Chip Chuyển Máy Chủ 1 chạm** (`Nội bộ` / `PC Wi-Fi`) ngay trên Top App Bar & Ngăn kéo bên, **Ngăn kéo Cây thư mục** và **Bottom Sheet Xem trước tệp** (vuốt xuống thanh kéo để đóng, vuốt cạnh/bấm nút Back để đóng từng lớp và lùi thư mục).
-  - Tại thẻ **Hệ Sinh Thái Android & Ghép Nối Di Động** (tab *Kho Dữ Liệu*) hoặc ngay trong Ngăn kéo Menu, bấm **Đổi Máy Chủ (Nội bộ / PC Wi-Fi)** để chuyển giữa kho trên điện thoại và máy chủ KAS trên máy tính, hoặc bấm **Cấp quyền Bộ nhớ Android** để kết nối mọi thư mục trong `/storage/emulated/0/...`.
+- **Chứng chỉ ký số phát hành cố định (`io.github.kariusnocr.kas`)**:
+  - **SHA-1**: `FF:D4:BA:CE:3C:48:C1:53:AF:BC:44:B3:AD:FE:6D:5C:31:8B:61:BC`
+  - **SHA-256**: `EC:65:9D:B8:08:53:33:6C:CE:BA:66:46:F2:3F:19:21:D6:2F:12:D3:DB:8B:6C:08:BE:7F:1F:51:14:1E:A0:96`
+  - *(Lưu ý Google Cloud OAuth: để đăng nhập Google Drive trong KAS PC & Android, hãy tạo OAuth Client loại **Desktop app** lấy `credentials.json`; nếu bạn cần thêm OAuth Client loại **Android**, hãy nhập Package `io.github.kariusnocr.kas` và vân tay SHA-1 ở trên.)*
+- **Ghép nối PC ↔ Android qua Wi-Fi / LAN (2 bước)**:
+  1. **Trên PC**: Mở KAS → tab *Kho Dữ Liệu* → thẻ *Hệ Sinh Thái Android* → bấm **Bật Chia Sẻ Wi-Fi LAN** *(hoặc chạy `kas android serve --port 8765`)* để mở lắng nghe `0.0.0.0`, tự bật bộ khám phá UDP `8766` và mở tường lửa Windows Private.
+  2. **Trên điện thoại Android**: Mở ứng dụng **KAS** → bấm **Đổi Máy Chủ** → chọn **Tự tìm PC cùng Wi-Fi** (hoặc nhập địa chỉ `http://192.168.x.x:8765`). KAS tự kiểm tra `/api/health` trước khi kết nối và có hộp thoại khôi phục tức thì nếu mất mạng.
 - **Lệnh CLI `kas android`**:
   ```bash
-  kas android info                    # Xem trạng thái Android, link tải APK & danh sách IP LAN
+  kas android info                    # Xem trạng thái Android, vân tay SHA-1, link tải APK & IP Wi-Fi LAN
   kas android init-vault              # Khởi tạo & kích hoạt kho tài liệu cục bộ trên Android
-  kas android serve --port 8765       # Mở máy chủ KAS qua Wi-Fi/LAN để điện thoại kết nối
+  kas android serve --port 8765       # Mở máy chủ KAS qua Wi-Fi/LAN + tự khám phá UDP 8766
+  ```
+
+---
+
+## 9. Hệ Thống Nhật Kí & Báo Lỗi (`kas logs` / `kas nhat-ki` · `v1.9.0`)
+
+- KAS tự động ghi nhận có xoay vòng (`2 MB × 3`, tự động ẩn token/mật khẩu) mọi sự kiện quan trọng, lỗi máy chủ HTTP 500, ngoại lệ Python chưa được bắt, lỗi kết nối Wi-Fi, lỗi cập nhật, lỗi giao diện JS và `android_native.log` vào `~/.local/share/kas/logs/`.
+- **Trên giao diện KAS**: Mở tab **Chẩn đoán → Nhật Kí Hệ Thống & Báo Lỗi** (hoặc bấm nút **Nhật kí & Báo lỗi** trong Trung Tâm Cập Nhật) để lọc theo mức độ (`ERROR`, `WARNING`, `INFO`), tìm kiếm từ khóa và bấm **Xuất tệp .TXT** hoặc **Xuất .JSON** *(trên Android tự mở bảng Chia sẻ để gửi/lưu tệp)*.
+- **Qua dòng lệnh (`kas logs` / `kas nhat-ki`)**:
+  ```bash
+  kas logs                            # Xem 50 bản ghi nhật kí mới nhất
+  kas logs --level ERROR --limit 100  # Chỉ xem các báo lỗi
+  kas logs export --format txt        # Xuất tệp báo cáo chẩn đoán .TXT (kèm thông tin hệ thống)
+  kas logs export --format json       # Xuất tệp .JSON chi tiết
+  kas logs clear                      # Xóa nhật kí cũ & bắt đầu phiên ghi mới
   ```
 
 
