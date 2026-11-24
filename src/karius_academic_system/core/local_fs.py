@@ -1,7 +1,7 @@
 """Trình điều khiển hệ thống tệp cục bộ (`LocalFSBackend`) cho Karius Academic System (KAS) v1.0.
 
 Cho phép KAS quản lý trực tiếp mọi thư mục trên máy cá nhân, ổ cứng rời, NAS hoặc thư mục đồng bộ
-OneDrive / iCloud / Google Drive for Desktop mà không cần Internet hay OAuth 2.0.
+OneDrive / Google Drive for Desktop mà không cần Internet hay OAuth 2.0.
 """
 
 from __future__ import annotations

@@ -682,7 +682,7 @@ def apply_update(
             "logs": logs,
         }
 
-    # LUỒNG DESKTOP / LINUX / MACOS / TERMUX (.whl qua pip)
+    # LUỒNG WINDOWS / LINUX / TERMUX (.whl qua pip)
     try:
         whl_path, verify_meta = download_and_verify_wheel(rel, log_cb=_emit)
     except Exception as exc:

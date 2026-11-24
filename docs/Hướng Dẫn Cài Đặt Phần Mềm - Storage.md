@@ -28,8 +28,8 @@ irm https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/p
    curl -fsSL https://raw.githubusercontent.com/kariusnocr/storage-management-suite/main/packaging/android/install_android_termux.sh | bash
    ```
 
-### Cách C — Tải Binary Độc lập (macOS / Linux / Windows không bật SAC)
-1. Tải tệp từ **GitHub Releases `v1.9.0`** (`kas-windows-x64.exe`, `kas-macos-arm64`, `kas-linux-x64`).
+### Cách C — Tải Binary Độc lập (Linux / Windows không bật SAC)
+1. Tải tệp từ **GitHub Releases `v1.9.0`** (`kas-windows-x64.exe`, `kas-linux-x64`).
 2. Kiểm tra mã băm trong `SHA256SUMS.txt`.
 3. Chạy `kas doctor` hoặc `kas desktop`.
 
@@ -139,8 +139,8 @@ Bạn có thể gỡ cài đặt **Karius Academic System (KAS)** bằng bất k
 
 ## 6. Giao Diện Desktop Workspace Shell & Phím Tắt (`v1.5.0+`)
 
-- **Bố cục Thanh bên thu gọn (Collapsible Sidebar Rail)**: 4 nhóm chức năng rõ ràng (*Kho Tri Thức*, *Quản trị & Chuẩn hóa*, *Trợ Lý & Công cụ*, *Hệ thống*), hỗ trợ thu gọn còn thanh biểu tượng `68px` bằng nút góc dưới thanh bên hoặc phím tắt **`Ctrl+B`** (`Cmd+B`).
-- **Bảng Lệnh Toàn Cục (`Ctrl+K` / `Cmd+K` — Command Palette)**: Tìm nhanh tệp tin theo thời gian thực qua SQLite FTS5, chuyển kho dữ liệu, mở màn hình chức năng, kích hoạt quét chỉ mục / cập nhật / đổi Sáng-Tối hoặc thực thi trực tiếp lệnh `kas ...`.
+- **Bố cục Thanh bên thu gọn (Collapsible Sidebar Rail)**: 4 nhóm chức năng rõ ràng (*Kho Tri Thức*, *Quản trị & Chuẩn hóa*, *Trợ Lý & Công cụ*, *Hệ thống*), hỗ trợ thu gọn còn thanh biểu tượng `68px` bằng nút góc dưới thanh bên hoặc phím tắt **`Ctrl+B`**.
+- **Bảng Lệnh Toàn Cục (`Ctrl+K` — Command Palette)**: Tìm nhanh tệp tin theo thời gian thực qua SQLite FTS5, chuyển kho dữ liệu, mở màn hình chức năng, kích hoạt quét chỉ mục / cập nhật / đổi Sáng-Tối hoặc thực thi trực tiếp lệnh `kas ...`.
 - **Hai chủ đề màu sắc học thuật**: **Obsidian Ink (Tối)** và **Archival Paper (Sáng)**, đi kèm thanh biểu đồ phân bố dung lượng nhánh trên trang Tổng quan, hộp thoại xác nhận tùy biến và thông báo Toast.
 
 ---

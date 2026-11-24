@@ -1,4 +1,4 @@
-"""Trình điều khiển Google Drive API v3 trực tiếp (OAuth 2.0) chạy độc lập trên Windows/macOS/Linux.
+"""Trình điều khiển Google Drive API v3 trực tiếp (OAuth 2.0) chạy độc lập trên Windows/Linux/Android.
 
 Cài đặt thư viện phụ thuộc (optional extra `[drive-api]`):
     pip install "storage-management-suite[drive-api]"
