@@ -1,13 +1,9 @@
-/* ==========================================================================
-   Karius Academic System (KAS) v1.8.0 — Android & Desktop PWA Service Worker
-   Network-first for /api/* · Stale-while-revalidate for /static/* & shell
-   ========================================================================== */
-
-const CACHE_NAME = 'kas-pwa-v1.8.0';
+/* Karius Academic System (KAS) v1.9.0 — Android & Desktop PWA Service Worker */
+const CACHE_NAME = 'kas-pwa-v1.9.0';
 const SHELL_ASSETS = [
   '/',
-  '/static/styles.css?v=1.8.0',
-  '/static/app.js?v=1.8.0',
+  '/static/styles.css?v=1.9.0',
+  '/static/app.js?v=1.9.0',
   '/static/icon.svg',
   '/manifest.webmanifest',
 ];
@@ -33,16 +29,15 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.pathname.startsWith('/api/')) return;
-
   event.respondWith(
     fetch(req)
       .then((res) => {
         if (res && res.status === 200 && url.origin === self.location.origin) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {});
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
         }
         return res;
       })
-      .catch(() => caches.match(req).then((cached) => cached || caches.match('/')))
+      .catch(() => caches.match(req))
   );
 });

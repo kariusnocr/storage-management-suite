@@ -1,9 +1,9 @@
 @echo off
 setlocal
-title Go cai dat Karius Academic System (KAS) v1.8.0 - Windows 11
+title Go cai dat Karius Academic System (KAS) v1.9.0 - Windows 11
 
 echo ========================================================================
-echo   KARIUS ACADEMIC SYSTEM (KAS) v1.8.0 - TRINH GO CAI DAT 1 NHAP DUP
+echo   KARIUS ACADEMIC SYSTEM (KAS) v1.9.0 - TRINH GO CAI DAT 1 NHAP DUP
 echo   Thu muc: "%~dp0"
 echo ========================================================================
 echo.

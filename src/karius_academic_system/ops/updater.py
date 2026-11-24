@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,62 @@ WINDOWS_UNINSTALL_REG_SUBKEY = r"Software\Microsoft\Windows\CurrentVersion\Unins
 
 _UPDATE_LOCK = threading.Lock()
 _UPDATE_JOBS: Dict[str, Dict[str, Any]] = {}
+
+
+def _build_ssl_context() -> ssl.SSLContext:
+    """Tạo SSLContext tương thích cả Desktop lẫn Android 8–16 (Chaquopy / Conscrypt APEX / certifi)."""
+    try:
+        from karius_academic_system.web import android_bridge
+
+        android_bridge.configure_android_ssl_certs()
+    except Exception:
+        pass
+
+    cafile: Optional[str] = None
+    capath: Optional[str] = None
+    try:
+        import certifi  # type: ignore
+
+        c = certifi.where()
+        if c and os.path.isfile(c):
+            cafile = c
+    except Exception:
+        pass
+
+    if not cafile:
+        env_file = (os.environ.get("SSL_CERT_FILE") or "").strip()
+        if env_file and os.path.isfile(env_file):
+            cafile = env_file
+
+    for d in (
+        (os.environ.get("SSL_CERT_DIR") or "").strip(),
+        "/apex/com.android.conscrypt/cacerts",
+        "/system/etc/security/cacerts",
+    ):
+        if d and os.path.isdir(d):
+            capath = d
+            break
+
+    try:
+        ctx = ssl.create_default_context(cafile=cafile, capath=capath)
+        if capath and cafile:
+            try:
+                ctx.load_verify_locations(capath=capath)
+            except Exception:
+                pass
+        return ctx
+    except Exception:
+        return ssl.create_default_context()
+
+
+def _urlopen(req: urllib.request.Request, *, timeout: int = 30):
+    """Mở kết nối HTTP/HTTPS kèm SSLContext tương thích Android 8–16 (và an toàn với mock thử nghiệm)."""
+    try:
+        return urllib.request.urlopen(req, timeout=timeout, context=_build_ssl_context())
+    except TypeError as exc:
+        if "context" in str(exc):
+            return urllib.request.urlopen(req, timeout=timeout)
+        raise
 
 
 def update_state_path() -> Path:
@@ -89,11 +146,19 @@ def _extract_release_info(data: Dict[str, Any], repo: str) -> Dict[str, Any]:
     assets = data.get("assets") if isinstance(data.get("assets"), list) else []
 
     wheel_asset: Optional[Dict[str, Any]] = None
+    apk_asset: Optional[Dict[str, Any]] = None
     sha_asset: Optional[Dict[str, Any]] = None
     for a in assets:
         name = str(a.get("name") or "")
         if name.startswith("karius_academic_system-") and name.endswith(".whl"):
             wheel_asset = {
+                "name": name,
+                "url": str(a.get("browser_download_url") or ""),
+                "api_url": str(a.get("url") or ""),
+                "size": int(a.get("size") or 0),
+            }
+        elif name.endswith(".apk") and "kas" in name.lower():
+            apk_asset = {
                 "name": name,
                 "url": str(a.get("browser_download_url") or ""),
                 "api_url": str(a.get("url") or ""),
@@ -124,6 +189,7 @@ def _extract_release_info(data: Dict[str, Any], repo: str) -> Dict[str, Any]:
         "prerelease": bool(data.get("prerelease", False)),
         "release_notes": notes,
         "wheel_asset": wheel_asset,
+        "apk_asset": apk_asset,
         "sha256sums_asset": sha_asset,
         "update_available": update_available,
         "powershell_update_cmd": (
@@ -138,7 +204,7 @@ def fetch_release_metadata(
     tag: str = "",
     channel: str = "",
     github_token: str = "",
-    timeout: int = 10,
+    timeout: int = 12,
 ) -> Dict[str, Any]:
     """Tải siêu dữ liệu bản phát hành từ GitHub Releases API (ổn định, thử nghiệm hoặc tag cụ thể)."""
     st = sc.load_app_settings()
@@ -156,7 +222,7 @@ def fetch_release_metadata(
 
     req = urllib.request.Request(url, headers=_github_headers(tok), method="GET")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with _urlopen(req, timeout=timeout) as resp:
             raw = json.loads(resp.read().decode("utf-8"))
         if isinstance(raw, list):
             published = [r for r in raw if isinstance(r, dict) and not r.get("draft")]
@@ -179,18 +245,22 @@ def fetch_release_metadata(
             }
         return _extract_release_info(data, target_repo)
     except urllib.error.HTTPError as exc:
+        err = f"GitHub API trả về HTTP {exc.code}"
+        sc.record_event("ERROR", "updater", err, detail=url, source="updater")
         return {
             "ok": False,
             "repo": target_repo,
             "current_version": __version__,
-            "error": f"GitHub API trả về HTTP {exc.code}",
+            "error": err,
         }
     except Exception as exc:
+        err = f"Không thể kết nối máy chủ cập nhật: {exc}"
+        sc.record_exception("updater", exc, message=err, source="updater", meta={"url": url})
         return {
             "ok": False,
             "repo": target_repo,
             "current_version": __version__,
-            "error": f"Không thể kết nối máy chủ cập nhật: {exc}",
+            "error": err,
         }
 
 
@@ -230,9 +300,18 @@ def check_for_updates(
             save_update_state(state)
 
     skipped_ver = str(state.get("skipped_version") or "")
+    try:
+        from karius_academic_system.web import android_bridge
+
+        flavor = android_bridge.detect_runtime_flavor()
+    except Exception:
+        flavor = "desktop_host"
+
     res["last_checked_utc"] = str(state.get("last_checked_utc") or "")
     res["skipped_version"] = skipped_ver
     res["is_skipped"] = bool(skipped_ver and skipped_ver == str(res.get("latest_version") or ""))
+    res["runtime_flavor"] = flavor
+    res["is_android_apk"] = flavor == "chaquopy_apk"
     res["auto_check_updates"] = st.auto_check_updates
     res["auto_install_updates"] = st.auto_install_updates
     res["update_channel"] = st.update_channel
@@ -270,8 +349,73 @@ def parse_sha256sums(text: str) -> Dict[str, str]:
 def _download_bytes(url: str, *, token: str = "", is_api_asset: bool = False, timeout: int = 60) -> bytes:
     accept = "application/octet-stream" if is_api_asset else "*/*"
     req = urllib.request.Request(url, headers=_github_headers(token, accept=accept), method="GET")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with _urlopen(req, timeout=timeout) as resp:
         return resp.read()
+
+
+def _download_to_file(
+    url: str,
+    dest_path: Path,
+    *,
+    token: str = "",
+    is_api_asset: bool = False,
+    timeout: int = 180,
+) -> Tuple[int, str]:
+    """Tải luồng tệp lớn (vd: `kas-android.apk` ~34 MB) trực tiếp ra đĩa theo khối 128 KB, đồng thời tính SHA-256."""
+    accept = "application/octet-stream" if is_api_asset else "*/*"
+    req = urllib.request.Request(url, headers=_github_headers(token, accept=accept), method="GET")
+    hasher = hashlib.sha256()
+    total = 0
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    with _urlopen(req, timeout=timeout) as resp:
+        with open(dest_path, "wb") as out_f:
+            while True:
+                chunk = resp.read(131072)
+                if not chunk:
+                    break
+                out_f.write(chunk)
+                hasher.update(chunk)
+                total += len(chunk)
+    return total, hasher.hexdigest().lower()
+
+
+def _verify_asset_sha256(
+    release_info: Dict[str, Any],
+    asset_name: str,
+    actual_sha: str,
+    *,
+    token: str = "",
+    emit: Callable[[str], None],
+) -> Tuple[str, bool]:
+    expected_sha = ""
+    sha_verified = False
+    sha_asset = release_info.get("sha256sums_asset")
+    if isinstance(sha_asset, dict) and (sha_asset.get("url") or sha_asset.get("api_url")):
+        emit("  🔐 Đang kiểm chứng toàn vẹn mật mã SHA-256 từ SHA256SUMS.txt...")
+        try:
+            sha_url = str(sha_asset.get("url") or "")
+            try:
+                sha_bytes = _download_bytes(sha_url, token="", is_api_asset=False, timeout=30)
+            except Exception:
+                if token and sha_asset.get("api_url"):
+                    sha_bytes = _download_bytes(str(sha_asset["api_url"]), token=token, is_api_asset=True, timeout=30)
+                else:
+                    raise
+            sums = parse_sha256sums(sha_bytes.decode("utf-8", errors="replace"))
+            expected_sha = sums.get(asset_name, "")
+            if expected_sha:
+                if expected_sha != actual_sha:
+                    raise RuntimeError(
+                        f"KIỂM CHỨNG SHA-256 THẤT BẠI cho {asset_name}! "
+                        f"Kỳ vọng={expected_sha[:16]}... | Thực tế={actual_sha[:16]}... — Đã hủy cài đặt để bảo vệ an toàn."
+                    )
+                sha_verified = True
+                emit(f"  ✓ Khớp 100% SHA-256 ({actual_sha[:16]}...)")
+        except RuntimeError:
+            raise
+        except Exception as exc:
+            emit(f"  ⚠ Không tải được SHA256SUMS.txt ({exc}) — tiếp tục với tệp từ GitHub HTTPS.")
+    return expected_sha, sha_verified
 
 
 def download_and_verify_wheel(
@@ -292,7 +436,6 @@ def download_and_verify_wheel(
     stage_dir.mkdir(parents=True, exist_ok=True)
     dest_whl = stage_dir / str(whl["name"])
 
-    # 1. Tải gói wheel (ưu tiên URL công khai, dự phòng API asset khi có token)
     dl_url = str(whl.get("url") or "")
     api_url = str(whl.get("api_url") or "")
     emit(f"  ↓ Đang tải {whl['name']} ({sc.human_size(int(whl.get('size') or 0))})...")
@@ -308,36 +451,13 @@ def download_and_verify_wheel(
         raise RuntimeError(f"Gói tải về có kích thước bất thường ({len(raw_whl)} bytes).")
 
     actual_sha = _sha256_bytes(raw_whl)
-    expected_sha = ""
-    sha_verified = False
-
-    # 2. Tải & đối chiếu SHA256SUMS.txt nếu bản phát hành có cung cấp
-    sha_asset = release_info.get("sha256sums_asset")
-    if isinstance(sha_asset, dict) and (sha_asset.get("url") or sha_asset.get("api_url")):
-        emit("  🔐 Đang kiểm chứng toàn vẹn mật mã SHA-256 từ SHA256SUMS.txt...")
-        try:
-            sha_url = str(sha_asset.get("url") or "")
-            try:
-                sha_bytes = _download_bytes(sha_url, token="", is_api_asset=False, timeout=30)
-            except Exception:
-                if tok and sha_asset.get("api_url"):
-                    sha_bytes = _download_bytes(str(sha_asset["api_url"]), token=tok, is_api_asset=True, timeout=30)
-                else:
-                    raise
-            sums = parse_sha256sums(sha_bytes.decode("utf-8", errors="replace"))
-            expected_sha = sums.get(str(whl["name"]), "")
-            if expected_sha:
-                if expected_sha != actual_sha:
-                    raise RuntimeError(
-                        f"KIỂM CHỨNG SHA-256 THẤT BẠI cho {whl['name']}! "
-                        f"Kỳ vọng={expected_sha[:16]}... | Thực tế={actual_sha[:16]}... — Đã hủy cài đặt để bảo vệ an toàn."
-                    )
-                sha_verified = True
-                emit(f"  ✓ Khớp 100% SHA-256 ({actual_sha[:16]}...)")
-        except RuntimeError:
-            raise
-        except Exception as exc:
-            emit(f"  ⚠ Không tải được SHA256SUMS.txt ({exc}) — tiếp tục với tệp từ GitHub HTTPS.")
+    expected_sha, sha_verified = _verify_asset_sha256(
+        release_info,
+        str(whl["name"]),
+        actual_sha,
+        token=tok,
+        emit=emit,
+    )
 
     tmp = dest_whl.with_suffix(".whl.tmp")
     tmp.write_bytes(raw_whl)
@@ -347,6 +467,63 @@ def download_and_verify_wheel(
         "wheel_path": str(dest_whl),
         "wheel_name": str(whl["name"]),
         "size_bytes": len(raw_whl),
+        "sha256": actual_sha,
+        "expected_sha256": expected_sha,
+        "sha256_verified": sha_verified,
+    }
+
+
+def download_and_verify_apk(
+    release_info: Dict[str, Any],
+    *,
+    github_token: str = "",
+    log_cb: Optional[Callable[[str], None]] = None,
+) -> Tuple[Path, Dict[str, Any]]:
+    """Tải luồng gói `kas-android.apk` từ GitHub Release và kiểm chứng SHA-256 cho cập nhật gốc trên Android."""
+    emit = log_cb or (lambda _m: None)
+    apk = release_info.get("apk_asset")
+    if not isinstance(apk, dict) or not apk.get("name"):
+        raise RuntimeError("Bản phát hành chưa đính kèm tệp cài đặt Android (`kas-android.apk`).")
+
+    tok = github_token or sc.get_saved_github_token()
+    tag = str(release_info.get("latest_tag") or f"v{release_info.get('latest_version', 'latest')}")
+    stage_dir = update_staging_dir() / tag
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    apk_name = str(apk["name"])
+    dest_apk = stage_dir / apk_name
+    tmp_apk = dest_apk.with_suffix(".apk.tmp")
+
+    dl_url = str(apk.get("url") or "")
+    api_url = str(apk.get("api_url") or "")
+    emit(f"  ↓ Đang tải gói Android {apk_name} ({sc.human_size(int(apk.get('size') or 0))})...")
+    try:
+        try:
+            size_bytes, actual_sha = _download_to_file(dl_url, tmp_apk, token="", is_api_asset=False, timeout=240)
+        except Exception:
+            if tok and api_url:
+                size_bytes, actual_sha = _download_to_file(api_url, tmp_apk, token=tok, is_api_asset=True, timeout=240)
+            else:
+                raise
+
+        if size_bytes < 100_000:
+            raise RuntimeError(f"Gói APK tải về có kích thước bất thường ({size_bytes} bytes).")
+
+        expected_sha, sha_verified = _verify_asset_sha256(
+            release_info,
+            apk_name,
+            actual_sha,
+            token=tok,
+            emit=emit,
+        )
+        tmp_apk.replace(dest_apk)
+    except Exception:
+        tmp_apk.unlink(missing_ok=True)
+        raise
+
+    return dest_apk, {
+        "apk_path": str(dest_apk),
+        "apk_name": apk_name,
+        "size_bytes": size_bytes,
         "sha256": actual_sha,
         "expected_sha256": expected_sha,
         "sha256_verified": sha_verified,
@@ -373,6 +550,27 @@ def _sync_windows_registry_version(new_version: str) -> bool:
         return False
 
 
+def _sync_windows_desktop_shortcut() -> bool:
+    """Rút gọn lối tắt Desktop cũ (`Karius Academic System (KAS).lnk`) thành `KAS.lnk` nếu tồn tại."""
+    if os.name != "nt":
+        return False
+    changed = False
+    try:
+        user_prof = Path(os.environ.get("USERPROFILE") or str(Path.home()))
+        for folder in (user_prof / "Desktop", user_prof / "OneDrive" / "Desktop"):
+            old_lnk = folder / "Karius Academic System (KAS).lnk"
+            new_lnk = folder / "KAS.lnk"
+            if old_lnk.is_file():
+                if new_lnk.exists():
+                    old_lnk.unlink(missing_ok=True)
+                else:
+                    old_lnk.rename(new_lnk)
+                changed = True
+    except OSError:
+        pass
+    return changed
+
+
 def apply_update(
     *,
     target_version: str = "",
@@ -380,7 +578,7 @@ def apply_update(
     dry_run: bool = False,
     log_cb: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
-    """Tải, xác thực SHA-256 và cài đặt bản cập nhật KAS mới nhất (hoặc bản chỉ định/rollback)."""
+    """Tải, xác thực SHA-256 và cài đặt bản cập nhật KAS mới nhất (hỗ trợ cả Desktop `.whl` lẫn Android `.apk`)."""
     emit = log_cb or (lambda _m: None)
     logs: List[str] = []
 
@@ -388,10 +586,18 @@ def apply_update(
         logs.append(msg)
         emit(msg)
 
-    _emit(f"=== {APP_NAME} ({APP_SHORT}) v{__version__} — TỰ ĐỘNG CẬP NHẬT PHẦN MỀM ===")
+    try:
+        from karius_academic_system.web import android_bridge
+
+        runtime_flavor = android_bridge.detect_runtime_flavor()
+    except Exception:
+        runtime_flavor = "desktop_host"
+
+    _emit(f"=== {APP_NAME} ({APP_SHORT}) v{__version__} — TỰ ĐỘNG CẬP NHẬT PHẦN MỀM ({runtime_flavor}) ===")
     rel = fetch_release_metadata(tag=target_version)
     if not rel.get("ok"):
         _emit(f"  ✗ {rel.get('error')}")
+        sc.record_event("ERROR", "updater", f"Kiểm tra cập nhật thất bại: {rel.get('error')}", source="updater")
         return {"ok": False, "updated": False, "error": rel.get("error"), "logs": logs}
 
     new_ver = str(rel.get("latest_version") or "")
@@ -425,19 +631,73 @@ def apply_update(
             "logs": logs,
         }
 
+    # LUỒNG RIÊNG CHO ỨNG DỤNG ANDROID GỐC (kas-android.apk — Chaquopy không có pip CLI)
+    if runtime_flavor == "chaquopy_apk":
+        try:
+            apk_path, verify_meta = download_and_verify_apk(rel, log_cb=_emit)
+        except Exception as exc:
+            err = f"Lỗi tải / xác thực gói APK Android: {exc}"
+            _emit(f"  ✗ {err}")
+            sc.record_exception("updater", exc, message=err, source="updater")
+            return {"ok": False, "updated": False, "platform": "android_apk", "error": err, "logs": logs}
+
+        state = load_update_state()
+        state["skipped_version"] = ""
+        state["last_checked_ts"] = time.time()
+        state["last_checked_utc"] = sc.now_utc_iso()
+        state["last_check"] = dict(rel, update_available=False)
+        history = list(state.get("history") or [])
+        history.append({
+            "timestamp_utc": sc.now_utc_iso(),
+            "from_version": __version__,
+            "to_version": new_ver,
+            "tag": rel.get("latest_tag", ""),
+            "sha256": verify_meta["sha256"],
+            "sha256_verified": verify_meta["sha256_verified"],
+            "kind": "apk_rollback" if is_rollback else "apk_upgrade",
+        })
+        state["history"] = history[-30:]
+        save_update_state(state)
+
+        _emit(f"  ✓ Đã tải & xác thực trọn vẹn gói cài đặt Android: {apk_path.name}!")
+        _emit("  📲 Đang mở trình cài đặt gói ứng dụng của Android để nâng cấp KAS...")
+        sc.record_event(
+            "INFO",
+            "updater",
+            f"Đã tải và xác thực SHA-256 gói Android APK v{new_ver}",
+            detail=str(apk_path),
+            source="updater",
+        )
+        return {
+            "ok": True,
+            "updated": True,
+            "platform": "android_apk",
+            "requires_apk_install": True,
+            "apk_path": str(apk_path),
+            "apk_url": str((rel.get("apk_asset") or {}).get("url") or ""),
+            "from_version": __version__,
+            "to_version": new_ver,
+            "release": rel,
+            "verification": verify_meta,
+            "logs": logs,
+        }
+
+    # LUỒNG DESKTOP / LINUX / MACOS / TERMUX (.whl qua pip)
     try:
         whl_path, verify_meta = download_and_verify_wheel(rel, log_cb=_emit)
     except Exception as exc:
-        _emit(f"  ✗ Lỗi tải / xác thực bản cập nhật: {exc}")
+        err = f"Lỗi tải / xác thực bản cập nhật: {exc}"
+        _emit(f"  ✗ {err}")
+        sc.record_exception("updater", exc, message=err, source="updater")
         return {"ok": False, "updated": False, "error": str(exc), "logs": logs}
 
     from karius_academic_system.web.lifecycle import resolve_console_python
 
     pip_python = resolve_console_python(sys.executable)
     cmd = [pip_python, "-m", "pip", "install", "--upgrade", "--force-reinstall", "--no-deps", "--no-warn-script-location"]
-    if not _in_virtualenv():
+    if not _in_virtualenv() and runtime_flavor != "termux":
         cmd.append("--user")
-    if os.name != "nt" and not _in_virtualenv():
+    if os.name != "nt" and not _in_virtualenv() and runtime_flavor != "termux":
         cmd.append("--break-system-packages")
     cmd.append(str(whl_path))
 
@@ -445,18 +705,28 @@ def apply_update(
     run_kwargs: Dict[str, Any] = {"capture_output": True, "text": True, "timeout": 180}
     if os.name == "nt":
         run_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    proc = subprocess.run(cmd, **run_kwargs)
-    if proc.returncode != 0 and "--break-system-packages" in cmd:
-        retry = [c for c in cmd if c != "--break-system-packages"]
-        proc = subprocess.run(retry, **run_kwargs)
+    try:
+        proc = subprocess.run(cmd, **run_kwargs)
+        if proc.returncode != 0 and "--break-system-packages" in cmd:
+            retry = [c for c in cmd if c != "--break-system-packages"]
+            proc = subprocess.run(retry, **run_kwargs)
+    except Exception as exc:
+        err = f"Không thể gọi pip để cài đặt: {exc}"
+        _emit(f"  ✗ {err}")
+        sc.record_exception("updater", exc, message=err, source="updater")
+        return {"ok": False, "updated": False, "error": err, "logs": logs}
+
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or "").strip().splitlines()[-1:] or [f"mã lỗi {proc.returncode}"]
         err = f"Cài đặt pip thất bại: {tail[0]}"
         _emit(f"  ✗ {err}")
+        sc.record_event("ERROR", "updater", err, detail=(proc.stderr or "")[-1200:], source="updater")
         return {"ok": False, "updated": False, "error": err, "logs": logs}
 
     if _sync_windows_registry_version(new_ver):
         _emit(f"  ✓ Đã cập nhật số phiên bản v{new_ver} trong Windows Installed Apps.")
+    if _sync_windows_desktop_shortcut():
+        _emit("  ✓ Đã rút gọn lối tắt Desktop thành `KAS`.")
 
     state = load_update_state()
     state["skipped_version"] = ""
@@ -477,6 +747,7 @@ def apply_update(
     save_update_state(state)
 
     _emit(f"  ✓ Cập nhật thành công: v{__version__} → v{new_ver}!")
+    sc.record_event("INFO", "updater", f"Đã cập nhật KAS thành công: v{__version__} → v{new_ver}", source="updater")
     return {
         "ok": True,
         "updated": True,
@@ -502,6 +773,7 @@ def _generate_windows_restart_ps1(
     pythonw = py_path.parent / "pythonw.exe"
     launcher = str(pythonw if pythonw.exists() else py_path).replace("'", "''")
     host_esc = str(host or "127.0.0.1").replace("'", "''")
+    probe_host = "127.0.0.1" if host_esc in {"", "0.0.0.0", "::"} else host_esc
     if reopen_window:
         arg_list = ["-m", "karius_academic_system", "desktop", "--browser", "--port", str(int(port))]
     else:
@@ -525,7 +797,7 @@ def _generate_windows_restart_ps1(
         "for ($i = 0; $i -lt 25; $i++) {",
         "    $busy = $false",
         "    try {",
-        f"        $c = New-Object System.Net.Sockets.TcpClient('{host_esc}', {int(port)})",
+        f"        $c = New-Object System.Net.Sockets.TcpClient('{probe_host}', {int(port)})",
         "        $c.Close()",
         "        $busy = $true",
         "    } catch {}",
@@ -612,7 +884,7 @@ def start_update_job(
     reopen_window: bool = False,
     shutdown_cb: Optional[Callable[[], None]] = None,
 ) -> Tuple[int, Dict[str, Any]]:
-    """Khởi chạy nền tác vụ tự động cập nhật để Web/Desktop UI theo dõi trực tiếp và tự tải lại trang."""
+    """Khởi chạy nền tác vụ tự động cập nhật để Web/Desktop/Android UI theo dõi trực tiếp."""
     with _UPDATE_LOCK:
         for existing in _UPDATE_JOBS.values():
             if existing["status"] == "running":
@@ -626,6 +898,9 @@ def start_update_job(
             "ok": None,
             "updated": False,
             "restarting": False,
+            "requires_apk_install": False,
+            "apk_path": "",
+            "apk_url": "",
             "to_version": "",
             "logs": [],
             "result": None,
@@ -639,7 +914,8 @@ def start_update_job(
     def _worker() -> None:
         try:
             res = apply_update(target_version=target_version, force=force, dry_run=dry_run, log_cb=_cb)
-            will_restart = bool(auto_restart and res.get("ok") and res.get("updated") and not dry_run)
+            req_apk = bool(res.get("requires_apk_install"))
+            will_restart = bool(auto_restart and res.get("ok") and res.get("updated") and not dry_run and not req_apk)
             if will_restart:
                 _cb("  ↻ Đang khởi động lại máy chủ KAS sang phiên bản mới (giao diện sẽ tự tải lại sau vài giây)...")
             with _UPDATE_LOCK:
@@ -648,6 +924,9 @@ def start_update_job(
                     "ok": bool(res.get("ok")),
                     "updated": bool(res.get("updated")),
                     "restarting": will_restart,
+                    "requires_apk_install": req_apk,
+                    "apk_path": str(res.get("apk_path") or ""),
+                    "apk_url": str(res.get("apk_url") or ""),
                     "to_version": str(res.get("to_version") or ""),
                     "finished_utc": sc.now_utc_iso(),
                     "result": res,
@@ -663,6 +942,7 @@ def start_update_job(
                 if callable(shutdown_cb):
                     shutdown_cb()
         except Exception as exc:
+            sc.record_exception("updater", exc, message=f"Lỗi tiến trình tự động cập nhật: {exc}", source="updater")
             with _UPDATE_LOCK:
                 _UPDATE_JOBS[jid]["logs"].append(f"[LỖI] {exc}")
                 _UPDATE_JOBS[jid].update({
@@ -699,9 +979,9 @@ def maybe_start_background_update_check() -> None:
                     f"🚀 Đã có bản cập nhật mới: {APP_SHORT} v{info['latest_version']} "
                     f"(hiện tại: v{__version__}). Chạy `kas update` hoặc bấm cập nhật trên giao diện."
                 )
-                if st.auto_install_updates:
+                if st.auto_install_updates and not info.get("is_android_apk"):
                     res = apply_update(force=False, log_cb=sc.log)
-                    if res.get("ok") and res.get("updated"):
+                    if res.get("ok") and res.get("updated") and not res.get("requires_apk_install"):
                         from karius_academic_system.web.lifecycle import (
                             get_runtime_ui_mode,
                             read_runtime,

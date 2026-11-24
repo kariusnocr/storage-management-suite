@@ -29,7 +29,9 @@ REQUIRED_ANDROID_FILES = [
     ANDROID_DIR / "gradle.properties",
     ANDROID_DIR / "app" / "build.gradle",
     ANDROID_DIR / "app" / "src" / "main" / "AndroidManifest.xml",
+    ANDROID_DIR / "app" / "src" / "main" / "res" / "xml" / "network_security_config.xml",
     ANDROID_DIR / "app" / "src" / "main" / "java" / "io" / "github" / "kariusnocr" / "kas" / "MainActivity.java",
+    ANDROID_DIR / "app" / "src" / "main" / "java" / "io" / "github" / "kariusnocr" / "kas" / "KasFileProvider.java",
     ANDROID_DIR / "app" / "src" / "main" / "python" / "kas_android_boot.py",
     ANDROID_DIR / "install_android_termux.sh",
 ]
@@ -58,6 +60,26 @@ def stage_python_sources() -> Path:
     return STAGED_PKG_DIR
 
 
+def extract_apk_fingerprints(apk_path: Path) -> str:
+    """Trích xuất vân tay chứng chỉ ký số SHA-1 & SHA-256 từ tệp APK đã đóng gói (nếu có `keytool`)."""
+    keytool = shutil.which("keytool")
+    if not keytool or not apk_path.is_file():
+        return ""
+    try:
+        proc = subprocess.run(
+            [keytool, "-printcert", "-jarfile", str(apk_path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if proc.returncode == 0 and proc.stdout:
+            lines = [ln.strip() for ln in proc.stdout.splitlines() if "SHA1:" in ln or "SHA256:" in ln or "Owner:" in ln]
+            return "\n".join(lines)
+    except Exception:
+        pass
+    return ""
+
+
 def build_apk(out_apk: Path, *, clean_staged: bool = True) -> Path:
     stage_python_sources()
     gradle_bin = shutil.which("gradle")
@@ -74,6 +96,14 @@ def build_apk(out_apk: Path, *, clean_staged: bool = True) -> Path:
         out_apk.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(apks[0], out_apk)
         print(f"[ANDROID] Đã tạo gói APK cài đặt thành công: {out_apk} ({out_apk.stat().st_size:,} bytes)")
+        fp = extract_apk_fingerprints(out_apk)
+        if fp:
+            print("[ANDROID] Chứng chỉ ký số APK:\n" + fp)
+            fp_file = out_apk.parent / "kas-android-cert-fingerprints.txt"
+            fp_file.write_text(
+                f"Package: io.github.kariusnocr.kas\nAPK: {out_apk.name}\n{fp}\n",
+                encoding="utf-8",
+            )
         return out_apk
     finally:
         if clean_staged and STAGED_PKG_DIR.exists():

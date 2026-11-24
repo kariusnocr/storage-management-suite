@@ -11,18 +11,35 @@ android {
         applicationId "io.github.kariusnocr.kas"
         minSdk 26
         targetSdk 34
-        versionCode 10800
-        versionName "1.8.0"
+        versionCode 10900
+        versionName "1.9.0"
 
         ndk {
             abiFilters "arm64-v8a", "x86_64"
         }
     }
 
+    signingConfigs {
+        release {
+            def ksPath = System.getenv("KAS_KEYSTORE_PATH")
+            if (ksPath != null && !ksPath.trim().isEmpty() && file(ksPath).exists()) {
+                storeFile file(ksPath)
+                storePassword System.getenv("KAS_KEYSTORE_PASS")
+                keyAlias System.getenv("KAS_KEY_ALIAS")
+                keyPassword System.getenv("KAS_KEY_PASS")
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            def ksPath = System.getenv("KAS_KEYSTORE_PATH")
+            if (ksPath != null && !ksPath.trim().isEmpty() && file(ksPath).exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
         debug {
             minifyEnabled false
@@ -39,6 +56,9 @@ chaquopy {
     defaultConfig {
         version "3.11"
         extractPackages "karius_academic_system"
+        pip {
+            install "certifi"
+        }
         pyc {
             src false
             pip false

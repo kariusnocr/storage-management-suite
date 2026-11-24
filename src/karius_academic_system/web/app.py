@@ -69,10 +69,10 @@ def _read_static_asset(rel_name: str) -> Optional[Tuple[bytes, str]]:
         return None
 
 
-def _api_android_info_data(port: int = 8765) -> Dict[str, Any]:
+def _api_android_info_data(port: int = 8765, listening_host: str = "") -> Dict[str, Any]:
     from karius_academic_system.web import android_bridge
 
-    return android_bridge.detect_android_environment(port=port)
+    return android_bridge.detect_android_environment(port=port, listening_host=listening_host)
 
 
 def _api_android_init_vault_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
@@ -87,7 +87,102 @@ def _api_android_init_vault_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, A
         )
         return 200, res
     except Exception as exc:
+        sc.record_exception("android_vault", exc, message=f"Lỗi tạo Kho Android: {exc}", source="web_api")
         return 400, {"detail": str(exc)}
+
+
+def _api_android_lan_mode_data(
+    body: Dict[str, Any],
+    *,
+    current_host: str = "127.0.0.1",
+    port: int = 8765,
+    stdlib: bool = True,
+    shutdown_cb: Optional[Callable[[], None]] = None,
+) -> Tuple[int, Dict[str, Any]]:
+    from karius_academic_system.ops import updater
+    from karius_academic_system.web import android_bridge
+
+    enabled = bool(body.get("enabled", True))
+    want_restart = bool(body.get("restart", True))
+    target_host = "0.0.0.0" if enabled else "127.0.0.1"
+
+    st = sc.load_app_settings()
+    st.ui_host = target_host
+    sc.save_app_settings(st)
+
+    fw_res: Dict[str, Any] = {"attempted": False, "ok": True, "manual_cmd": ""}
+    if enabled:
+        fw_res = android_bridge.try_open_windows_firewall_ports(http_port=int(port))
+        android_bridge.start_lan_discovery_responder(http_port=int(port))
+    else:
+        android_bridge.stop_lan_discovery_responder()
+
+    flavor = android_bridge.detect_runtime_flavor()
+    already_matching = android_bridge.is_lan_host(current_host) == enabled
+    restarting = bool(want_restart and flavor != "chaquopy_apk" and not already_matching)
+
+    sc.record_event(
+        "INFO",
+        "android_lan",
+        f"Đã {'BẬT' if enabled else 'TẮT'} chế độ chia sẻ máy chủ PC qua Wi-Fi LAN ({target_host}:{int(port)}).",
+        detail=fw_res.get("message", ""),
+        source="web_api",
+    )
+
+    if restarting:
+        def _delayed_rebind() -> None:
+            time.sleep(0.6)
+            updater.schedule_detached_server_restart(
+                host=target_host,
+                port=int(port),
+                stdlib=stdlib,
+                reopen_window=(lc.get_runtime_ui_mode() == "pywebview"),
+            )
+            if callable(shutdown_cb):
+                shutdown_cb()
+
+        threading.Thread(target=_delayed_rebind, daemon=True).start()
+
+    info = android_bridge.detect_android_environment(port=int(port), listening_host=target_host)
+    return 200, {
+        "ok": True,
+        "lan_enabled": enabled,
+        "target_host": target_host,
+        "port": int(port),
+        "restarting": restarting,
+        "firewall": fw_res,
+        "android_info": info,
+    }
+
+
+def _api_logs_list_data(
+    *,
+    level: str = "",
+    category: str = "",
+    query: str = "",
+    limit: int = 200,
+) -> Dict[str, Any]:
+    return sc.list_logs(level=level, category=category, query=query, limit=limit)
+
+
+def _api_logs_client_data(body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
+    msg = str(body.get("message") or "").strip()
+    if not msg:
+        return 400, {"detail": "Thiếu nội dung sự kiện nhật kí (`message`)."}
+    entry = sc.record_event(
+        str(body.get("level") or "ERROR"),
+        str(body.get("category") or "client"),
+        msg,
+        detail=str(body.get("detail") or ""),
+        traceback_text=str(body.get("traceback") or ""),
+        source=str(body.get("source") or "frontend"),
+        meta=body.get("meta") if isinstance(body.get("meta"), dict) else None,
+    )
+    return 200, {"ok": True, "entry": entry}
+
+
+def _api_logs_clear_data() -> Dict[str, Any]:
+    return sc.clear_logs()
 
 
 def _api_health_data() -> Dict[str, Any]:
@@ -1114,7 +1209,40 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     self._send_json(401, {"detail": "Phiên làm việc đang bị khóa. Vui lòng đăng nhập tài khoản KAS.", "locked": True})
                     return
                 if path == "/api/android/info":
-                    self._send_json(200, _api_android_info_data(port=int(self.server.server_address[1])))
+                    self._send_json(
+                        200,
+                        _api_android_info_data(
+                            port=int(self.server.server_address[1]),
+                            listening_host=str(self.server.server_address[0]),
+                        ),
+                    )
+                    return
+                if path == "/api/logs":
+                    self._send_json(
+                        200,
+                        _api_logs_list_data(
+                            level=_q1("level", "") or "",
+                            category=_q1("category", "") or "",
+                            query=_q1("q", "") or "",
+                            limit=int(_q1("limit", "200") or "200"),
+                        ),
+                    )
+                    return
+                if path == "/api/logs/export":
+                    fname, ctype, raw_bytes = sc.export_logs_bundle(
+                        fmt=_q1("format", "txt") or "txt",
+                        level=_q1("level", "") or "",
+                        limit=int(_q1("limit", "1000") or "1000"),
+                    )
+                    self._send_bytes(
+                        200,
+                        raw_bytes,
+                        ctype,
+                        extra_headers=[
+                            ("Content-Disposition", f'attachment; filename="{fname}"'),
+                            ("X-Content-Type-Options", "nosniff"),
+                        ],
+                    )
                     return
                 if path == "/api/settings":
                     self._send_json(200, _api_settings_get_data())
@@ -1287,6 +1415,7 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     return
                 self._send_json(404, {"detail": f"Không tìm thấy đường dẫn: {path}"})
             except Exception as exc:
+                sc.record_exception("web_http", exc, message=f"HTTP GET 500 tại {path}: {exc}", source="stdlib-http")
                 self._send_json(500, {"detail": str(exc)})
 
         def do_POST(self) -> None:
@@ -1468,12 +1597,34 @@ def create_stdlib_server(host: str = "127.0.0.1", port: int = 8765) -> http.serv
                     code, data = _api_android_init_vault_data(body)
                     self._send_json(code, data)
                     return
+                if path == "/api/android/lan-mode":
+                    srv_host, srv_port = str(self.server.server_address[0]), int(self.server.server_address[1])
+                    code, data = _api_android_lan_mode_data(
+                        body,
+                        current_host=srv_host,
+                        port=srv_port,
+                        stdlib=True,
+                        shutdown_cb=lambda: lc.trigger_graceful_shutdown(
+                            delay_sec=0.35,
+                            close_windows=(lc.get_runtime_ui_mode() == "pywebview"),
+                        ),
+                    )
+                    self._send_json(code, data)
+                    return
+                if path == "/api/logs/client":
+                    code, data = _api_logs_client_data(body)
+                    self._send_json(code, data)
+                    return
+                if path == "/api/logs/clear":
+                    self._send_json(200, _api_logs_clear_data())
+                    return
                 if path == "/api/shutdown":
                     self._send_json(200, {"ok": True, "closing": True, "message": "Đang tắt máy chủ cục bộ..."})
                     lc.trigger_graceful_shutdown(delay_sec=0.35, close_windows=True)
                     return
                 self._send_json(404, {"detail": f"Không tìm thấy đường dẫn: {path}"})
             except Exception as exc:
+                sc.record_exception("web_http", exc, message=f"HTTP POST 500 tại {path}: {exc}", source="stdlib-http")
                 self._send_json(500, {"detail": str(exc)})
 
     http.server.ThreadingHTTPServer.allow_reuse_address = True
@@ -1596,6 +1747,52 @@ def create_app():
         if code != 200:
             raise HTTPException(status_code=code, detail=data.get("detail", "Không thể khởi tạo kho Android"))
         return JSONResponse(data)
+
+    @app.post("/api/android/lan-mode")
+    def api_android_lan_mode(request: Request, body: Dict[str, Any] = Body(default={})):
+        from karius_academic_system.web import android_bridge
+
+        cur_host, cur_port = android_bridge.get_active_server_binding()
+        port = int(cur_port or request.url.port or 8765)
+        code, data = _api_android_lan_mode_data(
+            body,
+            current_host=cur_host or (request.url.hostname or "127.0.0.1"),
+            port=port,
+            stdlib=False,
+            shutdown_cb=lambda: lc.trigger_graceful_shutdown(
+                delay_sec=0.35,
+                close_windows=(lc.get_runtime_ui_mode() == "pywebview"),
+            ),
+        )
+        return JSONResponse(data, status_code=code)
+
+    @app.get("/api/logs")
+    def api_logs_list(level: str = "", category: str = "", q: str = "", limit: int = 200) -> Dict[str, Any]:
+        return _api_logs_list_data(level=level, category=category, query=q, limit=limit)
+
+    @app.get("/api/logs/export")
+    def api_logs_export(format: str = "txt", level: str = "", limit: int = 1000):
+        fname, ctype, raw_bytes = sc.export_logs_bundle(fmt=format, level=level, limit=limit)
+        return Response(
+            content=raw_bytes,
+            media_type=ctype,
+            headers={
+                "Content-Disposition": f'attachment; filename="{fname}"',
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.post("/api/logs/client")
+    def api_logs_client(body: Dict[str, Any] = Body(default={})):
+        code, data = _api_logs_client_data(body)
+        if code != 200:
+            raise HTTPException(status_code=code, detail=data.get("detail", "Lỗi ghi nhật kí"))
+        return JSONResponse(data)
+
+    @app.post("/api/logs/clear")
+    def api_logs_clear() -> Dict[str, Any]:
+        return _api_logs_clear_data()
 
     # --- Account & 3rd-Party Integrations ---
     @app.get("/api/account/status")
@@ -2041,7 +2238,10 @@ def start_embedded_server(
     prefer_stdlib: bool = False,
 ) -> Tuple[threading.Thread, Callable[[], None], str]:
     """Khởi chạy máy chủ nền trả về `(thread, stop_fn, engine_name)` (tự dự phòng `--stdlib` trên Windows SAC)."""
+    from karius_academic_system.web import android_bridge
+
     sc.refresh_system_path()
+    sc.install_global_exception_hooks()
     if not prefer_stdlib:
         try:
             import uvicorn
@@ -2051,6 +2251,7 @@ def start_embedded_server(
             server = uvicorn.Server(config)
 
             def _stop_uvicorn() -> None:
+                android_bridge.stop_lan_discovery_responder()
                 server.should_exit = True
                 lc.unregister_shutdown_hook(_stop_uvicorn)
 
@@ -2062,16 +2263,25 @@ def start_embedded_server(
             while not server.started and th.is_alive() and time.monotonic() < deadline:
                 time.sleep(0.05)
             if server.started:
+                android_bridge.set_active_server_binding(host, port)
+                if android_bridge.is_lan_host(host):
+                    android_bridge.start_lan_discovery_responder(http_port=port)
                 return th, _stop_uvicorn, "fastapi+uvicorn"
             lc.unregister_shutdown_hook(_stop_uvicorn)
         except (ImportError, OSError, RuntimeError):
             pass
 
     httpd = create_stdlib_server(host=host, port=port)
+    actual_port = int(httpd.server_address[1])
+    android_bridge.set_active_server_binding(host, actual_port)
+    if android_bridge.is_lan_host(host):
+        android_bridge.start_lan_discovery_responder(http_port=actual_port)
+
     th = threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.2}, daemon=True)
     th.start()
 
     def _stop() -> None:
+        android_bridge.stop_lan_discovery_responder()
         hook = getattr(httpd, "_kas_stop_hook", None)
         if callable(hook):
             lc.unregister_shutdown_hook(hook)
@@ -2094,10 +2304,12 @@ def run_web_server(argv: Optional[List[str]] = None) -> int:
     args = ap.parse_args(argv)
 
     lc.set_process_exit_allowed(True)
-    url = f"http://{args.host}:{args.port}"
+    sc.install_global_exception_hooks()
+    browser_host = "127.0.0.1" if (args.host or "") in {"", "0.0.0.0", "::"} else args.host
+    url = f"http://{browser_host}:{args.port}"
     th, stop_fn, engine = start_embedded_server(host=args.host, port=args.port, prefer_stdlib=args.stdlib)
     lc.register_runtime(host=args.host, port=args.port, stdlib=(engine == "stdlib-http"), mode="ui")
-    sc.log(f"{APP_NAME} ({APP_SHORT}) UI v{__version__} ({engine}) đang chạy tại {url}")
+    sc.log(f"{APP_NAME} ({APP_SHORT}) UI v{__version__} ({engine}) đang chạy tại {url} (bind={args.host}:{args.port})")
     try:
         from karius_academic_system.ops.updater import maybe_start_background_update_check
 

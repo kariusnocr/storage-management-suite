@@ -22,12 +22,12 @@ ANDROID_DIR = REPO_ROOT / "packaging" / "android" / "app" / "src" / "main"
 
 class TestV18AndroidMaterialUi(unittest.TestCase):
     def test_v18_version_alignment_across_web_pwa_and_android(self) -> None:
-        self.assertEqual(__version__, "1.8.0")
+        self.assertGreaterEqual(tuple(int(x) for x in __version__.split(".")[:3]), (1, 8, 0))
 
         html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-        self.assertIn("v1.8.0", html)
-        self.assertIn('/static/styles.css?v=1.8.0', html)
-        self.assertIn('/static/app.js?v=1.8.0', html)
+        self.assertIn(f"v{__version__}", html)
+        self.assertIn(f"/static/styles.css?v={__version__}", html)
+        self.assertIn(f"/static/app.js?v={__version__}", html)
         self.assertIn('id="themeColorMeta"', html)
         self.assertIn('content="#0c0e12"', html)
 
@@ -36,13 +36,13 @@ class TestV18AndroidMaterialUi(unittest.TestCase):
         self.assertEqual(manifest["theme_color"], "#0c0e12")
 
         sw = (STATIC_DIR / "sw.js").read_text(encoding="utf-8")
-        self.assertIn("kas-pwa-v1.8.0", sw)
-        self.assertIn("/static/styles.css?v=1.8.0", sw)
-        self.assertIn("/static/app.js?v=1.8.0", sw)
+        self.assertIn(f"kas-pwa-v{__version__}", sw)
+        self.assertIn(f"/static/styles.css?v={__version__}", sw)
+        self.assertIn(f"/static/app.js?v={__version__}", sw)
 
         gradle = (REPO_ROOT / "packaging" / "android" / "app" / "build.gradle").read_text(encoding="utf-8")
-        self.assertIn("versionCode 10800", gradle)
-        self.assertIn('versionName "1.8.0"', gradle)
+        self.assertRegex(gradle, r"versionCode\s+10[89]\d\d")
+        self.assertIn(f'versionName "{__version__}"', gradle)
 
     def test_android_material3_html_shell_structure(self) -> None:
         html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
@@ -141,7 +141,7 @@ class TestV18AndroidMaterialUi(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         for token in (
-            'KAS_VERSION = "1.8.0"',
+            f'KAS_VERSION = "{__version__}"',
             "#0C0E12",
             "#F6F5F1",
             "WindowInsetsController",

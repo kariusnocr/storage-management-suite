@@ -1,15 +1,14 @@
 {
-  "name": "Karius Academic System (KAS)",
+  "name": "KAS",
   "short_name": "KAS",
-  "description": "Hệ thống Quản trị Tri thức, Đa Kho Dữ Liệu, Duyệt Kho Trực Tiếp & Trợ Lý AI/Agent trên Android và Desktop.",
+  "description": "Karius Academic System (KAS) — Quản trị tri thức đa kho, Duyệt Kho trực tiếp, Chuẩn V6/V7 và Trợ Lý AI/MCP trên Android & Desktop.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0c0e12",
   "theme_color": "#0c0e12",
-  "lang": "vi-VN",
-  "categories": ["productivity", "education", "utilities"],
+  "lang": "vi",
   "icons": [
     {
       "src": "/static/icon.svg",

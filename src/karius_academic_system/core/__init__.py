@@ -122,6 +122,16 @@ from karius_academic_system.core.drive_base import DriveError, DriveProtocol, To
 from karius_academic_system.core.drive_cli import Drive, GDriveCLIClient, find_gdrive_bin, is_gdrive_cli_available
 from karius_academic_system.core.drive_factory import create_backend, create_drive, detect_drive_backends
 from karius_academic_system.core.local_fs import LocalFSBackend, local_path_from_id, make_local_id
+from karius_academic_system.core.logger import (
+    clear_logs,
+    export_logs_bundle,
+    install_global_exception_hooks,
+    list_logs,
+    logs_dir,
+    record_event,
+    record_exception,
+    redact_secrets,
+)
 from karius_academic_system.core.models import AuditFinding, CatalogDecision, PipelineStepResult, StorageItem, UndoAction
 from karius_academic_system.core.naming import (
     ACRONYMS_UPPER,

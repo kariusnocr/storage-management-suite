@@ -1,4 +1,4 @@
-"""Điểm vào Python nhúng trong APK Android (`kas_android_boot.py`) — Karius Academic System (KAS) v1.7.0."""
+"""Điểm vào Python nhúng trong APK Android (`kas_android_boot.py`) — KAS v1.9.0."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 
 from karius_academic_system.web.android_bridge import (
     bootstrap_android_vault,
+    configure_android_ssl_certs,
     start_android_embedded_server,
     stop_android_embedded_server,
 )
@@ -13,6 +14,7 @@ from karius_academic_system.web.android_bridge import (
 
 def start_server_url(app_files_dir: str = "", external_files_dir: str = "", port: int = 8765) -> str:
     """Khởi chạy máy chủ KAS nội bộ trên Android và trả về URL `http://127.0.0.1:<port>`."""
+    configure_android_ssl_certs()
     res = start_android_embedded_server(
         app_files_dir=str(app_files_dir or ""),
         external_files_dir=str(external_files_dir or ""),
@@ -23,6 +25,7 @@ def start_server_url(app_files_dir: str = "", external_files_dir: str = "", port
 
 def start_server_json(app_files_dir: str = "", external_files_dir: str = "", port: int = 8765) -> str:
     """Khởi chạy máy chủ KAS nội bộ trên Android và trả về chuỗi JSON trạng thái."""
+    configure_android_ssl_certs()
     res = start_android_embedded_server(
         app_files_dir=str(app_files_dir or ""),
         external_files_dir=str(external_files_dir or ""),

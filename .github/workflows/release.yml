@@ -108,7 +108,18 @@ jobs:
         with:
           gradle-version: "8.7"
       - name: Build signed kas-android.apk (Chaquopy Python 3.11)
+        env:
+          KAS_ANDROID_KEYSTORE_B64: ${{ secrets.KAS_ANDROID_KEYSTORE_B64 }}
+          KAS_KEYSTORE_PASS: ${{ secrets.KAS_ANDROID_KEYSTORE_PASS }}
+          KAS_KEY_ALIAS: ${{ secrets.KAS_ANDROID_KEY_ALIAS }}
+          KAS_KEY_PASS: ${{ secrets.KAS_ANDROID_KEY_PASS }}
         run: |
+          if [ -n "${KAS_ANDROID_KEYSTORE_B64:-}" ]; then
+            printf '%s' "${KAS_ANDROID_KEYSTORE_B64}" | base64 -d > "${RUNNER_TEMP}/kas-release.jks"
+            export KAS_KEYSTORE_PATH="${RUNNER_TEMP}/kas-release.jks"
+            echo "[ANDROID] Using permanent release signing keystore."
+          fi
+          trap 'rm -f "${RUNNER_TEMP}/kas-release.jks"' EXIT
           for attempt in 1 2 3; do
             echo "[ANDROID] Build attempt ${attempt}/3..."
             if python3 packaging/build_android_apk.py --out dist/kas-android.apk; then
@@ -122,10 +133,15 @@ jobs:
             sleep 12
           done
           ls -lh dist/kas-android.apk
+          if [ -f dist/kas-android-cert-fingerprints.txt ]; then
+            cat dist/kas-android-cert-fingerprints.txt
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: dist/kas-android.apk
+          path: |
+            dist/kas-android.apk
+            dist/kas-android-cert-fingerprints.txt
 
   publish-release:
     name: Publish GitHub Release

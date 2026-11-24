@@ -1,16 +1,20 @@
-"""Cầu nối & Động cơ Khởi chạy Hệ điều hành Android (`kas android` & `kas-android.apk`) — KAS v1.8.0.
+"""Cầu nối & Động cơ Khởi chạy Hệ điều hành Android (`kas android` & `kas-android.apk`) — KAS v1.9.0.
 
 Hỗ trợ:
 1. Ứng dụng Android gốc (`kas-android.apk` / Chaquopy Python 3.11): khởi chạy máy chủ KAS nội bộ trên thiết bị
-   (`127.0.0.1`), tự tạo kho tài liệu mặc định trên bộ nhớ Android và kết nối với `MainActivity` WebView.
-2. Môi trường Android Termux (`install_android_termux.sh`): nhận diện `~/storage/shared` & `/storage/emulated/0`.
-3. Ghép nối Máy tính ↔ Điện thoại Android qua Wi-Fi / LAN (`kas android info`, `kas android serve`).
+   (`127.0.0.1`), tự cấu hình chứng chỉ SSL Android 8–16, tạo kho tài liệu mặc định và kết nối `MainActivity`.
+2. Chứng chỉ ký số cố định lâu dài (`ANDROID_CERT_SHA1` / `ANDROID_CERT_SHA256`) cho Google Auth / OAuth & cài đè APK.
+3. Ghép nối Máy tính ↔ Điện thoại Android qua Wi-Fi / LAN: phát hiện IPv4 LAN ưu tiên Wi-Fi thật,
+   dịch vụ tự khám phá UDP LAN (`KAS_DISCOVER_V1` cổng 8766), bật/tắt chế độ chia sẻ Wi-Fi LAN 1 bấm.
+4. Môi trường Android Termux (`install_android_termux.sh`): nhận diện `~/storage/shared` & `/storage/emulated/0`.
 """
 
 from __future__ import annotations
 
+import json
 import os
 import socket
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -22,39 +26,133 @@ from karius_academic_system import core as sc
 ANDROID_PACKAGE_ID = "io.github.kariusnocr.kas"
 GITHUB_REPO = "kariusnocr/storage-management-suite"
 
+# Vân tay chứng chỉ ký số phát hành cố định của kas-android.apk (dữ liệu công khai — dùng cho Google Cloud OAuth & đối chiếu APK)
+ANDROID_CERT_SHA1 = "FF:D4:BA:CE:3C:48:C1:53:AF:BC:44:B3:AD:FE:6D:5C:31:8B:61:BC"
+ANDROID_CERT_SHA256 = "EC:65:9D:B8:08:53:33:6C:CE:BA:66:46:F2:3F:19:21:D6:2F:12:D3:DB:8B:6C:08:BE:7F:1F:51:14:1E:A0:96"
+
+LAN_DISCOVERY_PORT = 8766
+LAN_DISCOVERY_PROBE = b"KAS_DISCOVER_V1"
+
 _ANDROID_SERVER_LOCK = threading.Lock()
 _ANDROID_SERVER_STATE: Dict[str, Any] = {
     "running": False,
+    "host": "127.0.0.1",
     "port": 0,
     "url": "",
     "engine": "",
     "stop_fn": None,
 }
 
+_ACTIVE_BINDING_LOCK = threading.Lock()
+_ACTIVE_BINDING: Dict[str, Any] = {
+    "host": "",
+    "port": 0,
+}
+
+_DISCOVERY_LOCK = threading.Lock()
+_DISCOVERY_STATE: Dict[str, Any] = {
+    "running": False,
+    "port": 0,
+    "http_port": 8765,
+    "stop_event": None,
+    "sock": None,
+}
+
+
+def set_active_server_binding(host: str, port: int) -> None:
+    """Ghi nhận địa chỉ lắng nghe thực tế của máy chủ Web/Desktop hiện tại."""
+    with _ACTIVE_BINDING_LOCK:
+        _ACTIVE_BINDING["host"] = str(host or "").strip()
+        _ACTIVE_BINDING["port"] = int(port or 0)
+
+
+def get_active_server_binding() -> Tuple[str, int]:
+    with _ACTIVE_BINDING_LOCK:
+        return str(_ACTIVE_BINDING["host"]), int(_ACTIVE_BINDING["port"])
+
+
+def is_lan_host(host: str) -> bool:
+    h = (host or "").strip().lower()
+    return h not in {"", "127.0.0.1", "localhost", "::1"}
+
+
+def configure_android_ssl_certs() -> Dict[str, str]:
+    """Đảm bảo Python/OpenSSL trên Android 8–16 tìm thấy kho chứng chỉ CA hợp lệ cho HTTPS GitHub/Google."""
+    info: Dict[str, str] = {"ssl_cert_file": "", "ssl_cert_dir": ""}
+    try:
+        import certifi  # type: ignore
+
+        ca_file = certifi.where()
+        if ca_file and os.path.isfile(ca_file):
+            os.environ.setdefault("SSL_CERT_FILE", ca_file)
+            os.environ.setdefault("REQUESTS_CA_BUNDLE", ca_file)
+            info["ssl_cert_file"] = ca_file
+    except Exception:
+        pass
+
+    for ca_dir in ("/apex/com.android.conscrypt/cacerts", "/system/etc/security/cacerts"):
+        if os.path.isdir(ca_dir):
+            os.environ.setdefault("SSL_CERT_DIR", ca_dir)
+            info["ssl_cert_dir"] = ca_dir
+            break
+    return info
+
+
+def _ipv4_priority(ip: str) -> Tuple[int, str]:
+    """Ưu tiên dải mạng Wi-Fi/LAN thật (`192.168.*` trước `10.*` trước `172.16-31.*`, hạ ưu tiên VirtualBox/Docker)."""
+    parts = ip.split(".")
+    if len(parts) != 4:
+        return (99, ip)
+    try:
+        a, b = int(parts[0]), int(parts[1])
+    except ValueError:
+        return (99, ip)
+    if a == 192 and b == 168:
+        # 192.168.56.x thường là VirtualBox Host-Only
+        return (20, ip) if int(parts[2]) == 56 else (0, ip)
+    if a == 10:
+        return (1, ip)
+    if a == 172 and 16 <= b <= 31:
+        return (5, ip)
+    return (10, ip)
+
 
 def discover_lan_ipv4() -> List[str]:
-    """Tìm danh sách địa chỉ IPv4 mạng nội bộ (Wi-Fi / LAN / Tailscale) mà không gửi gói tin ra ngoài."""
+    """Tìm danh sách địa chỉ IPv4 mạng nội bộ (ưu tiên Wi-Fi / LAN thật, loại loopback & APIPA 169.254.*)."""
     ips: List[str] = []
 
     def _add(ip: str) -> None:
         ip = (ip or "").strip()
-        if ip and not ip.startswith("127.") and ip != "0.0.0.0" and ":" not in ip and ip not in ips:
+        if (
+            ip
+            and not ip.startswith("127.")
+            and not ip.startswith("169.254.")
+            and ip != "0.0.0.0"
+            and ":" not in ip
+            and ip not in ips
+        ):
             ips.append(ip)
 
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(("10.255.255.255", 1))
-            _add(s.getsockname()[0])
-    except Exception:
-        pass
+    # 1. Thăm dò bảng định tuyến cục bộ (không gửi gói tin thật ra Internet với UDP connect)
+    for probe_target in (("8.8.8.8", 80), ("192.168.1.1", 80), ("10.255.255.255", 1)):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(probe_target)
+                _add(s.getsockname()[0])
+        except Exception:
+            pass
 
-    try:
-        host = socket.gethostname()
-        for info in socket.getaddrinfo(host, None, socket.AF_INET):
-            _add(str(info[4][0]))
-    except Exception:
-        pass
+    # 2. Lấy thêm mọi IPv4 gắn trên tên máy
+    for host_candidate in {socket.gethostname(), socket.getfqdn()}:
+        if not host_candidate:
+            continue
+        try:
+            for info in socket.getaddrinfo(host_candidate, None, socket.AF_INET):
+                _add(str(info[4][0]))
+        except Exception:
+            pass
 
+    ips.sort(key=_ipv4_priority)
     return ips
 
 
@@ -71,6 +169,162 @@ def detect_runtime_flavor() -> str:
     if os.environ.get("ANDROID_ROOT") or os.environ.get("ANDROID_DATA"):
         return "chaquopy_apk"
     return "desktop_host"
+
+
+def start_lan_discovery_responder(http_port: int, discovery_port: int = LAN_DISCOVERY_PORT) -> bool:
+    """Khởi chạy dịch vụ phản hồi UDP LAN (`KAS_DISCOVER_V1`) để ứng dụng Android tự tìm thấy PC cùng Wi-Fi."""
+    with _DISCOVERY_LOCK:
+        if _DISCOVERY_STATE["running"] and _DISCOVERY_STATE["http_port"] == int(http_port):
+            return True
+    stop_lan_discovery_responder()
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("0.0.0.0", int(discovery_port)))
+        sock.settimeout(0.6)
+    except OSError:
+        return False
+
+    stop_ev = threading.Event()
+    bound_udp_port = int(sock.getsockname()[1])
+
+    def _serve_udp() -> None:
+        while not stop_ev.is_set():
+            try:
+                data, addr = sock.recvfrom(512)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            if not data or LAN_DISCOVERY_PROBE not in data:
+                continue
+            try:
+                ips = discover_lan_ipv4()
+                urls = [f"http://{ip}:{int(http_port)}" for ip in ips]
+                payload = json.dumps(
+                    {
+                        "app": APP_SHORT,
+                        "app_name": APP_NAME,
+                        "version": __version__,
+                        "hostname": socket.gethostname(),
+                        "port": int(http_port),
+                        "urls": urls,
+                        "primary_url": urls[0] if urls else "",
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                sock.sendto(payload, addr)
+            except Exception:
+                continue
+        try:
+            sock.close()
+        except Exception:
+            pass
+
+    th = threading.Thread(target=_serve_udp, name="kas-lan-discovery", daemon=True)
+    th.start()
+    with _DISCOVERY_LOCK:
+        _DISCOVERY_STATE.update(
+            {
+                "running": True,
+                "port": bound_udp_port,
+                "http_port": int(http_port),
+                "stop_event": stop_ev,
+                "sock": sock,
+            }
+        )
+    sc.record_event(
+        "INFO",
+        "android_lan",
+        f"Đã bật bộ tự khám phá PC qua Wi-Fi LAN (UDP :{bound_udp_port} → HTTP :{int(http_port)}).",
+        source="android_bridge",
+    )
+    return True
+
+
+def stop_lan_discovery_responder() -> None:
+    with _DISCOVERY_LOCK:
+        ev = _DISCOVERY_STATE.get("stop_event")
+        sock = _DISCOVERY_STATE.get("sock")
+        if ev is not None:
+            ev.set()
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+        _DISCOVERY_STATE.update({"running": False, "port": 0, "stop_event": None, "sock": None})
+
+
+def windows_firewall_hint_command(http_port: int = 8765, udp_port: int = LAN_DISCOVERY_PORT) -> str:
+    return (
+        f'netsh advfirewall firewall add rule name="KAS Wi-Fi LAN (TCP {int(http_port)})" '
+        f"dir=in action=allow protocol=TCP localport={int(http_port)} profile=private; "
+        f'netsh advfirewall firewall add rule name="KAS Wi-Fi Discovery (UDP {int(udp_port)})" '
+        f"dir=in action=allow protocol=UDP localport={int(udp_port)} profile=private"
+    )
+
+
+def try_open_windows_firewall_ports(http_port: int = 8765, udp_port: int = LAN_DISCOVERY_PORT) -> Dict[str, Any]:
+    """Cố gắng mở quy tắc Windows Firewall mạng Private cho TCP/UDP LAN (không gây lỗi nếu thiếu quyền Admin)."""
+    cmd_hint = windows_firewall_hint_command(http_port, udp_port)
+    if os.name != "nt":
+        return {"attempted": False, "ok": True, "message": "Không phải Windows.", "manual_cmd": ""}
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    ok_all = True
+    errors: List[str] = []
+    rules = [
+        (f"KAS Wi-Fi LAN (TCP {int(http_port)})", "TCP", int(http_port)),
+        (f"KAS Wi-Fi Discovery (UDP {int(udp_port)})", "UDP", int(udp_port)),
+    ]
+    for rname, proto, port_num in rules:
+        try:
+            chk = subprocess.run(
+                ["netsh", "advfirewall", "firewall", "show", "rule", f"name={rname}"],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                creationflags=flags,
+            )
+            if chk.returncode == 0 and rname.lower() in (chk.stdout or "").lower():
+                continue
+            add = subprocess.run(
+                [
+                    "netsh",
+                    "advfirewall",
+                    "firewall",
+                    "add",
+                    "rule",
+                    f"name={rname}",
+                    "dir=in",
+                    "action=allow",
+                    f"protocol={proto}",
+                    f"localport={port_num}",
+                    "profile=private",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=8,
+                creationflags=flags,
+            )
+            if add.returncode != 0:
+                ok_all = False
+                errors.append((add.stderr or add.stdout or "").strip())
+        except Exception as exc:
+            ok_all = False
+            errors.append(str(exc))
+    return {
+        "attempted": True,
+        "ok": ok_all,
+        "message": (
+            f"Đã mở cổng Windows Firewall Private (TCP {http_port}, UDP {udp_port})."
+            if ok_all
+            else "Cần quyền Quản trị viên (Run as Administrator) để mở cổng Windows Firewall nếu điện thoại bị tường lửa chặn."
+        ),
+        "errors": [e for e in errors if e],
+        "manual_cmd": cmd_hint,
+    }
 
 
 def candidate_android_storage_paths() -> List[Dict[str, Any]]:
@@ -119,12 +373,15 @@ def candidate_android_storage_paths() -> List[Dict[str, Any]]:
     return results
 
 
-def detect_android_environment(port: int = 8765) -> Dict[str, Any]:
-    """Tổng hợp thông tin môi trường Android, liên kết tải APK, lệnh Termux và địa chỉ ghép nối LAN."""
+def detect_android_environment(port: int = 8765, listening_host: str = "") -> Dict[str, Any]:
+    """Tổng hợp thông tin môi trường Android, chứng chỉ SHA-1, liên kết tải APK, lệnh Termux và trạng thái ghép nối Wi-Fi LAN."""
     flavor = detect_runtime_flavor()
     is_android = flavor in {"chaquopy_apk", "termux"}
     st = sc.load_app_settings()
-    eff_port = int(port or _ANDROID_SERVER_STATE.get("port") or st.ui_port or 8765)
+    bound_host, bound_port = get_active_server_binding()
+    eff_host = (listening_host or bound_host or st.ui_host or "127.0.0.1").strip()
+    eff_port = int(port or bound_port or _ANDROID_SERVER_STATE.get("port") or st.ui_port or 8765)
+    lan_enabled = is_lan_host(eff_host)
     lan_ips = discover_lan_ipv4()
     lan_urls = [f"http://{ip}:{eff_port}" for ip in lan_ips]
     storage_paths = candidate_android_storage_paths()
@@ -145,13 +402,28 @@ def detect_android_environment(port: int = 8765) -> Dict[str, Any]:
         "package_id": ANDROID_PACKAGE_ID,
         "is_android": is_android,
         "runtime_flavor": flavor,
+        "listening_host": eff_host,
         "active_port": eff_port,
+        "lan_enabled": lan_enabled,
+        "lan_discovery_active": bool(_DISCOVERY_STATE.get("running")),
+        "discovery_port": LAN_DISCOVERY_PORT,
         "local_url": f"http://127.0.0.1:{eff_port}",
         "lan_ips": lan_ips,
         "lan_urls": lan_urls,
         "primary_lan_url": lan_urls[0] if lan_urls else f"http://127.0.0.1:{eff_port}",
+        "windows_firewall_cmd": windows_firewall_hint_command(eff_port, LAN_DISCOVERY_PORT),
         "recommended_vault_path": recommended_path,
         "storage_candidates": storage_paths,
+        "signing": {
+            "package_name": ANDROID_PACKAGE_ID,
+            "sha1": ANDROID_CERT_SHA1,
+            "sha256": ANDROID_CERT_SHA256,
+            "oauth_note": (
+                "Dùng mã SHA-1 trên khi tạo OAuth Client loại Android trong Google Auth Platform. "
+                "Lưu ý: Để nạp tệp credentials.json cho tính năng đăng nhập Google Drive trong KAS, "
+                "hãy chọn loại Desktop app (hoạt động chung cho cả PC và Android)."
+            ),
+        },
         "downloads": {
             "apk_latest_url": f"https://github.com/{GITHUB_REPO}/releases/latest/download/kas-android.apk",
             "apk_versioned_url": f"https://github.com/{GITHUB_REPO}/releases/download/v{__version__}/kas-android.apk",
@@ -218,7 +490,7 @@ def bootstrap_android_vault(
             "- **Duyệt Kho**: Chạm vào bất kỳ thư mục nào để đi vào ngay; chạm vào tệp để xem trước trực tiếp.\n"
             "- **Đa Kho Dữ Liệu**: Bạn có thể kết nối thêm thư mục trong bộ nhớ máy (`/storage/emulated/0/...`) "
             "hoặc đăng nhập **Google Drive OAuth 2.0** tại mục *Tài Khoản & Kết Nối*.\n"
-            "- **Ghép nối Máy tính**: Chuyển đổi linh hoạt giữa máy chủ nội bộ trên điện thoại và máy chủ KAS trên PC qua Wi-Fi.\n",
+            "- **Ghép nối Máy tính**: Bật *Chia sẻ Wi-Fi LAN* trên PC, sau đó chạm nút **Tự tìm PC cùng Wi-Fi** trên điện thoại.\n",
             encoding="utf-8",
         )
 
@@ -230,14 +502,13 @@ def bootstrap_android_vault(
     )
     sc.reload_config(vc.slug)
 
-    # Quét nhanh cấu trúc ban đầu vào SQLite để Tổng quan & Tìm kiếm có dữ liệu tức thì
     try:
         from karius_academic_system.ops import indexer
 
         idx = indexer.scan_local_vault(target_dir.resolve())
         sc.save_index(idx, snapshot=False)
-    except Exception:
-        pass
+    except Exception as exc:
+        sc.record_exception("android_vault", exc, message="Lỗi quét chỉ mục ban đầu cho Kho Android")
 
     return {
         "ok": True,
@@ -287,7 +558,9 @@ def start_android_embedded_server(
         if external_files_dir:
             os.environ["KAS_ANDROID_EXTERNAL_DIR"] = str(external_files_dir)
 
-        # Đảm bảo Chaquopy giải nén gói dữ liệu & tài nguyên tĩnh ra hệ thống tệp
+        sc.install_global_exception_hooks()
+        ssl_info = configure_android_ssl_certs()
+
         try:
             import karius_academic_system.data  # noqa: F401
             import karius_academic_system.web.static  # noqa: F401
@@ -305,11 +578,19 @@ def start_android_embedded_server(
         _ANDROID_SERVER_STATE.update(
             {
                 "running": True,
+                "host": "127.0.0.1",
                 "port": bound_port,
                 "url": url,
                 "engine": engine,
                 "stop_fn": stop_fn,
             }
+        )
+        sc.record_event(
+            "INFO",
+            "android_boot",
+            f"Đã khởi chạy máy chủ KAS Android nội bộ v{__version__} tại {url} ({engine})",
+            source="android_bridge",
+            meta={"ssl_cert_file": ssl_info.get("ssl_cert_file", ""), "ssl_cert_dir": ssl_info.get("ssl_cert_dir", "")},
         )
         return {
             "ok": True,
@@ -333,6 +614,7 @@ def stop_android_embedded_server() -> Dict[str, Any]:
         _ANDROID_SERVER_STATE.update(
             {
                 "running": False,
+                "host": "127.0.0.1",
                 "port": 0,
                 "url": "",
                 "engine": "",

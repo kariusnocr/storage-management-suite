@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Cai dat Karius Academic System (KAS) v1.8.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
+    Cai dat Karius Academic System (KAS) v1.9.0 tren Windows 11 AN TOAN VOI SMART APP CONTROL.
 .DESCRIPTION
     100% pure 7-bit ASCII (tuong thich tuyet doi Windows PowerShell 5.1 & PowerShell 7 khong loi ma hoa).
     Khong dung tep .exe chua ky so hay pip.exe. Chay truc tiep qua trinh thong dich Python chinh thuc
@@ -9,7 +9,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = "1.8.0",
+    [string]$Version = "1.9.0",
     [string]$WheelPath = "",
     [string]$GitHubToken = "",
     [string]$Repo = "kariusnocr/storage-management-suite",
@@ -27,7 +27,7 @@ if ($Version -eq "latest") {
         $relLatest = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -Headers @{ "User-Agent" = "KAS-Installer"; Accept = "application/vnd.github+json" }
         if ($relLatest.tag_name) { $Version = $relLatest.tag_name.ToString().TrimStart("v", "V") }
     } catch {
-        $Version = "1.8.0"
+        $Version = "1.9.0"
     }
 }
 
@@ -275,27 +275,39 @@ if ($parts -notcontains $binDir) {
 }
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 
-Write-Host "[5/5] Dang tao loi tat Desktop, Start Menu & dang ky Windows Installed Apps..." -ForegroundColor Cyan
+Write-Host "[5/5] Dang tao loi tat Desktop 'KAS', Start Menu & dang ky Windows Installed Apps..." -ForegroundColor Cyan
 try {
     $wsh = New-Object -ComObject WScript.Shell
     $desktopDir = [Environment]::GetFolderPath("Desktop")
+    $oneDriveDesktop = Join-Path $env:USERPROFILE "OneDrive\Desktop"
     $startMenuDir = Join-Path ([Environment]::GetFolderPath("Programs")) "Karius Academic System"
     New-Item -ItemType Directory -Force -Path $startMenuDir | Out-Null
 
-    foreach ($lnkPath in @(
+    # Xoa loi tat ten dai cu neu co de tranh trung bieu tuong tren Desktop/Start Menu
+    foreach ($legacyLnk in @(
         (Join-Path $desktopDir "Karius Academic System (KAS).lnk"),
+        (Join-Path $oneDriveDesktop "Karius Academic System (KAS).lnk"),
         (Join-Path $startMenuDir "Karius Academic System (KAS).lnk")
+    )) {
+        if (Test-Path $legacyLnk) {
+            Remove-Item -Path $legacyLnk -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    foreach ($lnkPath in @(
+        (Join-Path $desktopDir "KAS.lnk"),
+        (Join-Path $startMenuDir "KAS.lnk")
     )) {
         $sc = $wsh.CreateShortcut($lnkPath)
         $sc.TargetPath = $pythonwExe
         $sc.Arguments = "-m karius_academic_system desktop --browser --stdlib"
         $sc.WorkingDirectory = $env:USERPROFILE
-        $sc.Description = "Karius Academic System (KAS) v$Version - Quan tri Da Kho Du Lieu va AI Agent"
+        $sc.Description = "KAS (Karius Academic System) v$Version - Quan tri Da Kho Du Lieu va AI Agent"
         $sc.IconLocation = "$env:SystemRoot\System32\shell32.dll,43"
         $sc.Save()
     }
 
-    $unSc = $wsh.CreateShortcut((Join-Path $startMenuDir "Go cai dat Karius Academic System (KAS).lnk"))
+    $unSc = $wsh.CreateShortcut((Join-Path $startMenuDir "Go cai dat KAS.lnk"))
     $unSc.TargetPath = $uninstCmdPath
     $unSc.WorkingDirectory = $kasRoot
     $unSc.Description = "Go cai dat Karius Academic System (KAS)"
@@ -316,7 +328,7 @@ try {
     Set-ItemProperty -Path $regPath -Name "NoModify" -Type DWord -Value 1
     Set-ItemProperty -Path $regPath -Name "NoRepair" -Type DWord -Value 1
 
-    Write-Host "      Da tao loi tat Desktop/Start Menu & dang ky Go cai dat trong Windows Settings -> Apps." -ForegroundColor Green
+    Write-Host "      Da tao loi tat Desktop 'KAS' / Start Menu & dang ky Go cai dat trong Windows Settings -> Apps." -ForegroundColor Green
 } catch {
     Write-Host "      (Bo qua tao loi tat/registry: $($_.Exception.Message))" -ForegroundColor Yellow
 }
@@ -329,8 +341,8 @@ $env:PYTHONUTF8 = "1"
 
 Write-Host ""
 Write-Host "HOAN TAT! Ban co the:" -ForegroundColor Green
-Write-Host "  1. Nhap dup 'Karius Academic System (KAS)' tren Desktop (hoac mo tab Chan doan de kiem tra / cai them)." -ForegroundColor White
-Write-Host "  2. Mo PowerShell moi va go: kas doctor  |  kas setup  |  kas vault list" -ForegroundColor Cyan
+Write-Host "  1. Nhap dup bieu tuong 'KAS' tren Desktop (hoac mo tab Chan doan de kiem tra / cai them)." -ForegroundColor White
+Write-Host "  2. Mo PowerShell moi va go: kas doctor  |  kas setup  |  kas logs  |  kas android serve" -ForegroundColor Cyan
 Write-Host ""
 
 if (-not $NoLaunch) {
